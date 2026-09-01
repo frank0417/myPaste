@@ -32,7 +32,7 @@ struct MenuBarPanel: View {
                     Image(systemName: "doc.on.clipboard")
                         .font(.system(size: 28, weight: .light))
                         .foregroundStyle(PasteTheme.accent)
-                    Text(appState.searchQuery.isEmpty ? "复制任意文本后会出现在这里" : "无搜索结果")
+                    Text(appState.searchQuery.isEmpty ? "复制任意文本后会出现在这里\n（菜单栏图标或 ⇧⌘V 打开本面板）" : "无搜索结果")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                     Spacer()

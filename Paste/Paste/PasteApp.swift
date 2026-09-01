@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import AppKit
 
 @main
 struct PasteApp: App {
@@ -8,7 +9,7 @@ struct PasteApp: App {
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([ClipboardItem.self, ClipboardBoard.self])
-        // Local store first. CloudKit requires a development team + iCloud entitlements;
+        // Local store first. CloudKit needs a team + iCloud entitlements;
         // unsigned CI builds must not depend on it for history to persist.
         let local = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false, cloudKitDatabase: .none)
         do {
@@ -21,23 +22,22 @@ struct PasteApp: App {
     var body: some Scene {
         let _ = appDelegate.configure(container: sharedModelContainer, appState: appState)
 
-        MenuBarExtra("Paste", systemImage: "doc.on.clipboard") {
-            MenuBarPanel()
-                .environmentObject(appState)
-                .modelContainer(sharedModelContainer)
-                .frame(width: 420, height: 560)
-        }
-        .menuBarExtraStyle(.window)
-
+        // Main history window (opened from the status-item panel).
         Window("Paste", id: "main") {
             ContentView()
                 .environmentObject(appState)
+                .modelContainer(sharedModelContainer)
                 .frame(minWidth: 720, minHeight: 480)
         }
         .defaultSize(width: 880, height: 600)
         .commands {
             CommandGroup(replacing: .newItem) {}
             CommandMenu("Clipboard") {
+                Button("Show Clipboard Panel") {
+                    StatusItemController.shared.togglePanel()
+                }
+                .keyboardShortcut("v", modifiers: [.command, .shift])
+
                 Button("Clear History…") {
                     appState.requestClearHistory = true
                 }
@@ -65,63 +65,53 @@ struct PasteApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var clipboardStore: ClipboardStore?
-
-    /// Starts clipboard monitoring at launch (MenuBarExtra content may not load until opened).
     private var monitoringObserver: NSObjectProtocol?
+    private var didInstallStatusItem = false
 
     @MainActor
     func configure(container: ModelContainer, appState: AppState) {
-        guard clipboardStore == nil else { return }
-        let store = ClipboardStore(modelContext: container.mainContext, appState: appState, ownsMonitor: true)
-        clipboardStore = store
-        store.startMonitoringIfNeeded()
-        monitoringObserver = NotificationCenter.default.addObserver(
-            forName: .pasteMonitoringPreferenceChanged,
-            object: nil,
-            queue: .main
-        ) { [weak self] note in
-            let enabled = (note.userInfo?["enabled"] as? Bool) ?? true
-            let delegate = self
-            Task { @MainActor in
-                if enabled {
-                    delegate?.clipboardStore?.startMonitoringIfNeeded()
-                } else {
-                    delegate?.clipboardStore?.stopMonitoring()
+        if clipboardStore == nil {
+            let store = ClipboardStore(modelContext: container.mainContext, appState: appState, ownsMonitor: true)
+            clipboardStore = store
+            store.startMonitoringIfNeeded()
+            monitoringObserver = NotificationCenter.default.addObserver(
+                forName: .pasteMonitoringPreferenceChanged,
+                object: nil,
+                queue: .main
+            ) { [weak self] note in
+                let enabled = (note.userInfo?["enabled"] as? Bool) ?? true
+                let delegate = self
+                Task { @MainActor in
+                    if enabled {
+                        delegate?.clipboardStore?.startMonitoringIfNeeded()
+                    } else {
+                        delegate?.clipboardStore?.stopMonitoring()
+                    }
                 }
             }
+        }
+
+        if !didInstallStatusItem {
+            didInstallStatusItem = true
+            StatusItemController.shared.install(container: container, appState: appState)
         }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+
         GlobalHotKeyManager.shared.onHotKey = {
-            NSApp.activate(ignoringOtherApps: true)
-            // Prefer revealing an existing Paste window; MenuBarExtra also stays available.
-            if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "main" || $0.title == "Paste" }) {
-                NSApp.setActivationPolicy(.regular)
-                window.makeKeyAndOrderFront(nil)
-            }
+            // Always toggle the floating clipboard panel — do not require an open main window.
+            StatusItemController.shared.togglePanel()
         }
         GlobalHotKeyManager.shared.registerDefault()
+
+        // Ensure status item exists even if SwiftUI body configure was delayed.
+        // (configure() from body usually runs first.)
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag {
-            openMainWindow()
-        }
+        StatusItemController.shared.showPanel()
         return true
-    }
-
-    private func openMainWindow() {
-        NSApp.setActivationPolicy(.regular)
-        NSApp.activate(ignoringOtherApps: true)
-        if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "main" }) {
-            window.makeKeyAndOrderFront(nil)
-        } else {
-            for window in NSApp.windows where window.title == "Paste" {
-                window.makeKeyAndOrderFront(nil)
-                return
-            }
-        }
     }
 }

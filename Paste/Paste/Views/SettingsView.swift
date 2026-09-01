@@ -37,6 +37,9 @@ struct SettingsView: View {
                     updateLaunchAtLogin(enabled)
                 }
             LabeledContent("快捷键", value: appState.hotkeyDisplay)
+            Text("面板入口：屏幕右上角菜单栏的剪贴板图标，或按 ⇧⌘V。若图标被隐藏，点菜单栏「」并勾选 Paste。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             Section("权限") {
                 LabeledContent("辅助功能") {
@@ -52,7 +55,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Text("请保持菜单栏 Paste 图标在线。复制（⌘C）后稍等半秒，再点图标或按 ⇧⌘V 查看历史。")
+            Text("请点击屏幕右上角剪贴板图标，或按 ⇧⌘V 打开面板。复制（⌘C）后稍等半秒，再点图标或按 ⇧⌘V 查看历史。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -107,7 +110,7 @@ struct SettingsView: View {
                 .font(.title.weight(.bold))
             Text("保存、搜索、同步你复制的一切")
                 .foregroundStyle(.secondary)
-            Text("版本 1.0.2")
+            Text("版本 1.0.3")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
             Spacer()
