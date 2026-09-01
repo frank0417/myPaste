@@ -51,6 +51,8 @@ Paste/
 
 ## App Store 准备清单
 
+> 上架时请使用你自己的唯一应用名 / Bundle ID。已有商业应用名为 Paste，审核时建议使用可区分名称（例如 myPaste）。
+
 - [x] App Sandbox 与 Hardened Runtime
 - [x] CloudKit / iCloud 容器 entitlement
 - [x] Privacy Manifest（`PrivacyInfo.xcprivacy`）
