@@ -21,7 +21,7 @@ struct ContentView: View {
                     .frame(minWidth: 320)
                 Divider()
                 PreviewPane(store: store)
-                    .frame(minWidth: 280, ideal: 340)
+                    .frame(minWidth: 280, idealWidth: 340)
             }
         }
         .background(PasteTheme.backgroundGradient.ignoresSafeArea())

@@ -57,7 +57,7 @@ enum ContentTypeDetector {
 
     static func previewSubtitle(for text: String, type: ClipboardContentType, sourceApp: String?) -> String? {
         let charCount = text.count
-        let lineCount = max(1, text.split(whereSeparator: \.isNewline, omittingEmptySubsequences: false).count)
+        let lineCount = max(1, text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).count)
         switch type {
         case .link:
             return sourceApp ?? "链接"

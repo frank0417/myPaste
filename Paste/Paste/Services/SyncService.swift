@@ -33,8 +33,9 @@ final class SyncService: ObservableObject {
     func startStatusHeartbeat() {
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            let service = self
             Task { @MainActor in
-                self?.refresh()
+                service?.refresh()
             }
         }
         refresh()

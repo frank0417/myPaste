@@ -24,8 +24,9 @@ final class ClipboardMonitor: ObservableObject {
         guard timer == nil else { return }
         lastChangeCount = pasteboard.changeCount
         timer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { [weak self] _ in
+            let monitor = self
             Task { @MainActor in
-                self?.poll()
+                monitor?.poll()
             }
         }
         RunLoop.main.add(timer!, forMode: .common)
@@ -181,12 +182,12 @@ final class ClipboardMonitor: ObservableObject {
         return rep.representation(using: .jpeg, properties: [.compressionFactor: 0.75])
     }
 
-    static func hashString(_ value: String) -> String {
+    nonisolated static func hashString(_ value: String) -> String {
         let digest = SHA256.hash(data: Data(value.utf8))
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
-    static func hashData(_ data: Data) -> String {
+    nonisolated static func hashData(_ data: Data) -> String {
         let digest = SHA256.hash(data: data)
         return digest.map { String(format: "%02x", $0) }.joined()
     }

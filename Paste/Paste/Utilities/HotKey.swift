@@ -36,7 +36,7 @@ final class GlobalHotKeyManager {
         guard status == noErr else { return }
 
         // ⌘⇧V — keyCode 9 is ANSI V
-        var hotKeyID = EventHotKeyID(signature: OSType(0x50415354), id: 1) // 'PAST'
+        let hotKeyID = EventHotKeyID(signature: OSType(0x50415354), id: 1) // 'PAST'
         RegisterEventHotKey(
             UInt32(kVK_ANSI_V),
             UInt32(cmdKey | shiftKey),

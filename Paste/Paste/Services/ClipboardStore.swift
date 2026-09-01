@@ -160,7 +160,7 @@ final class ClipboardStore: ObservableObject {
 
     private func enforceHistoryLimit() {
         let limit = appState?.maxHistoryCount ?? 500
-        var descriptor = FetchDescriptor<ClipboardItem>(
+        let descriptor = FetchDescriptor<ClipboardItem>(
             predicate: #Predicate { !$0.isPinned },
             sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
         )
