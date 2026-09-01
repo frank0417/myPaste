@@ -16,7 +16,6 @@ struct PasteApp: App {
         do {
             return try ModelContainer(for: schema, configurations: [configuration])
         } catch {
-            // Fall back to local-only storage if CloudKit is unavailable.
             let local = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false, cloudKitDatabase: .none)
             do {
                 return try ModelContainer(for: schema, configurations: [local])
@@ -53,6 +52,11 @@ struct PasteApp: App {
                     appState.requestPinSelected = true
                 }
                 .keyboardShortcut("p", modifiers: [.command])
+
+                Button("Export JSON…") {
+                    appState.requestExportJSON = true
+                }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
             }
         }
 
@@ -67,6 +71,15 @@ struct PasteApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        GlobalHotKeyManager.shared.onHotKey = {
+            NSApp.activate(ignoringOtherApps: true)
+            // Prefer revealing an existing Paste window; MenuBarExtra also stays available.
+            if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "main" || $0.title == "Paste" }) {
+                NSApp.setActivationPolicy(.regular)
+                window.makeKeyAndOrderFront(nil)
+            }
+        }
+        GlobalHotKeyManager.shared.registerDefault()
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

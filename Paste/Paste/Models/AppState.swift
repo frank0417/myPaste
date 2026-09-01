@@ -15,6 +15,7 @@ final class AppState: ObservableObject {
     @Published var requestClearHistory: Bool = false
     @Published var requestPinSelected: Bool = false
     @Published var hotkeyDisplay: String = "⇧⌘V"
+    @Published var requestExportJSON: Bool = false
 
     enum ContentFilter: String, CaseIterable, Identifiable {
         case all
@@ -54,6 +55,7 @@ final class AppState: ObservableObject {
 
     init() {
         loadPreferences()
+        hotkeyDisplay = PasteHotKey.defaultDisplay
     }
 
     func loadPreferences() {

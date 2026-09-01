@@ -48,6 +48,9 @@ struct SettingsView: View {
             .onChange(of: appState.maxHistoryCount) { _, _ in
                 appState.savePreferences()
             }
+            Button("导出历史为 JSON…") {
+                appState.requestExportJSON = true
+            }
             Text("超出限制时会自动清理最早的非置顶记录。图片与文件会占用更多磁盘空间。")
                 .font(.caption)
                 .foregroundStyle(.secondary)

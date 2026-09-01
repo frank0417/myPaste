@@ -15,13 +15,11 @@ struct ClipboardItemRow: View {
         Button(action: onSelect) {
             HStack(alignment: .center, spacing: 12) {
                 typeBadge
-
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.previewTitle)
                         .font(.system(.body, design: .default).weight(.medium))
                         .lineLimit(2)
                         .foregroundStyle(.primary)
-
                     HStack(spacing: 6) {
                         if item.isPinned {
                             Image(systemName: "pin.fill")
@@ -38,7 +36,6 @@ struct ClipboardItemRow: View {
                             .foregroundStyle(.tertiary)
                     }
                 }
-
                 if isHovered || isSelected {
                     HStack(spacing: 4) {
                         iconButton("pin", action: onPin)
@@ -53,7 +50,7 @@ struct ClipboardItemRow: View {
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(rowBackground)
-            }
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .strokeBorder(
@@ -81,7 +78,6 @@ struct ClipboardItemRow: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color(hex: item.contentType.accentHex)?.opacity(0.14) ?? PasteTheme.accent.opacity(0.14))
                 .frame(width: 42, height: 42)
-
             if item.contentType == .image, let data = item.thumbnailData ?? item.imageData,
                let nsImage = NSImage(data: data) {
                 Image(nsImage: nsImage)

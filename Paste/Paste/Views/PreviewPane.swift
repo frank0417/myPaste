@@ -5,6 +5,7 @@ import AppKit
 struct PreviewPane: View {
     @EnvironmentObject private var appState: AppState
     @Query(sort: \ClipboardItem.updatedAt, order: .reverse) private var items: [ClipboardItem]
+    @Query(sort: \ClipboardBoard.sortOrder) private var boards: [ClipboardBoard]
     var store: ClipboardStore?
 
     private var selected: ClipboardItem? {
@@ -161,6 +162,15 @@ struct PreviewPane: View {
                 Image(systemName: item.isPinned ? "pin.slash" : "pin")
             }
             .buttonStyle(.bordered)
+
+            Menu {
+                Button("无看板") { store?.assign(item: item, to: nil) }
+                ForEach(boards) { board in
+                    Button(board.name) { store?.assign(item: item, to: board) }
+                }
+            } label: {
+                Label(item.board?.name ?? "看板", systemImage: "square.grid.2x2")
+            }
         }
         .controlSize(.large)
     }

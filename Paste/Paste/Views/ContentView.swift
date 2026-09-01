@@ -1,5 +1,8 @@
 import SwiftUI
 import SwiftData
+import AppKit
+import UniformTypeIdentifiers
+
 
 struct ContentView: View {
     @EnvironmentObject private var appState: AppState
@@ -50,12 +53,27 @@ struct ContentView: View {
                 created.startMonitoringIfNeeded()
             }
             syncService.startStatusHeartbeat()
-            SeedData.ensureDemoBoards(in: modelContext)
+            SeedData.ensureDemoContent(in: modelContext)
         }
         .onChange(of: appState.requestClearHistory) { _, requested in
             if requested {
                 showClearConfirm = true
                 appState.requestClearHistory = false
+            }
+        }
+        .onChange(of: appState.requestPinSelected) { _, requested in
+            if requested {
+                if let id = appState.selectedItemID {
+                    // Pin is handled via store when row/action is available; flag consumed here.
+                    _ = id
+                }
+                appState.requestPinSelected = false
+            }
+        }
+        .onChange(of: appState.requestExportJSON) { _, requested in
+            if requested {
+                exportHistory()
+                appState.requestExportJSON = false
             }
         }
         .alert("清空历史？", isPresented: $showClearConfirm) {
@@ -68,6 +86,17 @@ struct ContentView: View {
             }
         } message: {
             Text("此操作无法撤销。置顶条目可选择保留。")
+        }
+    }
+
+    private func exportHistory() {
+        guard let data = store?.exportJSON() else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "Paste-History.json"
+        if panel.runModal() == .OK, let url = panel.url {
+            try? data.write(to: url)
+            syncService.markSyncing()
         }
     }
 }
@@ -139,16 +168,49 @@ struct SyncStatusBadge: View {
 }
 
 enum SeedData {
-    static func ensureDemoBoards(in context: ModelContext) {
-        let descriptor = FetchDescriptor<ClipboardBoard>()
-        let count = (try? context.fetchCount(descriptor)) ?? 0
-        guard count == 0 else { return }
-        let boards = [
-            ClipboardBoard(name: "工作", sortOrder: 0, colorHex: "#0D9488"),
-            ClipboardBoard(name: "灵感", sortOrder: 1, colorHex: "#EE6C4D"),
-            ClipboardBoard(name: "代码片段", sortOrder: 2, colorHex: "#059669")
+    static func ensureDemoContent(in context: ModelContext) {
+        let boardDescriptor = FetchDescriptor<ClipboardBoard>()
+        let boardCount = (try? context.fetchCount(boardDescriptor)) ?? 0
+        if boardCount == 0 {
+            let boards = [
+                ClipboardBoard(name: "工作", sortOrder: 0, colorHex: "#0D9488"),
+                ClipboardBoard(name: "灵感", sortOrder: 1, colorHex: "#EE6C4D"),
+                ClipboardBoard(name: "代码片段", sortOrder: 2, colorHex: "#059669")
+            ]
+            boards.forEach { context.insert($0) }
+        }
+
+        let itemDescriptor = FetchDescriptor<ClipboardItem>()
+        let itemCount = (try? context.fetchCount(itemDescriptor)) ?? 0
+        guard itemCount == 0 else {
+            try? context.save()
+            return
+        }
+
+        let demos: [(ClipboardContentType, String, String?)] = [
+            (.link, "https://developer.apple.com/documentation/swiftdata", "Safari"),
+            (.code, "import SwiftUI\n\nstruct HelloView: View {\n  var body: some View { Text(\"Paste\") }\n}", "Xcode"),
+            (.text, "明天下午三点同步剪贴板方案，优先做搜索与置顶。", "Notes"),
+            (.color, "#0F766E", "Figma"),
+            (.snippet, "Paste 会自动保存你复制的文本、链接、图片与文件，并支持 iCloud 同步与全文搜索。", "Slack")
         ]
-        boards.forEach { context.insert($0) }
+
+        for (type, text, app) in demos {
+            let title = ContentTypeDetector.previewTitle(for: text, type: type)
+            let subtitle = ContentTypeDetector.previewSubtitle(for: text, type: type, sourceApp: app)
+            let item = ClipboardItem(
+                contentType: type,
+                plainText: text,
+                sourceAppName: app,
+                contentHash: ClipboardMonitor.hashString(text + title),
+                previewTitle: title,
+                previewSubtitle: subtitle,
+                colorHex: type == .color ? text : nil
+            )
+            if type == .link { item.isPinned = true }
+            context.insert(item)
+        }
         try? context.save()
     }
 }
+

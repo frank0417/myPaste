@@ -30,7 +30,6 @@ final class ClipboardStore: ObservableObject {
     }
 
     func ingest(_ payload: CapturedClipboardPayload) {
-        // Deduplicate consecutive identical copies.
         let hash = payload.contentHash
         var descriptor = FetchDescriptor<ClipboardItem>(
             predicate: #Predicate { $0.contentHash == hash },
@@ -64,55 +63,17 @@ final class ClipboardStore: ObservableObject {
     }
 
     func paste(_ item: ClipboardItem) {
-        monitor.ignoreNextPasteboardChange()
-
-        let pb = NSPasteboard.general
-        pb.clearContents()
-
-        switch item.contentType {
-        case .image:
-            if let data = item.imageData, let image = NSImage(data: data) {
-                pb.writeObjects([image])
-            }
-        case .file:
-            pb.writeObjects(item.fileURLs as [NSURL])
-        case .color:
-            if let hex = item.colorHex ?? item.plainText {
-                pb.setString(hex, forType: .string)
-            }
-        default:
-            if let rtf = item.richTextData {
-                pb.setData(rtf, forType: .rtf)
-            }
-            if let text = item.plainText {
-                pb.setString(text, forType: .string)
-            }
-        }
-
+        writeToPasteboard(item)
         item.pasteCount += 1
         item.updatedAt = .now
         try? modelContext.save()
-
-        // Simulate Cmd+V into the previously active app after a short delay.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
             Self.simulatePasteKeystroke()
         }
     }
 
     func copyOnly(_ item: ClipboardItem) {
-        monitor.ignoreNextPasteboardChange()
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        if let data = item.imageData, let image = NSImage(data: data) {
-            pb.writeObjects([image])
-        } else if !item.fileURLs.isEmpty {
-            pb.writeObjects(item.fileURLs as [NSURL])
-        } else if let text = item.plainText {
-            if let rtf = item.richTextData {
-                pb.setData(rtf, forType: .rtf)
-            }
-            pb.setString(text, forType: .string)
-        }
+        writeToPasteboard(item)
         item.updatedAt = .now
         try? modelContext.save()
     }
@@ -146,6 +107,57 @@ final class ClipboardStore: ObservableObject {
         try? modelContext.save()
     }
 
+    func exportJSON() -> Data? {
+        let descriptor = FetchDescriptor<ClipboardItem>(sortBy: [SortDescriptor(\.updatedAt, order: .reverse)])
+        guard let items = try? modelContext.fetch(descriptor) else { return nil }
+        let rows: [[String: Any]] = items.map { item in
+            var row: [String: Any] = [
+                "id": item.id.uuidString,
+                "contentType": item.contentTypeRaw,
+                "previewTitle": item.previewTitle,
+                "isPinned": item.isPinned,
+                "createdAt": ISO8601DateFormatter().string(from: item.createdAt),
+                "updatedAt": ISO8601DateFormatter().string(from: item.updatedAt),
+                "pasteCount": item.pasteCount
+            ]
+            if let text = item.plainText { row["plainText"] = text }
+            if let sub = item.previewSubtitle { row["previewSubtitle"] = sub }
+            if let hex = item.colorHex { row["colorHex"] = hex }
+            if let app = item.sourceAppName { row["sourceAppName"] = app }
+            if let board = item.board?.name { row["board"] = board }
+            if let thumb = item.thumbnailData ?? item.imageData {
+                row["thumbnailBase64"] = thumb.base64EncodedString()
+            }
+            return row
+        }
+        return try? JSONSerialization.data(withJSONObject: rows, options: [.prettyPrinted, .sortedKeys])
+    }
+
+    private func writeToPasteboard(_ item: ClipboardItem) {
+        monitor.ignoreNextPasteboardChange()
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        switch item.contentType {
+        case .image:
+            if let data = item.imageData, let image = NSImage(data: data) {
+                pb.writeObjects([image])
+            }
+        case .file:
+            pb.writeObjects(item.fileURLs as [NSURL])
+        case .color:
+            if let hex = item.colorHex ?? item.plainText {
+                pb.setString(hex, forType: .string)
+            }
+        default:
+            if let rtf = item.richTextData {
+                pb.setData(rtf, forType: .rtf)
+            }
+            if let text = item.plainText {
+                pb.setString(text, forType: .string)
+            }
+        }
+    }
+
     private func enforceHistoryLimit() {
         let limit = appState?.maxHistoryCount ?? 500
         var descriptor = FetchDescriptor<ClipboardItem>(
@@ -161,7 +173,7 @@ final class ClipboardStore: ObservableObject {
 
     private static func simulatePasteKeystroke() {
         let source = CGEventSource(stateID: .hidSystemState)
-        let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true) // V
+        let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true)
         let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false)
         keyDown?.flags = .maskCommand
         keyUp?.flags = .maskCommand

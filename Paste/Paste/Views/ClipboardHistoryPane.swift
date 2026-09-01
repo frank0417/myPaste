@@ -26,7 +26,6 @@ struct ClipboardHistoryPane: View {
                     break
                 }
             }
-
             let q = appState.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !q.isEmpty else { return true }
             let haystack = [
@@ -58,34 +57,25 @@ struct ClipboardHistoryPane: View {
                             ForEach(pinned) { item in
                                 ClipboardItemRow(
                                     item: item,
-                                    isSelected: appState.selectedItemID == item.id
-                                ) {
-                                    appState.selectedItemID = item.id
-                                } onPaste: {
-                                    store?.paste(item)
-                                } onPin: {
-                                    store?.togglePin(item)
-                                } onDelete: {
-                                    store?.delete(item)
-                                }
+                                    isSelected: appState.selectedItemID == item.id,
+                                    onSelect: { appState.selectedItemID = item.id },
+                                    onPaste: { store?.paste(item) },
+                                    onPin: { store?.togglePin(item) },
+                                    onDelete: { store?.delete(item) }
+                                )
                             }
                         }
-
                         if !recent.isEmpty {
                             sectionHeader("最近复制")
                             ForEach(recent) { item in
                                 ClipboardItemRow(
                                     item: item,
-                                    isSelected: appState.selectedItemID == item.id
-                                ) {
-                                    appState.selectedItemID = item.id
-                                } onPaste: {
-                                    store?.paste(item)
-                                } onPin: {
-                                    store?.togglePin(item)
-                                } onDelete: {
-                                    store?.delete(item)
-                                }
+                                    isSelected: appState.selectedItemID == item.id,
+                                    onSelect: { appState.selectedItemID = item.id },
+                                    onPaste: { store?.paste(item) },
+                                    onPin: { store?.togglePin(item) },
+                                    onDelete: { store?.delete(item) }
+                                )
                             }
                         }
                     }
@@ -94,7 +84,6 @@ struct ClipboardHistoryPane: View {
                 }
             }
         }
-        .background(Color.clear)
     }
 
     private func sectionHeader(_ title: String) -> some View {
