@@ -23,13 +23,15 @@ final class ClipboardMonitor: ObservableObject {
     func start() {
         guard timer == nil else { return }
         lastChangeCount = pasteboard.changeCount
-        timer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { [weak self] _ in
+        // Register only for .common so ticks keep firing during menu tracking / panel use.
+        let timer = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
             let monitor = self
             Task { @MainActor in
                 monitor?.poll()
             }
         }
-        RunLoop.main.add(timer!, forMode: .common)
+        self.timer = timer
+        RunLoop.main.add(timer, forMode: .common)
     }
 
     func stop() {
@@ -40,7 +42,7 @@ final class ClipboardMonitor: ObservableObject {
     func pause() { isPaused = true }
     func resume() { isPaused = false }
 
-    /// Call before programmatically writing to the pasteboard so we do not re-capture our own paste.
+    /// Call before writing to the pasteboard so we do not re-capture our own paste.
     func ignoreNextPasteboardChange() {
         ignoreNextChange = true
         lastChangeCount = pasteboard.changeCount

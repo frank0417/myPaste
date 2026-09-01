@@ -31,11 +31,11 @@ struct ContentView: View {
                 Button {
                     appState.isMonitoringEnabled.toggle()
                     appState.savePreferences()
-                    if appState.isMonitoringEnabled {
-                        store?.startMonitoringIfNeeded()
-                    } else {
-                        store?.stopMonitoring()
-                    }
+                    NotificationCenter.default.post(
+                        name: .pasteMonitoringPreferenceChanged,
+                        object: nil,
+                        userInfo: ["enabled": appState.isMonitoringEnabled]
+                    )
                 } label: {
                     Label(
                         appState.isMonitoringEnabled ? "监听中" : "已暂停",
@@ -48,9 +48,8 @@ struct ContentView: View {
         .searchable(text: $appState.searchQuery, prompt: "搜索已复制的一切…")
         .onAppear {
             if store == nil {
-                let created = ClipboardStore(modelContext: modelContext, appState: appState)
-                store = created
-                created.startMonitoringIfNeeded()
+                // UI-only store — AppDelegate owns pasteboard monitoring.
+                store = ClipboardStore(modelContext: modelContext, appState: appState, ownsMonitor: false)
             }
             syncService.startStatusHeartbeat()
             SeedData.ensureDemoContent(in: modelContext)

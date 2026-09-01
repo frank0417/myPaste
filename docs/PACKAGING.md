@@ -71,3 +71,7 @@ make package
 ## CI unsigned builds
 
 Direct-download DMGs from GitHub Actions use `Paste-CI.entitlements` with **App Sandbox disabled**, so clipboard monitoring works. Mac App Store builds should keep `Paste.entitlements` (sandbox + iCloud).
+
+## App Icon
+
+Mac icon assets live in `Paste/Paste/Assets.xcassets/AppIcon.appiconset` (16–1024). Master artwork: `Paste/Paste/Resources/AppIcon-1024.png`.

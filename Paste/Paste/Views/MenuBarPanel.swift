@@ -32,7 +32,7 @@ struct MenuBarPanel: View {
                     Image(systemName: "doc.on.clipboard")
                         .font(.system(size: 28, weight: .light))
                         .foregroundStyle(PasteTheme.accent)
-                    Text(appState.searchQuery.isEmpty ? "剪贴板还是空的" : "无搜索结果")
+                    Text(appState.searchQuery.isEmpty ? "复制任意文本后会出现在这里" : "无搜索结果")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -62,9 +62,8 @@ struct MenuBarPanel: View {
         .background(PasteTheme.backgroundGradient)
         .onAppear {
             if store == nil {
-                let created = ClipboardStore(modelContext: modelContext, appState: appState)
-                store = created
-                created.startMonitoringIfNeeded()
+                // UI-only store: must NOT own the monitor callback (AppDelegate owns it).
+                store = ClipboardStore(modelContext: modelContext, appState: appState, ownsMonitor: false)
             }
             searchFocused = true
         }
@@ -104,9 +103,18 @@ struct MenuBarPanel: View {
 
             Spacer()
 
-            Text(appState.hotkeyDisplay)
-                .font(.caption.monospaced())
-                .foregroundStyle(.tertiary)
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(appState.isMonitoringEnabled ? Color.green.opacity(0.85) : Color.orange.opacity(0.85))
+                    .frame(width: 7, height: 7)
+                Text(appState.isMonitoringEnabled ? "监听中" : "已暂停")
+                    .foregroundStyle(.secondary)
+                Text("·")
+                    .foregroundStyle(.tertiary)
+                Text(appState.hotkeyDisplay)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.tertiary)
+            }
 
             SettingsLink {
                 Image(systemName: "gearshape")

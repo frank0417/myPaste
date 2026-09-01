@@ -8,16 +8,23 @@ final class ClipboardStore: ObservableObject {
     private let modelContext: ModelContext
     private let monitor = ClipboardMonitor.shared
     private weak var appState: AppState?
+    /// Only one store should own the monitor callback. UI panels must pass false or they
+    /// overwrite the launch-time handler and then deallocate when the menu closes — breaking capture.
+    private let ownsMonitor: Bool
 
-    init(modelContext: ModelContext, appState: AppState) {
+    init(modelContext: ModelContext, appState: AppState, ownsMonitor: Bool = false) {
         self.modelContext = modelContext
         self.appState = appState
-        monitor.onNewItem = { [weak self] payload in
-            self?.ingest(payload)
+        self.ownsMonitor = ownsMonitor
+        if ownsMonitor {
+            monitor.onNewItem = { [weak self] payload in
+                self?.ingest(payload)
+            }
         }
     }
 
     func startMonitoringIfNeeded() {
+        guard ownsMonitor else { return }
         guard appState?.isMonitoringEnabled != false else {
             monitor.stop()
             return
@@ -26,6 +33,7 @@ final class ClipboardStore: ObservableObject {
     }
 
     func stopMonitoring() {
+        guard ownsMonitor else { return }
         monitor.stop()
     }
 

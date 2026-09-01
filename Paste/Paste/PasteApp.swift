@@ -8,20 +8,13 @@ struct PasteApp: App {
 
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([ClipboardItem.self, ClipboardBoard.self])
-        let configuration = ModelConfiguration(
-            schema: schema,
-            isStoredInMemoryOnly: false,
-            cloudKitDatabase: .automatic
-        )
+        // Local store first. CloudKit requires a development team + iCloud entitlements;
+        // unsigned CI builds must not depend on it for history to persist.
+        let local = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false, cloudKitDatabase: .none)
         do {
-            return try ModelContainer(for: schema, configurations: [configuration])
+            return try ModelContainer(for: schema, configurations: [local])
         } catch {
-            let local = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false, cloudKitDatabase: .none)
-            do {
-                return try ModelContainer(for: schema, configurations: [local])
-            } catch {
-                fatalError("Failed to create ModelContainer: \(error)")
-            }
+            fatalError("Failed to create ModelContainer: \(error)")
         }
     }()
 
@@ -79,7 +72,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     func configure(container: ModelContainer, appState: AppState) {
         guard clipboardStore == nil else { return }
-        let store = ClipboardStore(modelContext: container.mainContext, appState: appState)
+        let store = ClipboardStore(modelContext: container.mainContext, appState: appState, ownsMonitor: true)
         clipboardStore = store
         store.startMonitoringIfNeeded()
         monitoringObserver = NotificationCenter.default.addObserver(
