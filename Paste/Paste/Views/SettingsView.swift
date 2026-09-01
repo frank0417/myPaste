@@ -37,7 +37,7 @@ struct SettingsView: View {
                     updateLaunchAtLogin(enabled)
                 }
             LabeledContent("快捷键", value: appState.hotkeyDisplay)
-            Text("面板入口：屏幕右上角菜单栏的剪贴板图标，或按 ⇧⌘V。若图标被隐藏，点菜单栏「」并勾选 Paste。")
+            Text("Paste 常驻菜单栏后台：关掉底部面板不会退出。入口是右上角剪贴板图标，或按 ⇧⌘V。右键图标可选退出。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -110,7 +110,7 @@ struct SettingsView: View {
                 .font(.title.weight(.bold))
             Text("保存、搜索、同步你复制的一切")
                 .foregroundStyle(.secondary)
-            Text("版本 1.0.3")
+            Text("版本 1.0.4")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
             Spacer()

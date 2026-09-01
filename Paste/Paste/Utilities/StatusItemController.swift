@@ -2,16 +2,21 @@ import AppKit
 import SwiftUI
 import SwiftData
 
-/// AppKit status-item + floating panel. More reliable than MenuBarExtra for
-/// showing a clipboard panel from a global hotkey.
+/// Menu-bar status item + bottom floating clipboard shelf.
+/// Closing the panel only hides it — the app stays resident for ⇧⌘V.
 @MainActor
 final class StatusItemController: NSObject, NSWindowDelegate {
     static let shared = StatusItemController()
+
+    static let panelWidth: CGFloat = 980
+    static let panelHeight: CGFloat = 320
 
     private var statusItem: NSStatusItem?
     private var panel: NSPanel?
     private var modelContainer: ModelContainer?
     private var appState: AppState?
+    private var localKeyMonitor: Any?
+    private var localClickMonitor: Any?
 
     private override init() {
         super.init()
@@ -27,7 +32,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
                 let image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Paste")
                 image?.isTemplate = true
                 button.image = image
-                button.toolTip = "Paste — 剪贴板历史（⇧⌘V）"
+                button.toolTip = "Paste — 常驻后台（⇧⌘V 唤出）"
                 button.target = self
                 button.action = #selector(statusItemClicked(_:))
                 button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -41,14 +46,52 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     }
 
     @objc private func statusItemClicked(_ sender: Any?) {
-        togglePanel()
+        guard let event = NSApp.currentEvent else {
+            togglePanel()
+            return
+        }
+        if event.type == .rightMouseUp {
+            showStatusMenu()
+        } else {
+            togglePanel()
+        }
+    }
+
+    private func showStatusMenu() {
+        guard let statusItem else { return }
+        let menu = NSMenu()
+        menu.addItem(withTitle: "显示剪贴板", action: #selector(menuShowPanel), keyEquivalent: "")
+        menu.addItem(withTitle: "隐藏面板", action: #selector(menuHidePanel), keyEquivalent: "")
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(withTitle: "设置…", action: #selector(menuOpenSettings), keyEquivalent: ",")
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(withTitle: "退出 Paste", action: #selector(menuQuit), keyEquivalent: "q")
+        for item in menu.items {
+            item.target = self
+        }
+        statusItem.menu = menu
+        statusItem.button?.performClick(nil)
+        // Detach so left-click keeps toggling the panel.
+        DispatchQueue.main.async { [weak self] in
+            self?.statusItem?.menu = nil
+        }
+    }
+
+    @objc private func menuShowPanel() { showPanel() }
+    @objc private func menuHidePanel() { hidePanel() }
+    @objc private func menuOpenSettings() {
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+    @objc private func menuQuit() {
+        NSApp.terminate(nil)
     }
 
     func togglePanel() {
-        guard let panel else {
-            showPanel()
-            return
+        if panel == nil {
+            panel = makePanel()
         }
+        guard let panel else { return }
         if panel.isVisible {
             hidePanel()
         } else {
@@ -57,43 +100,47 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     }
 
     func showPanel() {
-        guard let panel, let button = statusItem?.button else { return }
+        if panel == nil {
+            panel = makePanel()
+        }
+        guard let panel else { return }
 
-        // Refresh hosting root in case environment objects changed.
         if let container = modelContainer, let appState {
             let root = MenuBarPanel()
                 .environmentObject(appState)
                 .modelContainer(container)
-                .frame(width: 420, height: 560)
+                .frame(width: Self.panelWidth, height: Self.panelHeight)
             panel.contentView = NSHostingView(rootView: root)
         }
 
-        positionPanel(panel, relativeTo: button)
-        NSApp.activate(ignoringOtherApps: true)
+        // Always stay a menu-bar agent — never promote to Dock app just to show UI.
+        NSApp.setActivationPolicy(.accessory)
+        positionPanelAtBottom(panel)
         panel.makeKeyAndOrderFront(nil)
         panel.orderFrontRegardless()
+        NSApp.activate(ignoringOtherApps: true)
+        installDismissalMonitors()
     }
 
     func hidePanel() {
+        removeDismissalMonitors()
         panel?.orderOut(nil)
     }
 
     private func makePanel() -> NSPanel {
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 560),
-            styleMask: [.titled, .closable, .fullSizeContentView, .nonactivatingPanel],
+            contentRect: NSRect(x: 0, y: 0, width: Self.panelWidth, height: Self.panelHeight),
+            styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
-        panel.title = "Paste"
-        panel.titleVisibility = .hidden
-        panel.titlebarAppearsTransparent = true
         panel.isFloatingPanel = true
         panel.level = .floating
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.isMovableByWindowBackground = true
         panel.hidesOnDeactivate = false
         panel.becomesKeyOnlyIfNeeded = false
+        panel.isReleasedWhenClosed = false
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = true
@@ -103,39 +150,73 @@ final class StatusItemController: NSObject, NSWindowDelegate {
             let root = MenuBarPanel()
                 .environmentObject(appState)
                 .modelContainer(container)
-                .frame(width: 420, height: 560)
+                .frame(width: Self.panelWidth, height: Self.panelHeight)
             panel.contentView = NSHostingView(rootView: root)
         }
 
         return panel
     }
 
-    private func positionPanel(_ panel: NSPanel, relativeTo button: NSStatusBarButton) {
-        guard let buttonWindow = button.window else {
+    private func positionPanelAtBottom(_ panel: NSPanel) {
+        let screen = NSScreen.main ?? NSScreen.screens.first
+        guard let visible = screen?.visibleFrame else {
             panel.center()
             return
         }
-        let buttonRect = button.convert(button.bounds, to: nil)
-        let screenRect = buttonWindow.convertToScreen(buttonRect)
-        let panelSize = panel.frame.size
-        var origin = NSPoint(
-            x: screenRect.midX - panelSize.width / 2,
-            y: screenRect.minY - panelSize.height - 8
-        )
-
-        if let screen = buttonWindow.screen ?? NSScreen.main {
-            let visible = screen.visibleFrame
-            origin.x = min(max(origin.x, visible.minX + 8), visible.maxX - panelSize.width - 8)
-            if origin.y < visible.minY + 8 {
-                origin.y = screenRect.maxY + 8
-            }
-        }
-        panel.setFrameOrigin(origin)
+        let width = min(Self.panelWidth, visible.width - 24)
+        let height = Self.panelHeight
+        let x = visible.midX - width / 2
+        let y = visible.minY + 18
+        panel.setFrame(NSRect(x: x, y: y, width: width, height: height), display: true)
     }
 
-    func windowDidResignKey(_ notification: Notification) {
-        // Keep panel open when interacting with other apps is fine for clipboard use;
-        // only auto-hide if user clicks away while it's a transient popover-like panel.
-        // Disabled auto-hide so hotkey + click remain predictable.
+    private func installDismissalMonitors() {
+        removeDismissalMonitors()
+
+        localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if event.keyCode == 53 { // Escape
+                self?.hidePanel()
+                return nil
+            }
+            return event
+        }
+
+        localClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            guard let self, let panel = self.panel, panel.isVisible else { return }
+            let screenPoint = NSEvent.mouseLocation
+            if !panel.frame.contains(screenPoint) {
+                // Ignore clicks on the status item button itself (toggle handles that).
+                if let button = self.statusItem?.button,
+                   let buttonWindow = button.window {
+                    let buttonRect = button.convert(button.bounds, to: nil)
+                    let screenRect = buttonWindow.convertToScreen(buttonRect)
+                    if screenRect.contains(screenPoint) { return }
+                }
+                Task { @MainActor in
+                    self.hidePanel()
+                }
+            }
+        }
+    }
+
+    private func removeDismissalMonitors() {
+        if let localKeyMonitor {
+            NSEvent.removeMonitor(localKeyMonitor)
+            self.localKeyMonitor = nil
+        }
+        if let localClickMonitor {
+            NSEvent.removeMonitor(localClickMonitor)
+            self.localClickMonitor = nil
+        }
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        hidePanel()
+        return false
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        // Belt-and-suspenders: never let close tear down residency.
+        removeDismissalMonitors()
     }
 }

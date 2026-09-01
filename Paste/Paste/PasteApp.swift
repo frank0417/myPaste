@@ -22,7 +22,7 @@ struct PasteApp: App {
     var body: some Scene {
         let _ = appDelegate.configure(container: sharedModelContainer, appState: appState)
 
-        // Main history window (opened from the status-item panel).
+        // Optional main window — closing it must NOT quit the agent app.
         Window("Paste", id: "main") {
             ContentView()
                 .environmentObject(appState)
@@ -98,20 +98,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Menu-bar agent: no Dock icon. Closing the shelf only hides UI.
         NSApp.setActivationPolicy(.accessory)
 
         GlobalHotKeyManager.shared.onHotKey = {
-            // Always toggle the floating clipboard panel — do not require an open main window.
             StatusItemController.shared.togglePanel()
         }
         GlobalHotKeyManager.shared.registerDefault()
+    }
 
-        // Ensure status item exists even if SwiftUI body configure was delayed.
-        // (configure() from body usually runs first.)
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        // Critical: keep running in the background after the panel/main window is closed.
+        false
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         StatusItemController.shared.showPanel()
         return true
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        GlobalHotKeyManager.shared.unregister()
     }
 }
