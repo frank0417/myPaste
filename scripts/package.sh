@@ -255,7 +255,9 @@ APP_ZIP_PATH="$DIST/$APP_ZIP_NAME"
   {
     shasum -a 256 "$DMG_NAME"
     shasum -a 256 "$APP_ZIP_NAME"
-    [[ -n "$PKG_PATH" && -f "$(basename "$PKG_PATH")" ]] && shasum -a 256 "$(basename "$PKG_PATH")"
+    if [[ -n "$PKG_PATH" && -f "$(basename "$PKG_PATH")" ]]; then
+      shasum -a 256 "$(basename "$PKG_PATH")"
+    fi
   } > SHA256.txt
 )
 
@@ -264,7 +266,9 @@ echo "✅ 打包完成"
 echo "  App : $APP_DST"
 echo "  ZIP : $APP_ZIP_PATH"
 echo "  DMG : $DMG_PATH"
-[[ -n "$PKG_PATH" ]] && echo "  PKG : $PKG_PATH"
+if [[ -n "$PKG_PATH" ]]; then
+  echo "  PKG : $PKG_PATH"
+fi
 echo
 echo "安装方式："
 echo "  1. 打开 $DMG_NAME"
