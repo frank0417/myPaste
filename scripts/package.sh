@@ -97,12 +97,19 @@ COMMON_ARGS=(
 )
 
 if [[ "$SIGN" -eq 0 ]]; then
+  # CI / local smoke builds: ad-hoc sign with sandbox-only entitlements (no iCloud team).
+  CI_ENTS="$ROOT/Paste/Paste/Paste-CI.entitlements"
   COMMON_ARGS+=(
     CODE_SIGN_IDENTITY="-"
     CODE_SIGNING_ALLOWED=YES
     CODE_SIGNING_REQUIRED=NO
     AD_HOC_CODE_SIGNING_ALLOWED=YES
+    DEVELOPMENT_TEAM=
+    CODE_SIGN_STYLE=Manual
   )
+  if [[ -f "$CI_ENTS" ]]; then
+    COMMON_ARGS+=(CODE_SIGN_ENTITLEMENTS="$CI_ENTS")
+  fi
 else
   if [[ -z "$IDENTITY" ]]; then
     IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null | awk -F'"' '/Developer ID Application/{print $2; exit}')"
@@ -234,10 +241,20 @@ if [[ "$NOTARIZE" -eq 1 ]]; then
   fi
 fi
 
+# Also ship a zip of the .app for Actions / quick download
+APP_ZIP_NAME="${APP_NAME}-${VERSION}-macos.zip"
+APP_ZIP_PATH="$DIST/$APP_ZIP_NAME"
+(
+  cd "$DIST"
+  rm -f "$APP_ZIP_NAME"
+  ditto -c -k --sequesterRsrc --keepParent "${APP_NAME}.app" "$APP_ZIP_NAME"
+)
+
 (
   cd "$DIST"
   {
     shasum -a 256 "$DMG_NAME"
+    shasum -a 256 "$APP_ZIP_NAME"
     [[ -n "$PKG_PATH" && -f "$(basename "$PKG_PATH")" ]] && shasum -a 256 "$(basename "$PKG_PATH")"
   } > SHA256.txt
 )
@@ -245,6 +262,7 @@ fi
 echo
 echo "✅ 打包完成"
 echo "  App : $APP_DST"
+echo "  ZIP : $APP_ZIP_PATH"
 echo "  DMG : $DMG_PATH"
 [[ -n "$PKG_PATH" ]] && echo "  PKG : $PKG_PATH"
 echo
