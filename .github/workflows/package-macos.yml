@@ -1,0 +1,73 @@
+name: Package macOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Marketing version (e.g. 1.0.0)
+        required: false
+        default: "1.0.0"
+      create_pkg:
+        description: Also build .pkg installer
+        type: boolean
+        required: false
+        default: false
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Build DMG
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="${{ inputs.version || '1.0.0' }}"
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Building Paste $V"
+
+      - name: Package (unsigned CI build)
+        env:
+          MARKETING_VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          chmod +x scripts/package.sh
+          EXTRA=""
+          if [[ "${{ inputs.create_pkg }}" == "true" ]]; then
+            EXTRA="--pkg"
+          fi
+          ./scripts/package.sh --version "$MARKETING_VERSION" $EXTRA
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Paste-${{ steps.ver.outputs.version }}-macos
+          path: |
+            dist/*.dmg
+            dist/*.pkg
+            dist/SHA256.txt
+            dist/*.app
+          if-no-files-found: error
+
+      - name: Summarize
+        run: |
+          echo "## Paste ${{ steps.ver.outputs.version }} packages" >> "$GITHUB_STEP_SUMMARY"
+          ls -lh dist >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          echo "CI builds are **ad-hoc / unsigned** for smoke packaging." >> "$GITHUB_STEP_SUMMARY"
+          echo "For Gatekeeper-friendly installs, run on a Mac with Developer ID:" >> "$GITHUB_STEP_SUMMARY"
+          echo '\`./scripts/package.sh --sign --notarize\`' >> "$GITHUB_STEP_SUMMARY"

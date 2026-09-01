@@ -65,6 +65,22 @@ Paste/
 - [ ] App Store Connect 截图与审核说明（需说明剪贴板与辅助功能用途）
 - [ ] 可选：接入 `KeyboardShortcuts` 等库做可自定义全局热键
 
+## 打安装包（.dmg / .pkg）
+
+在 **Mac + Xcode** 上：
+
+```bash
+./scripts/package.sh              # 生成 dist/Paste.app + dist/Paste-1.0.0.dmg
+./scripts/package.sh --sign --pkg # Developer ID 签名 + .pkg
+make package                      # 同上（Makefile 封装）
+```
+
+也可用 GitHub Actions：**Actions → Package macOS → Run workflow**，从 Artifacts 下载 DMG。
+
+详细步骤见 [docs/PACKAGING.md](docs/PACKAGING.md)。
+
+> 本 Cloud / Linux 环境无法编译 macOS 二进制；安装包需在 Mac 或 CI 的 `macos-14` runner 上生成。
+
 ## UI 预览
 
 当前云环境无法编译 macOS 应用。可用浏览器打开交互预览：
