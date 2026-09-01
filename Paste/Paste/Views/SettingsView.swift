@@ -41,7 +41,7 @@ struct SettingsView: View {
             Section("权限") {
                 LabeledContent("辅助功能") {
                     Text(AccessibilityPermission.isTrusted ? "已允许" : "未允许")
-                        .foregroundStyle(AccessibilityPermission.isTrusted ? .secondary : .orange)
+                        .foregroundStyle(AccessibilityPermission.isTrusted ? Color.secondary : Color.orange)
                 }
                 Button("在系统设置中允许 Paste…") {
                     AccessibilityPermission.requestIfNeeded(prompt: true)

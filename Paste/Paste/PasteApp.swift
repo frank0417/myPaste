@@ -87,12 +87,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil,
             queue: .main
         ) { [weak self] note in
+            let enabled = (note.userInfo?["enabled"] as? Bool) ?? true
+            let delegate = self
             Task { @MainActor in
-                let enabled = (note.userInfo?["enabled"] as? Bool) ?? true
                 if enabled {
-                    self?.clipboardStore?.startMonitoringIfNeeded()
+                    delegate?.clipboardStore?.startMonitoringIfNeeded()
                 } else {
-                    self?.clipboardStore?.stopMonitoring()
+                    delegate?.clipboardStore?.stopMonitoring()
                 }
             }
         }
