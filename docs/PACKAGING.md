@@ -67,3 +67,7 @@ make package
 
 - 当前 Linux / Cloud Agent 环境 **无法** 真正编译 `.app`，脚本会明确提示去 Mac 或 Actions 执行。
 - 上架 Mac App Store 时请使用可区分的应用显示名（如 myPaste），并配置真实 Team / iCloud 容器。
+
+## CI unsigned builds
+
+Direct-download DMGs from GitHub Actions use `Paste-CI.entitlements` with **App Sandbox disabled**, so clipboard monitoring works. Mac App Store builds should keep `Paste.entitlements` (sandbox + iCloud).

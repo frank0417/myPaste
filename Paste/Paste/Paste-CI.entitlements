@@ -2,10 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!--
+	  CI / direct-download builds intentionally run WITHOUT App Sandbox.
+	  Sandboxed menu-bar apps cannot reliably observe NSPasteboard changes from
+	  other apps, which breaks clipboard history. Mac App Store builds should
+	  continue using Paste.entitlements (sandbox + iCloud).
+	-->
 	<key>com.apple.security.app-sandbox</key>
-	<true/>
-	<key>com.apple.security.files.user-selected.read-only</key>
-	<true/>
+	<false/>
 	<key>com.apple.security.network.client</key>
 	<true/>
 </dict>

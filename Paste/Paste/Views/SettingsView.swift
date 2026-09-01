@@ -23,8 +23,13 @@ struct SettingsView: View {
     private var generalTab: some View {
         Form {
             Toggle("监听剪贴板", isOn: $appState.isMonitoringEnabled)
-                .onChange(of: appState.isMonitoringEnabled) { _, _ in
+                .onChange(of: appState.isMonitoringEnabled) { _, enabled in
                     appState.savePreferences()
+                    NotificationCenter.default.post(
+                        name: .pasteMonitoringPreferenceChanged,
+                        object: nil,
+                        userInfo: ["enabled": enabled]
+                    )
                 }
             Toggle("登录时启动", isOn: $appState.launchAtLogin)
                 .onChange(of: appState.launchAtLogin) { _, enabled in
@@ -32,7 +37,22 @@ struct SettingsView: View {
                     updateLaunchAtLogin(enabled)
                 }
             LabeledContent("快捷键", value: appState.hotkeyDisplay)
-            Text("点击菜单栏图标打开面板，双击条目即可粘贴到当前应用。")
+
+            Section("权限") {
+                LabeledContent("辅助功能") {
+                    Text(AccessibilityPermission.isTrusted ? "已允许" : "未允许")
+                        .foregroundStyle(AccessibilityPermission.isTrusted ? .secondary : .orange)
+                }
+                Button("在系统设置中允许 Paste…") {
+                    AccessibilityPermission.requestIfNeeded(prompt: true)
+                    AccessibilityPermission.openSystemSettings()
+                }
+                Text("自动记录复制内容不需要辅助功能。只有「一键粘贴到其他 App」才需要。若列表里没有 Paste，先点此按钮再刷新列表。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Text("请保持菜单栏 Paste 图标在线。复制（⌘C）后稍等半秒，再点图标或按 ⇧⌘V 查看历史。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -87,7 +107,7 @@ struct SettingsView: View {
                 .font(.title.weight(.bold))
             Text("保存、搜索、同步你复制的一切")
                 .foregroundStyle(.secondary)
-            Text("版本 1.0.0")
+            Text("版本 1.0.1")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
             Spacer()

@@ -68,6 +68,10 @@ final class ClipboardStore: ObservableObject {
         item.updatedAt = .now
         try? modelContext.save()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            // Accessibility is only required to synthesize ⌘V. Content is already on the pasteboard.
+            if !AccessibilityPermission.isTrusted {
+                AccessibilityPermission.requestIfNeeded(prompt: true)
+            }
             Self.simulatePasteKeystroke()
         }
     }

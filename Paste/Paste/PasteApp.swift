@@ -26,6 +26,8 @@ struct PasteApp: App {
     }()
 
     var body: some Scene {
+        let _ = appDelegate.configure(container: sharedModelContainer, appState: appState)
+
         MenuBarExtra("Paste", systemImage: "doc.on.clipboard") {
             MenuBarPanel()
                 .environmentObject(appState)
@@ -69,6 +71,33 @@ struct PasteApp: App {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var clipboardStore: ClipboardStore?
+
+    /// Starts clipboard monitoring at launch (MenuBarExtra content may not load until opened).
+    private var monitoringObserver: NSObjectProtocol?
+
+    @MainActor
+    func configure(container: ModelContainer, appState: AppState) {
+        guard clipboardStore == nil else { return }
+        let store = ClipboardStore(modelContext: container.mainContext, appState: appState)
+        clipboardStore = store
+        store.startMonitoringIfNeeded()
+        monitoringObserver = NotificationCenter.default.addObserver(
+            forName: .pasteMonitoringPreferenceChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            Task { @MainActor in
+                let enabled = (note.userInfo?["enabled"] as? Bool) ?? true
+                if enabled {
+                    self?.clipboardStore?.startMonitoringIfNeeded()
+                } else {
+                    self?.clipboardStore?.stopMonitoring()
+                }
+            }
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         GlobalHotKeyManager.shared.onHotKey = {

@@ -74,3 +74,8 @@ final class AppState: ObservableObject {
         defaults.set(syncEnabled, forKey: "syncEnabled")
     }
 }
+
+
+extension Notification.Name {
+    static let pasteMonitoringPreferenceChanged = Notification.Name("pasteMonitoringPreferenceChanged")
+}
