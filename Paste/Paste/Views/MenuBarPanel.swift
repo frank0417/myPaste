@@ -62,6 +62,11 @@ struct MenuBarPanel: View {
             if let selected = appState.selectedItemID, ids.contains(selected) { return }
             appState.selectedItemID = ids.first
         }
+        .onChange(of: items.map(\.id)) { _, ids in
+            if let detailID = appState.shelfDetailItemID, !ids.contains(detailID) {
+                appState.shelfDetailItemID = nil
+            }
+        }
         .focusable()
         .onKeyPress(.leftArrow) {
             moveSelection(by: -1)
