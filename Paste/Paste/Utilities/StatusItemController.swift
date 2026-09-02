@@ -179,6 +179,10 @@ final class StatusItemController: NSObject, NSWindowDelegate {
 
         localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             if event.keyCode == 53 { // Escape
+                if self?.appState?.shelfDetailItemID != nil {
+                    self?.appState?.shelfDetailItemID = nil
+                    return nil
+                }
                 self?.hidePanel()
                 return nil
             }

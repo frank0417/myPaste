@@ -27,16 +27,29 @@ struct MenuBarPanel: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            topBar
-            shelf
+        ZStack {
+            VStack(spacing: 0) {
+                topBar
+                shelf
+            }
+            .background {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(.ultraThinMaterial)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .shadow(color: .black.opacity(0.14), radius: 20, y: 8)
+
+            if let detailItem = detailItem {
+                ClipboardItemDetailOverlay(
+                    item: detailItem,
+                    store: store,
+                    onClose: { appState.shelfDetailItemID = nil },
+                    onPaste: { paste(detailItem) }
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            }
         }
-        .background {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(.ultraThinMaterial)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .shadow(color: .black.opacity(0.14), radius: 20, y: 8)
+        .animation(.easeOut(duration: 0.2), value: appState.shelfDetailItemID)
         .onAppear {
             if store == nil {
                 store = ClipboardStore(modelContext: modelContext, appState: appState, ownsMonitor: false)
@@ -59,9 +72,18 @@ struct MenuBarPanel: View {
             return .handled
         }
         .onKeyPress(.return) {
-            pasteSelected()
+            if appState.shelfDetailItemID != nil, let item = detailItem {
+                paste(item)
+            } else {
+                pasteSelected()
+            }
             return .handled
         }
+    }
+
+    private var detailItem: ClipboardItem? {
+        guard let id = appState.shelfDetailItemID else { return nil }
+        return items.first(where: { $0.id == id })
     }
 
     private var topBar: some View {
@@ -196,6 +218,10 @@ struct MenuBarPanel: View {
                             index: index + 1,
                             isSelected: appState.selectedItemID == item.id,
                             onSelect: { appState.selectedItemID = item.id },
+                            onOpenDetail: {
+                                appState.selectedItemID = item.id
+                                appState.shelfDetailItemID = item.id
+                            },
                             onPaste: { paste(item) },
                             onPin: { store?.togglePin(item) },
                             onDelete: { store?.delete(item) }
@@ -303,7 +329,164 @@ struct MenuBarPanel: View {
 
     private func paste(_ item: ClipboardItem) {
         store?.paste(item)
+        appState.shelfDetailItemID = nil
         StatusItemController.shared.hidePanel()
+    }
+}
+
+struct ClipboardItemDetailOverlay: View {
+    let item: ClipboardItem
+    let store: ClipboardStore?
+    let onClose: () -> Void
+    let onPaste: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.28)
+                .ignoresSafeArea()
+                .onTapGesture(perform: onClose)
+
+            VStack(spacing: 0) {
+                detailHeader
+                Divider()
+                ScrollView {
+                    detailBody
+                        .padding(20)
+                }
+                Divider()
+                detailFooter
+            }
+            .frame(width: 560, height: 420)
+            .background {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(.regularMaterial)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .shadow(color: .black.opacity(0.22), radius: 24, y: 12)
+        }
+    }
+
+    private var detailHeader: some View {
+        HStack(spacing: 12) {
+            Label(item.contentType.displayName, systemImage: item.contentType.systemImage)
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(
+                    (Color(hex: item.contentType.accentHex) ?? PasteTheme.accent).opacity(0.14),
+                    in: Capsule()
+                )
+                .foregroundStyle(Color(hex: item.contentType.accentHex) ?? PasteTheme.accent)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.previewTitle)
+                    .font(.headline)
+                    .lineLimit(1)
+                if let source = item.sourceAppName {
+                    Text(source)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            Button(action: onClose) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("关闭 (Esc)")
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+    }
+
+    @ViewBuilder
+    private var detailBody: some View {
+        switch item.contentType {
+        case .image:
+            if let data = item.imageData ?? item.thumbnailData, let image = NSImage(data: data) {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            } else {
+                Text("无法预览图片")
+                    .foregroundStyle(.secondary)
+            }
+        case .color:
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(hex: item.colorHex ?? "#888888") ?? .gray)
+                .frame(height: 140)
+                .overlay(alignment: .bottomLeading) {
+                    Text(item.colorHex ?? item.plainText ?? "")
+                        .font(.system(.title3, design: .monospaced).weight(.medium))
+                        .foregroundStyle(.white)
+                        .shadow(radius: 2)
+                        .padding(14)
+                }
+        case .code:
+            Text(item.plainText ?? "")
+                .font(.system(.body, design: .monospaced))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
+                .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        case .link:
+            VStack(alignment: .leading, spacing: 10) {
+                if let urlString = item.plainText, let url = URL(string: urlString) {
+                    Link(destination: url) {
+                        Label(urlString, systemImage: "arrow.up.right.square")
+                    }
+                }
+                Text(item.plainText ?? "")
+                    .font(.body)
+                    .textSelection(.enabled)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        case .file:
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(item.fileURLs, id: \.absoluteString) { url in
+                    Label(url.path, systemImage: "doc")
+                        .font(.callout)
+                        .textSelection(.enabled)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        default:
+            Text(item.plainText ?? item.previewTitle)
+                .font(.body)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
+                .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+    }
+
+    private var detailFooter: some View {
+        HStack(spacing: 10) {
+            Text(item.updatedAt.formatted(date: .abbreviated, time: .shortened))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button {
+                store?.copyOnly(item)
+            } label: {
+                Label("复制", systemImage: "doc.on.doc")
+            }
+            .buttonStyle(.bordered)
+            Button(action: onPaste) {
+                Label("粘贴", systemImage: "return")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(PasteTheme.accent)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
     }
 }
 
@@ -312,6 +495,7 @@ struct ClipboardShelfCard: View {
     let index: Int
     let isSelected: Bool
     let onSelect: () -> Void
+    let onOpenDetail: () -> Void
     let onPaste: () -> Void
     let onPin: () -> Void
     let onDelete: () -> Void
@@ -323,13 +507,7 @@ struct ClipboardShelfCard: View {
     }
 
     var body: some View {
-        Button {
-            if isSelected {
-                onPaste()
-            } else {
-                onSelect()
-            }
-        } label: {
+        Button(action: onSelect) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -386,9 +564,10 @@ struct ClipboardShelfCard: View {
             withAnimation(.easeOut(duration: 0.12)) { isHovered = hovering }
         }
         .simultaneousGesture(
-            TapGesture(count: 2).onEnded { onPaste() }
+            TapGesture(count: 2).onEnded { onOpenDetail() }
         )
         .contextMenu {
+            Button("查看详情", action: onOpenDetail)
             Button("粘贴", action: onPaste)
             Button(item.isPinned ? "取消置顶" : "置顶", action: onPin)
             Divider()

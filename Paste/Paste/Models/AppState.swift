@@ -16,6 +16,8 @@ final class AppState: ObservableObject {
     @Published var requestPinSelected: Bool = false
     @Published var hotkeyDisplay: String = "⇧⌘V"
     @Published var requestExportJSON: Bool = false
+    /// When set, the shelf panel shows a full-content detail overlay for this item.
+    @Published var shelfDetailItemID: UUID?
 
     enum ContentFilter: String, CaseIterable, Identifiable {
         case all
