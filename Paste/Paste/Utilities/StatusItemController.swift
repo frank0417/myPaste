@@ -9,7 +9,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     static let shared = StatusItemController()
 
     static let panelWidth: CGFloat = 980
-    static let panelHeight: CGFloat = 320
+    static let panelHeight: CGFloat = 360
 
     private var statusItem: NSStatusItem?
     private var panel: NSPanel?

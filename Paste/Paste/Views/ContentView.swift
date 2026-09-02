@@ -106,6 +106,48 @@ struct SidebarView: View {
 
     var body: some View {
         List {
+            Section("自动标签") {
+                ForEach(AutoTag.allCases) { tag in
+                    Button {
+                        appState.selectedAutoTag = tag.rawValue
+                        appState.selectedFilter = .all
+                        appState.showOnlyPinned = false
+                    } label: {
+                        Label(tag.displayName, systemImage: tag.systemImage)
+                            .foregroundStyle(
+                                appState.selectedAutoTag == tag.rawValue
+                                ? (Color(hex: tag.accentHex) ?? PasteTheme.accent)
+                                : .primary
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+                if appState.selectedAutoTag != nil {
+                    Button("清除标签筛选") {
+                        appState.selectedAutoTag = nil
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+            }
+
+            Section("视图") {
+                Button {
+                    appState.mainHistoryMode = .list
+                } label: {
+                    Label("列表", systemImage: "list.bullet")
+                        .foregroundStyle(appState.mainHistoryMode == .list ? PasteTheme.accent : .primary)
+                }
+                .buttonStyle(.plain)
+                Button {
+                    appState.mainHistoryMode = .timeline
+                } label: {
+                    Label("时间线大纲", systemImage: "calendar.day.timeline.leading")
+                        .foregroundStyle(appState.mainHistoryMode == .timeline ? PasteTheme.accent : .primary)
+                }
+                .buttonStyle(.plain)
+            }
+
             Section("资料库") {
                 ForEach(AppState.ContentFilter.allCases) { filter in
                     Button {
@@ -207,6 +249,7 @@ enum SeedData {
                 colorHex: type == .color ? text : nil
             )
             if type == .link { item.isPinned = true }
+            AutoTagService.apply(to: item)
             context.insert(item)
         }
         try? context.save()

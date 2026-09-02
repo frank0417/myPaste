@@ -95,6 +95,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             didInstallStatusItem = true
             StatusItemController.shared.install(container: container, appState: appState)
         }
+
+        AutoTagService.backfillIfNeeded(in: container.mainContext)
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {

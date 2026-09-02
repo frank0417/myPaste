@@ -14,23 +14,26 @@ struct MenuBarPanel: View {
     @State private var acknowledgedBackgroundTip = UserDefaults.standard.bool(forKey: "acknowledgedBackgroundTip")
 
     private var filtered: [ClipboardItem] {
-        let q = appState.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return items.filter { item in
-            guard !q.isEmpty else { return true }
-            let hay = [item.previewTitle, item.plainText, item.sourceAppName]
-                .compactMap { $0?.lowercased() }
-                .joined(separator: " ")
-            return hay.contains(q)
-        }
-        .prefix(40)
-        .map { $0 }
+        Array(ClipboardItemFilter.filter(items, appState: appState).prefix(appState.panelViewMode == .shelf ? 40 : 200))
     }
 
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
                 topBar
-                shelf
+                AutoTagFilterBar(items: items, compact: true)
+                if appState.panelViewMode == .shelf {
+                    shelf
+                } else {
+                    TimelineOutlineView(
+                        items: filtered,
+                        store: store,
+                        onOpenDetail: { item in
+                            appState.selectedItemID = item.id
+                            appState.shelfDetailItemID = item.id
+                        }
+                    )
+                }
             }
             .background {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
@@ -42,8 +45,8 @@ struct MenuBarPanel: View {
             if let detailItem = detailItem {
                 ClipboardItemDetailOverlay(
                     item: detailItem,
-                    store: store,
                     onClose: { appState.shelfDetailItemID = nil },
+                    onCopy: { store?.copyOnly(detailItem) },
                     onPaste: { paste(detailItem) }
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
@@ -118,7 +121,26 @@ struct MenuBarPanel: View {
                     .transition(.opacity.combined(with: .move(edge: .leading)))
             }
 
-            tabPill(title: "剪贴板", systemImage: "clock.arrow.circlepath", selected: true)
+            Button {
+                withAnimation(.easeOut(duration: 0.18)) {
+                    appState.panelViewMode = .shelf
+                }
+            } label: {
+                tabPill(title: "卡片", systemImage: "square.grid.2x2", selected: appState.panelViewMode == .shelf)
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                withAnimation(.easeOut(duration: 0.18)) {
+                    appState.panelViewMode = .timeline
+                    if showSearch == false, !appState.searchQuery.isEmpty {
+                        showSearch = true
+                    }
+                }
+            } label: {
+                tabPill(title: "时间线", systemImage: "calendar.day.timeline.leading", selected: appState.panelViewMode == .timeline)
+            }
+            .buttonStyle(.plain)
 
             Spacer(minLength: 8)
 
@@ -341,8 +363,8 @@ struct MenuBarPanel: View {
 
 struct ClipboardItemDetailOverlay: View {
     let item: ClipboardItem
-    let store: ClipboardStore?
     let onClose: () -> Void
+    let onCopy: () -> Void
     let onPaste: () -> Void
 
     var body: some View {
@@ -478,9 +500,7 @@ struct ClipboardItemDetailOverlay: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
-            Button {
-                store?.copyOnly(item)
-            } label: {
+            Button(action: onCopy) {
                 Label("复制", systemImage: "doc.on.doc")
             }
             .buttonStyle(.bordered)
@@ -538,6 +558,17 @@ struct ClipboardShelfCard: View {
                     Text("\(characterCount) 个字符")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
+                    if let tag = item.primaryAutoTag {
+                        Text(tag.displayName)
+                            .font(.caption2.weight(.medium))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(
+                                (Color(hex: tag.accentHex) ?? PasteTheme.accent).opacity(0.12),
+                                in: Capsule()
+                            )
+                            .foregroundStyle(Color(hex: tag.accentHex) ?? PasteTheme.accent)
+                    }
                     Spacer()
                     if item.isPinned {
                         Image(systemName: "pin.fill")

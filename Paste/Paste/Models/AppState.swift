@@ -18,6 +18,20 @@ final class AppState: ObservableObject {
     @Published var requestExportJSON: Bool = false
     /// When set, the shelf panel shows a full-content detail overlay for this item.
     @Published var shelfDetailItemID: UUID?
+    /// Filter by automatic content tag (图片 / 链接 / 富文本 …).
+    @Published var selectedAutoTag: String?
+    @Published var panelViewMode: PanelViewMode = .shelf
+    @Published var mainHistoryMode: MainHistoryMode = .list
+
+    enum PanelViewMode: String {
+        case shelf
+        case timeline
+    }
+
+    enum MainHistoryMode: String {
+        case list
+        case timeline
+    }
 
     enum ContentFilter: String, CaseIterable, Identifiable {
         case all
@@ -26,6 +40,9 @@ final class AppState: ObservableObject {
         case image
         case file
         case code
+        case richText
+        case color
+        case snippet
         case pinned
 
         var id: String { rawValue }
@@ -38,6 +55,9 @@ final class AppState: ObservableObject {
             case .image: return "图片"
             case .file: return "文件"
             case .code: return "代码"
+            case .richText: return "富文本"
+            case .color: return "颜色"
+            case .snippet: return "长文本"
             case .pinned: return "置顶"
             }
         }
@@ -50,6 +70,9 @@ final class AppState: ObservableObject {
             case .image: return "photo"
             case .file: return "doc"
             case .code: return "chevron.left.forwardslash.chevron.right"
+            case .richText: return "doc.richtext"
+            case .color: return "paintpalette"
+            case .snippet: return "text.quote"
             case .pinned: return "pin.fill"
             }
         }

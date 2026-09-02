@@ -74,6 +74,7 @@ final class ClipboardItem {
     var previewTitle: String
     var previewSubtitle: String?
     var colorHex: String?
+    var autoTagsJSON: String?
     var board: ClipboardBoard?
 
     var contentType: ClipboardContentType {
@@ -129,6 +130,7 @@ final class ClipboardItem {
         self.previewTitle = previewTitle
         self.previewSubtitle = previewSubtitle
         self.colorHex = colorHex
+        self.autoTagsJSON = nil
         self.fileURLs = fileURLs
     }
 }

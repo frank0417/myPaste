@@ -7,35 +7,7 @@ struct ClipboardHistoryPane: View {
     var store: ClipboardStore?
 
     private var filtered: [ClipboardItem] {
-        items.filter { item in
-            if appState.selectedFilter == .pinned || appState.showOnlyPinned {
-                guard item.isPinned else { return false }
-            } else if appState.selectedFilter != .all {
-                switch appState.selectedFilter {
-                case .text:
-                    guard [.text, .richText, .snippet].contains(item.contentType) else { return false }
-                case .link:
-                    guard item.contentType == .link else { return false }
-                case .image:
-                    guard item.contentType == .image else { return false }
-                case .file:
-                    guard item.contentType == .file else { return false }
-                case .code:
-                    guard item.contentType == .code else { return false }
-                case .all, .pinned:
-                    break
-                }
-            }
-            let q = appState.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !q.isEmpty else { return true }
-            let haystack = [
-                item.previewTitle,
-                item.previewSubtitle,
-                item.plainText,
-                item.sourceAppName
-            ].compactMap { $0?.lowercased() }.joined(separator: " ")
-            return haystack.contains(q.lowercased())
-        }
+        ClipboardItemFilter.filter(items, appState: appState)
     }
 
     private var pinned: [ClipboardItem] { filtered.filter(\.isPinned) }
@@ -43,47 +15,87 @@ struct ClipboardHistoryPane: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            historyModeBar
+            AutoTagFilterBar(items: items)
             FilterChipBar()
                 .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.vertical, 6)
 
             if filtered.isEmpty {
                 EmptyHistoryView(hasSearch: !appState.searchQuery.isEmpty)
+            } else if appState.mainHistoryMode == .timeline {
+                TimelineOutlineView(items: filtered, store: store)
             } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 8) {
-                        if !pinned.isEmpty {
-                            sectionHeader("置顶")
-                            ForEach(pinned) { item in
-                                ClipboardItemRow(
-                                    item: item,
-                                    isSelected: appState.selectedItemID == item.id,
-                                    onSelect: { appState.selectedItemID = item.id },
-                                    onPaste: { store?.paste(item) },
-                                    onPin: { store?.togglePin(item) },
-                                    onDelete: { store?.delete(item) }
-                                )
-                            }
-                        }
-                        if !recent.isEmpty {
-                            sectionHeader("最近复制")
-                            ForEach(recent) { item in
-                                ClipboardItemRow(
-                                    item: item,
-                                    isSelected: appState.selectedItemID == item.id,
-                                    onSelect: { appState.selectedItemID = item.id },
-                                    onPaste: { store?.paste(item) },
-                                    onPin: { store?.togglePin(item) },
-                                    onDelete: { store?.delete(item) }
-                                )
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 20)
-                }
+                listContent
             }
         }
+    }
+
+    private var historyModeBar: some View {
+        HStack(spacing: 8) {
+            modeButton(title: "列表", systemImage: "list.bullet", mode: .list)
+            modeButton(title: "时间线", systemImage: "calendar.day.timeline.leading", mode: .timeline)
+            Spacer()
+            Text("\(filtered.count) 条")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+        .padding(.bottom, 4)
+    }
+
+    private func modeButton(title: String, systemImage: String, mode: AppState.MainHistoryMode) -> some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.18)) {
+                appState.mainHistoryMode = mode
+            }
+        } label: {
+            Label(title, systemImage: systemImage)
+                .font(.caption.weight(.medium))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    appState.mainHistoryMode == mode
+                    ? PasteTheme.accent.opacity(0.14)
+                    : Color.primary.opacity(0.05),
+                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                )
+                .foregroundStyle(appState.mainHistoryMode == mode ? PasteTheme.accent : .secondary)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var listContent: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 8) {
+                if !pinned.isEmpty {
+                    sectionHeader("置顶")
+                    ForEach(pinned) { item in
+                        historyRow(item)
+                    }
+                }
+                if !recent.isEmpty {
+                    sectionHeader("最近复制")
+                    ForEach(recent) { item in
+                        historyRow(item)
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 20)
+        }
+    }
+
+    private func historyRow(_ item: ClipboardItem) -> some View {
+        ClipboardItemRow(
+            item: item,
+            isSelected: appState.selectedItemID == item.id,
+            onSelect: { appState.selectedItemID = item.id },
+            onPaste: { store?.paste(item) },
+            onPin: { store?.togglePin(item) },
+            onDelete: { store?.delete(item) }
+        )
     }
 
     private func sectionHeader(_ title: String) -> some View {
@@ -107,6 +119,9 @@ struct FilterChipBar: View {
                         withAnimation(.easeInOut(duration: 0.18)) {
                             appState.selectedFilter = filter
                             appState.showOnlyPinned = filter == .pinned
+                            if filter != .all {
+                                appState.selectedAutoTag = nil
+                            }
                         }
                     } label: {
                         HStack(spacing: 5) {
@@ -146,7 +161,7 @@ struct EmptyHistoryView: View {
                 .symbolEffect(.pulse, options: .repeating)
             Text(hasSearch ? "没有匹配的结果" : "开始复制吧")
                 .font(.title3.weight(.semibold))
-            Text(hasSearch ? "试试其他关键词，或切换内容类型筛选。" : "复制的文本、链接、图片与文件会出现在这里，并可跨设备同步。")
+            Text(hasSearch ? "试试其他关键词，或切换标签 / 时间线筛选。" : "复制的文本、链接、图片与文件会自动打标签，并出现在时间线中。")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

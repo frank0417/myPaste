@@ -31,6 +31,9 @@ struct SettingsView: View {
                         userInfo: ["enabled": enabled]
                     )
                 }
+            Text("复制后会按类型自动打标签（图片、链接、富文本等），可在时间线或标签栏筛选。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Toggle("登录时启动", isOn: $appState.launchAtLogin)
                 .onChange(of: appState.launchAtLogin) { _, enabled in
                     appState.savePreferences()
@@ -110,7 +113,7 @@ struct SettingsView: View {
                 .font(.title.weight(.bold))
             Text("保存、搜索、同步你复制的一切")
                 .foregroundStyle(.secondary)
-            Text("版本 1.0.6")
+            Text("版本 1.0.7")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
             Spacer()

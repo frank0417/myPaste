@@ -65,6 +65,14 @@ final class ClipboardMonitor: ObservableObject {
         }
     }
 
+    private static func resolvedContentType(plain: String, rtf: Data?) -> ClipboardContentType {
+        var type = ContentTypeDetector.detect(from: plain)
+        if rtf != nil, type == .text || type == .snippet {
+            type = .richText
+        }
+        return type
+    }
+
     static func capture(from pasteboard: NSPasteboard) -> CapturedClipboardPayload? {
         let sourceApp = NSWorkspace.shared.frontmostApplication
         let sourceName = sourceApp?.localizedName
@@ -132,7 +140,7 @@ final class ClipboardMonitor: ObservableObject {
 
         guard let plain, !plain.isEmpty else { return nil }
 
-        let type = ContentTypeDetector.detect(from: plain)
+        let type = resolvedContentType(plain: plain, rtf: rtf)
         let title = ContentTypeDetector.previewTitle(for: plain, type: type)
         let subtitle = ContentTypeDetector.previewSubtitle(for: plain, type: type, sourceApp: sourceName)
 

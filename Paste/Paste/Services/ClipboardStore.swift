@@ -66,6 +66,7 @@ final class ClipboardStore: ObservableObject {
             colorHex: payload.colorHex
         )
         modelContext.insert(item)
+        AutoTagService.apply(to: item)
         try? modelContext.save()
         enforceHistoryLimit()
     }
@@ -137,6 +138,7 @@ final class ClipboardStore: ObservableObject {
             if let hex = item.colorHex { row["colorHex"] = hex }
             if let app = item.sourceAppName { row["sourceAppName"] = app }
             if let board = item.board?.name { row["board"] = board }
+            if !item.autoTags.isEmpty { row["autoTags"] = item.autoTags }
             if let thumb = item.thumbnailData ?? item.imageData {
                 row["thumbnailBase64"] = thumb.base64EncodedString()
             }
