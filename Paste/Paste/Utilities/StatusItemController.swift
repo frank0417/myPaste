@@ -106,11 +106,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         guard let panel else { return }
 
         if let container = modelContainer, let appState {
-            let root = MenuBarPanel()
-                .environmentObject(appState)
-                .modelContainer(container)
-                .frame(width: Self.panelWidth, height: Self.panelHeight)
-            panel.contentView = NSHostingView(rootView: root)
+            panel.contentView = makeHostingView(container: container, appState: appState)
         }
 
         // Always stay a menu-bar agent — never promote to Dock app just to show UI.
@@ -143,18 +139,26 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         panel.isReleasedWhenClosed = false
         panel.backgroundColor = .clear
         panel.isOpaque = false
-        panel.hasShadow = true
+        // SwiftUI draws the shelf shadow; a window shadow leaves a rectangular strip below.
+        panel.hasShadow = false
         panel.delegate = self
 
         if let container = modelContainer, let appState {
-            let root = MenuBarPanel()
-                .environmentObject(appState)
-                .modelContainer(container)
-                .frame(width: Self.panelWidth, height: Self.panelHeight)
-            panel.contentView = NSHostingView(rootView: root)
+            panel.contentView = makeHostingView(container: container, appState: appState)
         }
 
         return panel
+    }
+
+    private func makeHostingView(container: ModelContainer, appState: AppState) -> NSView {
+        let root = MenuBarPanel()
+            .environmentObject(appState)
+            .modelContainer(container)
+            .frame(width: Self.panelWidth, height: Self.panelHeight)
+        let hosting = NSHostingView(rootView: root)
+        hosting.wantsLayer = true
+        hosting.layer?.backgroundColor = NSColor.clear.cgColor
+        return hosting
     }
 
     private func positionPanelAtBottom(_ panel: NSPanel) {

@@ -34,13 +34,9 @@ struct MenuBarPanel: View {
         .background {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.35), lineWidth: 1)
-                )
-                .shadow(color: .black.opacity(0.18), radius: 28, y: 10)
         }
-        .padding(6)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .shadow(color: .black.opacity(0.14), radius: 20, y: 8)
         .onAppear {
             if store == nil {
                 store = ClipboardStore(modelContext: modelContext, appState: appState, ownsMonitor: false)

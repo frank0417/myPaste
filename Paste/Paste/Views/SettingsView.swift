@@ -110,7 +110,7 @@ struct SettingsView: View {
                 .font(.title.weight(.bold))
             Text("保存、搜索、同步你复制的一切")
                 .foregroundStyle(.secondary)
-            Text("版本 1.0.4")
+            Text("版本 1.0.5")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
             Spacer()
