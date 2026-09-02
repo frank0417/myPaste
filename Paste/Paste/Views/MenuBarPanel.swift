@@ -46,7 +46,7 @@ struct MenuBarPanel: View {
                 ClipboardItemDetailOverlay(
                     item: detailItem,
                     onClose: { appState.shelfDetailItemID = nil },
-                    onCopy: { store?.copyOnly(detailItem) },
+                    onCopy: { copyOnlyItem(detailItem) },
                     onPaste: { paste(detailItem) }
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
@@ -352,6 +352,10 @@ struct MenuBarPanel: View {
         guard let id = appState.selectedItemID,
               let item = filtered.first(where: { $0.id == id }) else { return }
         paste(item)
+    }
+
+    private func copyOnlyItem(_ item: ClipboardItem) {
+        store?.copyOnly(item)
     }
 
     private func paste(_ item: ClipboardItem) {

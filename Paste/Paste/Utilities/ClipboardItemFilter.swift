@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 enum ClipboardItemFilter {
     static func matches(_ item: ClipboardItem, appState: AppState) -> Bool {
         if appState.selectedFilter == .pinned || appState.showOnlyPinned {
