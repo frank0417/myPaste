@@ -1,0 +1,30 @@
+# Build products
+build/
+dist/*
+!dist/.gitkeep
+
+# Xcode
+DerivedData/
+*.xcuserstate
+*.xcuserdata/
+.swiftpm/
+.DS_Store
+
+# Packaging
+*.dmg
+*.pkg
+*.xcarchive
+
+# App packaging
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Node / preview
+node_modules/
+.preview-cache/
+
+# Secrets
+*.p12
+*.mobileprovision
+AuthKey_*.p8

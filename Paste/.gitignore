@@ -1,0 +1,21 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcuserdata/
+.swiftpm/
+.DS_Store
+
+# App packaging
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Node / preview
+node_modules/
+.preview-cache/
+
+# Secrets
+*.p12
+*.mobileprovision
+AuthKey_*.p8

@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Paste — 剪贴板管理</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Sora:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1b2a2f;
+      --muted: #5b6b70;
+      --accent: #0f766e;
+      --accent-soft: rgba(15, 118, 110, 0.14);
+      --coral: #e07a5f;
+      --panel: rgba(255, 252, 247, 0.78);
+      --line: rgba(27, 42, 47, 0.08);
+      --bg1: #f7f4ee;
+      --bg2: #e7f0ef;
+      --bg3: #f0ebe3;
+      --shadow: 0 24px 60px rgba(27, 42, 47, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Sora", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1000px 500px at 10% -10%, #d9ece8 0%, transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, #f3e2d4 0%, transparent 50%),
+        linear-gradient(145deg, var(--bg1), var(--bg2) 45%, var(--bg3));
+    }
+    .stage {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 36px 24px 64px;
+    }
+    .brand-hero {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 28px;
+      animation: rise 0.7s ease both;
+    }
+    .brand-hero h1 {
+      margin: 0;
+      font-family: "Fraunces", serif;
+      font-size: clamp(2.6rem, 5vw, 4rem);
+      letter-spacing: -0.03em;
+      line-height: 0.95;
+    }
+    .brand-hero h1 span { color: var(--accent); }
+    .brand-hero p {
+      margin: 0;
+      max-width: 34rem;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+    .cta-row { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+    .btn {
+      border: 0;
+      border-radius: 12px;
+      padding: 11px 16px;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 10px 24px rgba(15, 118, 110, 0.28);
+    }
+    .btn-ghost {
+      background: rgba(255,255,255,0.55);
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+    .window {
+      display: grid;
+      grid-template-columns: 190px 1fr 320px;
+      min-height: 580px;
+      border-radius: 20px;
+      overflow: hidden;
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,0.7);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      animation: rise 0.8s ease 0.08s both;
+    }
+    .sidebar, .history, .preview {
+      padding: 18px 14px;
+    }
+    .sidebar {
+      background: rgba(255,255,255,0.35);
+      border-right: 1px solid var(--line);
+    }
+    .preview {
+      background: rgba(27, 42, 47, 0.025);
+      border-left: 1px solid var(--line);
+    }
+    .side-title {
+      font-family: "Fraunces", serif;
+      font-size: 1.45rem;
+      margin: 4px 8px 18px;
+    }
+    .nav-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 14px 8px 8px;
+      font-weight: 600;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      font: inherit;
+      font-size: 0.92rem;
+      padding: 9px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      text-align: left;
+    }
+    .nav-item.active, .nav-item:hover {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 14px;
+      padding: 0 6px;
+    }
+    .search {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.7);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+    .search input {
+      border: 0;
+      outline: none;
+      width: 100%;
+      background: transparent;
+      font: inherit;
+      color: var(--ink);
+    }
+    .chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 6px 12px; }
+    .chip {
+      border: 0;
+      background: rgba(27,42,47,0.05);
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font: inherit;
+      font-size: 0.78rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .chip.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .list { display: grid; gap: 8px; padding: 0 6px 8px; max-height: 460px; overflow: auto; }
+    .item {
+      display: grid;
+      grid-template-columns: 42px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      background: rgba(27,42,47,0.025);
+      cursor: pointer;
+      transition: background .15s ease, border-color .15s ease, transform .15s ease;
+      animation: itemIn .35s ease both;
+    }
+    .item:hover { background: rgba(27,42,47,0.045); transform: translateY(-1px); }
+    .item.selected {
+      background: var(--accent-soft);
+      border-color: rgba(15, 118, 110, 0.35);
+    }
+    .badge {
+      width: 42px; height: 42px; border-radius: 10px;
+      display: grid; place-items: center;
+      font-size: 0.72rem; font-weight: 700;
+      color: white;
+    }
+    .meta { min-width: 0; }
+    .meta strong {
+      display: block;
+      font-size: 0.92rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .meta small {
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+    .time { color: #8a979b; font-size: 0.7rem; }
+    .type-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .preview h2 {
+      margin: 0 0 12px;
+      font-size: 1.25rem;
+      line-height: 1.3;
+    }
+    .preview-box {
+      background: rgba(255,255,255,0.65);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      min-height: 140px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+    .preview-box.code {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.84rem;
+      background: #1b2a2f;
+      color: #e7f0ef;
+    }
+    .color-swatch {
+      height: 120px;
+      border-radius: 16px;
+      display: flex;
+      align-items: flex-end;
+      padding: 14px;
+      color: white;
+      font-family: "IBM Plex Mono", monospace;
+      font-weight: 500;
+      text-shadow: 0 1px 2px rgba(0,0,0,.35);
+      margin-bottom: 14px;
+    }
+    .facts { margin: 16px 0; display: grid; gap: 8px; font-size: 0.86rem; }
+    .facts div { display: grid; grid-template-columns: 72px 1fr; gap: 8px; }
+    .facts span { color: var(--muted); }
+    .actions { display: flex; gap: 8px; }
+    .sync {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.7);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 0 rgba(15,118,110,.5);
+      animation: pulse 1.8s ease infinite;
+    }
+    .menubar {
+      margin-top: 22px;
+      width: min(420px, 100%);
+      border-radius: 16px;
+      overflow: hidden;
+      background: rgba(255,252,247,0.9);
+      border: 1px solid rgba(255,255,255,0.8);
+      box-shadow: var(--shadow);
+      animation: rise 0.85s ease 0.16s both;
+    }
+    .menubar-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    .menubar-head strong {
+      font-family: "Fraunces", serif;
+      font-size: 1.15rem;
+    }
+    .menubar .list { max-height: 280px; padding: 10px; }
+    .footnote {
+      margin-top: 22px;
+      color: var(--muted);
+      font-size: 0.86rem;
+      animation: rise 0.9s ease 0.2s both;
+    }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: none; }
+    }
+    @keyframes itemIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: none; }
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(15,118,110,.45); }
+      70% { box-shadow: 0 0 0 8px rgba(15,118,110,0); }
+      100% { box-shadow: 0 0 0 0 rgba(15,118,110,0); }
+    }
+    @media (max-width: 960px) {
+      .window { grid-template-columns: 1fr; }
+      .sidebar, .preview { border: 0; }
+      .preview { border-top: 1px solid var(--line); }
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <header class="brand-hero">
+      <h1>Paste<span>.</span></h1>
+      <p>保存、搜索、同步你复制的一切。文本、链接、图片、颜色与代码片段，一键回到指尖。</p>
+      <div class="cta-row">
+        <button class="btn btn-primary" id="simulateCopy">模拟复制一条</button>
+        <button class="btn btn-ghost" id="clearSearch">清空搜索</button>
+      </div>
+    </header>
+
+    <section class="window" aria-label="Paste 主窗口">
+      <aside class="sidebar">
+        <div class="side-title">Paste</div>
+        <div class="nav-label">资料库</div>
+        <button class="nav-item active" data-filter="all">全部</button>
+        <button class="nav-item" data-filter="text">文本</button>
+        <button class="nav-item" data-filter="link">链接</button>
+        <button class="nav-item" data-filter="image">图片</button>
+        <button class="nav-item" data-filter="code">代码</button>
+        <button class="nav-item" data-filter="pinned">置顶</button>
+        <div class="nav-label">看板</div>
+        <button class="nav-item">工作</button>
+        <button class="nav-item">灵感</button>
+        <button class="nav-item">代码片段</button>
+      </aside>
+
+      <main class="history">
+        <div class="toolbar">
+          <label class="search">
+            <span aria-hidden="true">⌕</span>
+            <input id="search" placeholder="搜索已复制的一切…" />
+          </label>
+          <div class="sync"><span class="dot"></span> 已同步 · 刚刚</div>
+        </div>
+        <div class="chips" id="chips"></div>
+        <div class="list" id="list"></div>
+      </main>
+
+      <aside class="preview" id="preview"></aside>
+    </section>
+
+    <section class="menubar" aria-label="菜单栏面板">
+      <div class="menubar-head">
+        <strong>Paste</strong>
+        <span style="color:var(--muted);font-size:.78rem">⇧⌘V</span>
+      </div>
+      <div class="list" id="miniList"></div>
+    </section>
+
+    <p class="footnote">支持全局快捷键 ⇧⌘V、看板分类与 JSON 导出。这是 Mac 原生 SwiftUI 应用的交互预览。完整工程位于 <code>Paste/Paste.xcodeproj</code>，可在 macOS 14+ 用 Xcode 打开并提交 App Store。</p>
+  </div>
+
+  <script>
+    const TYPE_COLOR = {
+      text: "#3D5A80",
+      link: "#0D9488",
+      image: "#7C3AED",
+      code: "#059669",
+      color: "#F59E0B",
+      snippet: "#2563EB",
+      file: "#64748B"
+    };
+    const TYPE_LABEL = {
+      text: "文本", link: "链接", image: "图片", code: "代码",
+      color: "颜色", snippet: "片段", file: "文件"
+    };
+
+    let filter = "all";
+    let query = "";
+    let selectedId = null;
+    let items = [
+      { id: 1, type: "link", title: "apple.com/macos", body: "https://www.apple.com/macos", sub: "Safari · 链接", pinned: true, time: "2 分钟前", source: "Safari" },
+      { id: 2, type: "code", title: "func greet(_ name: String)", body: "import Foundation\n\nfunc greet(_ name: String) {\n  print(\"Hello, \\(name)\")\n}", sub: "4 行 · Xcode", pinned: false, time: "12 分钟前", source: "Xcode" },
+      { id: 3, type: "text", title: "明天下午三点同步剪贴板方案", body: "明天下午三点同步剪贴板方案，优先做搜索与置顶。", sub: "Notes · 28 字符", pinned: false, time: "28 分钟前", source: "Notes" },
+      { id: 4, type: "color", title: "#0F766E", body: "#0F766E", sub: "颜色", pinned: false, time: "1 小时前", source: "Figma", color: "#0F766E" },
+      { id: 5, type: "snippet", title: "保存、搜索、同步你复制的一切", body: "Paste 会自动保存你复制的文本、链接、图片与文件，并支持 iCloud 同步与全文搜索。", sub: "54 字符 · 1 行", pinned: false, time: "昨天", source: "Slack" },
+      { id: 6, type: "image", title: "图片 1440×900", body: "", sub: "Preview", pinned: false, time: "昨天", source: "Preview" }
+    ];
+
+    const samples = [
+      { type: "text", title: "会议纪要：剪贴板同步策略", body: "1. 本地 SwiftData\n2. CloudKit 同步\n3. 去重哈希" },
+      { type: "link", title: "developer.apple.com/documentation", body: "https://developer.apple.com/documentation/swiftdata" },
+      { type: "code", title: "let monitor = ClipboardMonitor.shared", body: "let monitor = ClipboardMonitor.shared\nmonitor.start()" },
+      { type: "color", title: "#E07A5F", body: "#E07A5F", color: "#E07A5F" }
+    ];
+
+    const listEl = document.getElementById("list");
+    const miniList = document.getElementById("miniList");
+    const previewEl = document.getElementById("preview");
+    const chipsEl = document.getElementById("chips");
+    const searchEl = document.getElementById("search");
+
+    function filtered() {
+      return items.filter(item => {
+        if (filter === "pinned" && !item.pinned) return false;
+        if (!["all", "pinned"].includes(filter) && item.type !== filter) {
+          if (!(filter === "text" && ["text", "snippet"].includes(item.type))) return false;
+        }
+        if (!query) return true;
+        const hay = `${item.title} ${item.body} ${item.sub}`.toLowerCase();
+        return hay.includes(query.toLowerCase());
+      });
+    }
+
+    function renderChips() {
+      const filters = [
+        ["all", "全部"], ["text", "文本"], ["link", "链接"],
+        ["image", "图片"], ["code", "代码"], ["pinned", "置顶"]
+      ];
+      chipsEl.innerHTML = filters.map(([id, label]) =>
+        `<button class="chip ${filter === id ? "active" : ""}" data-filter="${id}">${label}</button>`
+      ).join("");
+    }
+
+    function renderList() {
+      const data = filtered();
+      if (!selectedId || !data.find(i => i.id === selectedId)) {
+        selectedId = data[0]?.id ?? null;
+      }
+      listEl.innerHTML = data.map((item, idx) => `
+        <div class="item ${item.id === selectedId ? "selected" : ""}" data-id="${item.id}" style="animation-delay:${idx * 40}ms">
+          <div class="badge" style="background:${item.color || TYPE_COLOR[item.type]}">${TYPE_LABEL[item.type][0]}</div>
+          <div class="meta">
+            <strong>${item.pinned ? "📌 " : ""}${escapeHtml(item.title)}</strong>
+            <small>${escapeHtml(item.sub)}</small>
+          </div>
+          <div class="time">${item.time}</div>
+        </div>
+      `).join("") || `<div style="padding:40px;text-align:center;color:var(--muted)">没有匹配的结果</div>`;
+
+      miniList.innerHTML = data.slice(0, 4).map(item => `
+        <div class="item ${item.id === selectedId ? "selected" : ""}" data-id="${item.id}">
+          <div class="badge" style="background:${item.color || TYPE_COLOR[item.type]}">${TYPE_LABEL[item.type][0]}</div>
+          <div class="meta">
+            <strong>${escapeHtml(item.title)}</strong>
+            <small>${escapeHtml(item.sub)}</small>
+          </div>
+        </div>
+      `).join("");
+
+      renderPreview();
+    }
+
+    function renderPreview() {
+      const item = items.find(i => i.id === selectedId);
+      if (!item) {
+        previewEl.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted)">选择一条记录以预览</div>`;
+        return;
+      }
+      const body = item.type === "color"
+        ? `<div class="color-swatch" style="background:${item.color}">${item.color}</div>`
+        : item.type === "image"
+          ? `<div class="preview-box" style="height:160px;display:grid;place-items:center;background:linear-gradient(135deg,#d9ece8,#f3e2d4)">图片预览 1440×900</div>`
+          : `<div class="preview-box ${item.type === "code" ? "code" : ""}">${escapeHtml(item.body)}</div>`;
+
+      previewEl.innerHTML = `
+        <div class="type-tag">${TYPE_LABEL[item.type]}</div>
+        <h2>${escapeHtml(item.title)}</h2>
+        ${body}
+        <div class="facts">
+          <div><span>来源</span><div>${escapeHtml(item.source)}</div></div>
+          <div><span>时间</span><div>${escapeHtml(item.time)}</div></div>
+          <div><span>类型</span><div>${TYPE_LABEL[item.type]}</div></div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" id="pasteBtn">粘贴</button>
+          <button class="btn btn-ghost" id="pinBtn">${item.pinned ? "取消置顶" : "置顶"}</button>
+        </div>
+      `;
+      document.getElementById("pinBtn").onclick = () => {
+        item.pinned = !item.pinned;
+        renderList();
+      };
+      document.getElementById("pasteBtn").onclick = () => {
+        const btn = document.getElementById("pasteBtn");
+        btn.textContent = "已粘贴";
+        setTimeout(() => btn.textContent = "粘贴", 900);
+      };
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+      }[c]));
+    }
+
+    document.querySelectorAll(".sidebar .nav-item[data-filter]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        filter = btn.dataset.filter;
+        document.querySelectorAll(".sidebar .nav-item").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        renderChips();
+        renderList();
+      });
+    });
+
+    chipsEl.addEventListener("click", e => {
+      const btn = e.target.closest("[data-filter]");
+      if (!btn) return;
+      filter = btn.dataset.filter;
+      document.querySelectorAll(".sidebar .nav-item").forEach(b => {
+        b.classList.toggle("active", b.dataset.filter === filter);
+      });
+      renderChips();
+      renderList();
+    });
+
+    listEl.addEventListener("click", e => {
+      const row = e.target.closest("[data-id]");
+      if (!row) return;
+      selectedId = Number(row.dataset.id);
+      renderList();
+    });
+    miniList.addEventListener("click", e => {
+      const row = e.target.closest("[data-id]");
+      if (!row) return;
+      selectedId = Number(row.dataset.id);
+      renderList();
+    });
+
+    searchEl.addEventListener("input", () => {
+      query = searchEl.value.trim();
+      renderList();
+    });
+
+    document.getElementById("clearSearch").onclick = () => {
+      searchEl.value = "";
+      query = "";
+      renderList();
+    };
+
+    document.getElementById("simulateCopy").onclick = () => {
+      const sample = samples[Math.floor(Math.random() * samples.length)];
+      const id = Date.now();
+      items.unshift({
+        id,
+        type: sample.type,
+        title: sample.title,
+        body: sample.body,
+        sub: sample.type === "code" ? "2 行 · Terminal" : `${sample.body.length} 字符`,
+        pinned: false,
+        time: "刚刚",
+        source: "Demo",
+        color: sample.color
+      });
+      selectedId = id;
+      filter = "all";
+      renderChips();
+      renderList();
+    };
+
+    renderChips();
+    renderList();
+  </script>
+</body>
+</html>

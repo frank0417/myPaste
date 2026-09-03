@@ -1,0 +1,115 @@
+name: Package macOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Marketing version (e.g. 1.0.0)
+        required: false
+        default: "1.0.0"
+      create_pkg:
+        description: Also build .pkg installer
+        type: boolean
+        required: false
+        default: false
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Build DMG
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          for candidate in \
+            /Applications/Xcode_15.4.app/Contents/Developer \
+            /Applications/Xcode_15.3.app/Contents/Developer \
+            /Applications/Xcode.app/Contents/Developer; do
+            if [[ -d "$candidate" ]]; then
+              sudo xcode-select -s "$candidate"
+              break
+            fi
+          done
+          xcode-select -p
+
+      - name: Show Xcode version
+        run: xcodebuild -version && xcodebuild -list -project Paste/Paste.xcodeproj
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="${{ inputs.version || '1.0.0' }}"
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Building Paste $V"
+
+      - name: Package (ad-hoc CI build)
+        env:
+          MARKETING_VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          chmod +x scripts/package.sh
+          EXTRA=""
+          if [[ "${{ inputs.create_pkg }}" == "true" ]]; then
+            EXTRA="--pkg"
+          fi
+          ./scripts/package.sh --version "$MARKETING_VERSION" $EXTRA
+          ls -lah dist
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Paste-${{ steps.ver.outputs.version }}-macos
+          path: |
+            dist/*.dmg
+            dist/*.pkg
+            dist/*.zip
+            dist/SHA256.txt
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Paste ${{ steps.ver.outputs.version }}
+          draft: false
+          prerelease: true
+          generate_release_notes: true
+          body: |
+            ## Paste ${{ steps.ver.outputs.version }} macOS 安装包
+
+            ### 下载
+            - **DMG（推荐）**：`Paste-${{ steps.ver.outputs.version }}.dmg` — 打开后拖到「应用程序」
+            - **ZIP**：`Paste-${{ steps.ver.outputs.version }}-macos.zip` — 解压得到 `Paste.app`
+
+            ### 注意
+            这是 GitHub Actions **ad-hoc / 未公证** 构建，主要用于试用。
+            首次打开若提示无法验证开发者：系统设置 → 隐私与安全性 → **仍要打开**。
+
+            正式分发请在本机执行：`./scripts/package.sh --sign --notarize`
+          files: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.pkg
+            dist/SHA256.txt
+
+      - name: Summarize
+        run: |
+          echo "## Paste ${{ steps.ver.outputs.version }} packages" >> "$GITHUB_STEP_SUMMARY"
+          ls -lh dist >> "$GITHUB_STEP_SUMMARY"
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            echo >> "$GITHUB_STEP_SUMMARY"
+            echo "Release: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "DMG: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Paste-${{ steps.ver.outputs.version }}.dmg" >> "$GITHUB_STEP_SUMMARY"
+          fi
