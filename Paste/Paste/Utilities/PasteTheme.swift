@@ -3,10 +3,13 @@ import AppKit
 
 enum PasteTheme {
     static let accent = Color(hex: "#0F766E") ?? .teal
+    static let cardHeader = Color(hex: "#2F6FED") ?? .blue
+    static let cardBorder = Color(hex: "#D7DEE8") ?? .gray.opacity(0.35)
     static let ink = Color(hex: "#1B2A2F") ?? .primary
     static let mist = Color(hex: "#E8F1F0") ?? .gray.opacity(0.2)
     static let sand = Color(hex: "#F3EFE7") ?? .gray.opacity(0.15)
     static let coral = Color(hex: "#E07A5F") ?? .orange
+    static let panelFill = Color(hex: "#F4F6F8") ?? Color(nsColor: .windowBackgroundColor)
 
     static var backgroundGradient: some View {
         LinearGradient(

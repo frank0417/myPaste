@@ -21,10 +21,10 @@ struct MenuBarPanel: View {
         ZStack {
             VStack(spacing: 0) {
                 topBar
-                AutoTagFilterBar(items: items, compact: true)
                 if appState.panelViewMode == .shelf {
                     shelf
                 } else {
+                    AutoTagFilterBar(items: items, compact: true)
                     TimelineOutlineView(
                         items: filtered,
                         store: store,
@@ -36,11 +36,15 @@ struct MenuBarPanel: View {
                 }
             }
             .background {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(PasteTheme.panelFill.opacity(0.92))
+                    .background(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                    )
             }
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .shadow(color: .black.opacity(0.14), radius: 20, y: 8)
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .shadow(color: .black.opacity(0.16), radius: 24, y: 10)
 
             if let detailItem = detailItem {
                 ClipboardItemDetailOverlay(
@@ -101,7 +105,7 @@ struct MenuBarPanel: View {
     }
 
     private var topBar: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Button {
                 withAnimation(.easeOut(duration: 0.18)) {
                     showSearch.toggle()
@@ -109,9 +113,9 @@ struct MenuBarPanel: View {
                 }
             } label: {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.secondary)
-                    .frame(width: 28, height: 28)
+                    .frame(width: 26, height: 26)
             }
             .buttonStyle(.plain)
             .help("搜索")
@@ -120,47 +124,61 @@ struct MenuBarPanel: View {
                 TextField("搜索剪贴板…", text: $appState.searchQuery)
                     .textFieldStyle(.plain)
                     .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
+                    .padding(.vertical, 5)
                     .background(Color.primary.opacity(0.06), in: Capsule())
-                    .frame(maxWidth: 220)
+                    .frame(maxWidth: 180)
                     .focused($searchFocused)
                     .transition(.opacity.combined(with: .move(edge: .leading)))
             }
 
-            Button {
-                withAnimation(.easeOut(duration: 0.18)) {
-                    appState.panelViewMode = .shelf
-                }
-            } label: {
-                tabPill(title: "卡片", systemImage: "square.grid.2x2", selected: appState.panelViewMode == .shelf)
+            boardTab(
+                title: "剪贴板",
+                systemImage: "clock.arrow.circlepath",
+                selected: appState.panelViewMode == .shelf && appState.selectedAutoTag == nil,
+                dot: Color.primary.opacity(0.45)
+            ) {
+                appState.panelViewMode = .shelf
+                appState.selectedAutoTag = nil
+                appState.selectedFilter = .all
+                appState.showOnlyPinned = false
             }
-            .buttonStyle(.plain)
 
-            Button {
-                withAnimation(.easeOut(duration: 0.18)) {
-                    appState.panelViewMode = .timeline
-                    if showSearch == false, !appState.searchQuery.isEmpty {
-                        showSearch = true
-                    }
-                }
-            } label: {
-                tabPill(title: "时间线", systemImage: "calendar.day.timeline.leading", selected: appState.panelViewMode == .timeline)
+            boardTab(
+                title: "时间线",
+                systemImage: "calendar.day.timeline.leading",
+                selected: appState.panelViewMode == .timeline,
+                dot: Color(hex: "#EF4444") ?? .red
+            ) {
+                appState.panelViewMode = .timeline
             }
-            .buttonStyle(.plain)
+
+            // Auto-tag boards styled like Paste collections
+            ForEach(topTagCounts, id: \.0.id) { tag, count in
+                boardTab(
+                    title: "\(tag.displayName)",
+                    systemImage: nil,
+                    selected: appState.selectedAutoTag == tag.rawValue && appState.panelViewMode == .shelf,
+                    dot: Color(hex: tag.accentHex) ?? PasteTheme.accent,
+                    badge: count
+                ) {
+                    appState.panelViewMode = .shelf
+                    appState.selectedFilter = .all
+                    appState.showOnlyPinned = false
+                    appState.selectedAutoTag = tag.rawValue
+                }
+            }
 
             Spacer(minLength: 8)
 
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 Circle()
                     .fill(appState.isMonitoringEnabled ? Color.green.opacity(0.9) : Color.orange.opacity(0.9))
-                    .frame(width: 7, height: 7)
+                    .frame(width: 6, height: 6)
                 Text(appState.isMonitoringEnabled ? "后台监听中" : "已暂停")
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
-                Text("·")
-                    .foregroundStyle(.quaternary)
                 Text(appState.hotkeyDisplay)
-                    .font(.caption.monospaced())
+                    .font(.caption2.monospaced())
                     .foregroundStyle(.tertiary)
             }
 
@@ -188,32 +206,76 @@ struct MenuBarPanel: View {
                 }
             } label: {
                 Image(systemName: "ellipsis")
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(.secondary)
-                    .frame(width: 28, height: 28)
+                    .frame(width: 26, height: 26)
             }
             .menuStyle(.borderlessButton)
-            .frame(width: 28, height: 28)
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(
+            Capsule(style: .continuous)
+                .fill(Color(nsColor: .windowBackgroundColor).opacity(0.95))
+                .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
+        )
         .padding(.horizontal, 18)
         .padding(.top, 14)
-        .padding(.bottom, 8)
+        .padding(.bottom, 10)
     }
 
-    private func tabPill(title: String, systemImage: String, selected: Bool) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: systemImage)
-                .font(.system(size: 12, weight: .semibold))
-            Text(title)
-                .font(.system(size: 13, weight: .semibold))
+    private var topTagCounts: [(AutoTag, Int)] {
+        var counts: [String: Int] = [:]
+        for item in items {
+            for tag in item.autoTags {
+                counts[tag, default: 0] += 1
+            }
         }
-        .foregroundStyle(selected ? Color.primary : Color.secondary)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
-        .background(
-            Capsule()
-                .fill(selected ? Color.primary.opacity(0.08) : Color.clear)
-        )
+        return AutoTag.allCases.compactMap { tag in
+            guard let count = counts[tag.rawValue], count > 0 else { return nil }
+            return (tag, count)
+        }
+        .prefix(5)
+        .map { $0 }
+    }
+
+    private func boardTab(
+        title: String,
+        systemImage: String?,
+        selected: Bool,
+        dot: Color,
+        badge: Int? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.15)) { action() }
+        } label: {
+            HStack(spacing: 6) {
+                if let systemImage {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 11, weight: .semibold))
+                } else {
+                    Circle()
+                        .fill(dot)
+                        .frame(width: 7, height: 7)
+                }
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold))
+                if let badge {
+                    Text("\(badge)")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .foregroundStyle(selected ? Color.primary : Color.secondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                Capsule()
+                    .fill(selected ? Color.primary.opacity(0.08) : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     private var shelf: some View {
@@ -553,81 +615,53 @@ struct ClipboardShelfCard: View {
 
     @State private var isHovered = false
 
+    private let cardWidth: CGFloat = 176
+    private let cardHeight: CGFloat = 236
+    private let previewHeight: CGFloat = 132
+
     private var characterCount: Int {
         item.plainText?.count ?? item.previewTitle.count
     }
 
+    private var imagePixelSize: String? {
+        guard item.contentType == .image,
+              let data = item.imageData ?? item.thumbnailData,
+              let image = NSImage(data: data) else { return nil }
+        let w = Int(image.size.width)
+        let h = Int(image.size.height)
+        guard w > 0, h > 0 else { return nil }
+        return "\(w) × \(h)"
+    }
+
+    private var footerMeta: String {
+        if let imagePixelSize { return imagePixelSize }
+        return "\(characterCount) 个字符"
+    }
+
     var body: some View {
         Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(item.contentType.displayName)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        Text(item.updatedAt, style: .relative)
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                    Spacer(minLength: 4)
-                    sourceBadge
-                }
-
-                Spacer(minLength: 8)
-
-                previewBody
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-
-                Spacer(minLength: 8)
-
-                HStack {
-                    Text("\(characterCount) 个字符")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                    if let tag = item.primaryAutoTag {
-                        Text(tag.displayName)
-                            .font(.caption2.weight(.medium))
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(
-                                (Color(hex: tag.accentHex) ?? PasteTheme.accent).opacity(0.12),
-                                in: Capsule()
-                            )
-                            .foregroundStyle(Color(hex: tag.accentHex) ?? PasteTheme.accent)
-                    }
-                    Spacer()
-                    if item.isPinned {
-                        Image(systemName: "pin.fill")
-                            .font(.caption2)
-                            .foregroundStyle(PasteTheme.accent)
-                    }
-                    Text("\(index)")
-                        .font(.caption.monospaced().weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
+            VStack(spacing: 0) {
+                cardHeader
+                previewArea
+                cardFooter
             }
-            .padding(14)
-            .frame(width: 168, height: 220, alignment: .topLeading)
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color(nsColor: .windowBackgroundColor).opacity(0.95))
-            )
+            .frame(width: cardWidth, height: cardHeight)
+            .background(Color(nsColor: .windowBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .strokeBorder(
-                        isSelected ? Color.accentColor : Color.primary.opacity(isHovered ? 0.12 : 0.06),
-                        lineWidth: isSelected ? 3 : 1
+                        isSelected ? PasteTheme.cardHeader : (isHovered ? PasteTheme.cardBorder : PasteTheme.cardBorder.opacity(0.7)),
+                        lineWidth: isSelected ? 2.5 : 1
                     )
             )
-            .shadow(color: isSelected ? Color.accentColor.opacity(0.18) : .clear, radius: 10, y: 2)
+            .shadow(color: isSelected ? PasteTheme.cardHeader.opacity(0.22) : .black.opacity(0.06), radius: isSelected ? 10 : 4, y: 2)
         }
         .buttonStyle(.plain)
         .onHover { hovering in
             withAnimation(.easeOut(duration: 0.12)) { isHovered = hovering }
         }
-        .simultaneousGesture(
-            TapGesture(count: 2).onEnded { onOpenDetail() }
-        )
+        .simultaneousGesture(TapGesture(count: 2).onEnded { onOpenDetail() })
         .contextMenu {
             Button("查看详情", action: onOpenDetail)
             Button("粘贴", action: onPaste)
@@ -635,44 +669,142 @@ struct ClipboardShelfCard: View {
             Divider()
             Button("删除", role: .destructive, action: onDelete)
         }
-        .scaleEffect(isSelected ? 1.02 : 1.0)
+        .scaleEffect(isSelected ? 1.015 : 1.0)
         .animation(.spring(response: 0.28, dampingFraction: 0.86), value: isSelected)
+    }
+
+    private var cardHeader: some View {
+        HStack(alignment: .center, spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(item.contentType.displayName)
+                    .font(.caption.weight(.bold))
+                Text(item.updatedAt, style: .relative)
+                    .font(.caption2)
+                    .opacity(0.85)
+            }
+            Spacer(minLength: 4)
+            sourceAppIcon
+                .frame(width: 22, height: 22)
+                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(PasteTheme.cardHeader)
+    }
+
+    private var previewArea: some View {
+        ZStack {
+            Color.white
+            previewBody
+                .padding(10)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+        .frame(height: previewHeight)
+        .clipped()
+    }
+
+    private var cardFooter: some View {
+        HStack(spacing: 6) {
+            Text(footerMeta)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Spacer(minLength: 4)
+            if item.isPinned {
+                Image(systemName: "pin.fill")
+                    .font(.caption2)
+                    .foregroundStyle(PasteTheme.cardHeader)
+            }
+            Image(systemName: "line.3.horizontal")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+            Text("\(index)")
+                .font(.caption.monospaced().weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 
     @ViewBuilder
     private var previewBody: some View {
         if item.contentType == .image, let data = item.thumbnailData ?? item.imageData,
            let nsImage = NSImage(data: data) {
+            // Fit inside the card — never overflow the panel/card bounds.
             Image(nsImage: nsImage)
                 .resizable()
-                .scaledToFill()
-                .frame(maxWidth: .infinity, maxHeight: 120)
+                .interpolation(.high)
+                .scaledToFit()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(
+                    CheckerboardBackground()
+                        .opacity(0.35)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .clipped()
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         } else if item.contentType == .color, let hex = item.colorHex {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(Color(hex: hex) ?? .gray)
-                .frame(height: 72)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .bottomLeading) {
+                    Text(hex)
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.white)
+                        .padding(8)
+                }
         } else {
             Text(item.plainText ?? item.previewTitle)
-                .font(.system(size: 13, weight: .regular, design: .default))
+                .font(.system(size: 12.5, weight: .regular))
                 .foregroundStyle(.primary)
-                .lineLimit(8)
+                .lineLimit(7)
                 .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
 
     @ViewBuilder
-    private var sourceBadge: some View {
-        if let name = item.sourceAppName, !name.isEmpty {
+    private var sourceAppIcon: some View {
+        if let bundleID = item.sourceAppBundleID,
+           let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+            Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+        } else if let name = item.sourceAppName, !name.isEmpty {
             Image(systemName: "app.fill")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.95))
                 .help(name)
         } else {
             Image(systemName: item.contentType.systemImage)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.white.opacity(0.95))
+        }
+    }
+}
+
+/// Subtle checkerboard behind transparent / fitted images (Paste-style).
+private struct CheckerboardBackground: View {
+    var cell: CGFloat = 8
+
+    var body: some View {
+        Canvas { context, size in
+            let cols = Int(ceil(size.width / cell))
+            let rows = Int(ceil(size.height / cell))
+            for row in 0..<rows {
+                for col in 0..<cols {
+                    let light = (row + col) % 2 == 0
+                    let rect = CGRect(x: CGFloat(col) * cell, y: CGFloat(row) * cell, width: cell, height: cell)
+                    context.fill(
+                        Path(rect),
+                        with: .color(light ? Color.gray.opacity(0.18) : Color.gray.opacity(0.08))
+                    )
+                }
+            }
         }
     }
 }

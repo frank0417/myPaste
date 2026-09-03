@@ -10,9 +10,9 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     static let shared = StatusItemController()
 
     static let panelWidth: CGFloat = 980
-    static let panelHeight: CGFloat = 360
+    static let panelHeight: CGFloat = 390
     /// Tall enough for the detail overlay (header + body + footer) without clipping.
-    static let detailPanelHeight: CGFloat = 580
+    static let detailPanelHeight: CGFloat = 600
 
     private var statusItem: NSStatusItem?
     private var panel: NSPanel?
