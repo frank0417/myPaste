@@ -70,6 +70,12 @@ struct MenuBarPanel: View {
                 appState.shelfDetailItemID = nil
             }
         }
+        .onChange(of: appState.shelfDetailItemID) { _, id in
+            StatusItemController.shared.setExpandedForDetail(id != nil)
+        }
+        .onAppear {
+            StatusItemController.shared.setExpandedForDetail(appState.shelfDetailItemID != nil)
+        }
         .focusable()
         .onKeyPress(.leftArrow) {
             moveSelection(by: -1)
@@ -383,17 +389,21 @@ struct ClipboardItemDetailOverlay: View {
                 ScrollView {
                     detailBody
                         .padding(20)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .frame(maxHeight: .infinity)
                 Divider()
                 detailFooter
             }
-            .frame(width: 560, height: 420)
+            .frame(maxWidth: 640, maxHeight: .infinity)
+            .padding(18)
             .background {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(.regularMaterial)
             }
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .shadow(color: .black.opacity(0.22), radius: 24, y: 12)
+            .padding(16)
         }
     }
 
@@ -468,15 +478,27 @@ struct ClipboardItemDetailOverlay: View {
                 .padding(14)
                 .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         case .link:
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 14) {
                 if let urlString = item.plainText, let url = URL(string: urlString) {
                     Link(destination: url) {
                         Label(urlString, systemImage: "arrow.up.right.square")
+                            .font(.body.weight(.medium))
+                            .multilineTextAlignment(.leading)
                     }
+                    Text(url.host ?? urlString)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(item.plainText ?? item.previewTitle)
+                        .font(.body)
+                        .textSelection(.enabled)
                 }
                 Text(item.plainText ?? "")
-                    .font(.body)
+                    .font(.system(.callout, design: .monospaced))
                     .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(14)
+                    .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         case .file:

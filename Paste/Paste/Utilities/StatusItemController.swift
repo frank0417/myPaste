@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import SwiftData
+import QuartzCore
 
 /// Menu-bar status item + bottom floating clipboard shelf.
 /// Closing the panel only hides it — the app stays resident for ⇧⌘V.
@@ -10,6 +11,8 @@ final class StatusItemController: NSObject, NSWindowDelegate {
 
     static let panelWidth: CGFloat = 980
     static let panelHeight: CGFloat = 360
+    /// Tall enough for the detail overlay (header + body + footer) without clipping.
+    static let detailPanelHeight: CGFloat = 580
 
     private var statusItem: NSStatusItem?
     private var panel: NSPanel?
@@ -17,6 +20,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     private var appState: AppState?
     private var localKeyMonitor: Any?
     private var localClickMonitor: Any?
+    private var isDetailExpanded = false
 
     private override init() {
         super.init()
@@ -105,13 +109,15 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         }
         guard let panel else { return }
 
+        let expanded = appState?.shelfDetailItemID != nil
+        isDetailExpanded = expanded
         if let container = modelContainer, let appState {
-            panel.contentView = makeHostingView(container: container, appState: appState)
+            panel.contentView = makeHostingView(container: container, appState: appState, expanded: expanded)
         }
 
         // Always stay a menu-bar agent — never promote to Dock app just to show UI.
         NSApp.setActivationPolicy(.accessory)
-        positionPanelAtBottom(panel)
+        positionPanel(panel, expanded: expanded)
         panel.makeKeyAndOrderFront(nil)
         panel.orderFrontRegardless()
         NSApp.activate(ignoringOtherApps: true)
@@ -120,7 +126,26 @@ final class StatusItemController: NSObject, NSWindowDelegate {
 
     func hidePanel() {
         removeDismissalMonitors()
+        appState?.shelfDetailItemID = nil
+        isDetailExpanded = false
         panel?.orderOut(nil)
+    }
+
+    /// Grow the floating shelf so the detail overlay is fully visible.
+    func setExpandedForDetail(_ expanded: Bool) {
+        guard isDetailExpanded != expanded else {
+            if expanded, let panel, panel.isVisible {
+                // Re-layout if already expanded but frame drifted.
+                positionPanel(panel, expanded: true)
+            }
+            return
+        }
+        isDetailExpanded = expanded
+        guard let panel, panel.isVisible else { return }
+        if let container = modelContainer, let appState {
+            panel.contentView = makeHostingView(container: container, appState: appState, expanded: expanded)
+        }
+        positionPanel(panel, expanded: expanded)
     }
 
     private func makePanel() -> NSPanel {
@@ -144,34 +169,44 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         panel.delegate = self
 
         if let container = modelContainer, let appState {
-            panel.contentView = makeHostingView(container: container, appState: appState)
+            panel.contentView = makeHostingView(container: container, appState: appState, expanded: false)
         }
 
         return panel
     }
 
-    private func makeHostingView(container: ModelContainer, appState: AppState) -> NSView {
+    private func makeHostingView(container: ModelContainer, appState: AppState, expanded: Bool) -> NSView {
+        let height = expanded ? Self.detailPanelHeight : Self.panelHeight
         let root = MenuBarPanel()
             .environmentObject(appState)
             .modelContainer(container)
-            .frame(width: Self.panelWidth, height: Self.panelHeight)
+            .frame(width: Self.panelWidth, height: height)
         let hosting = NSHostingView(rootView: root)
         hosting.wantsLayer = true
         hosting.layer?.backgroundColor = NSColor.clear.cgColor
         return hosting
     }
 
-    private func positionPanelAtBottom(_ panel: NSPanel) {
+    private func positionPanel(_ panel: NSPanel, expanded: Bool) {
         let screen = NSScreen.main ?? NSScreen.screens.first
         guard let visible = screen?.visibleFrame else {
             panel.center()
             return
         }
         let width = min(Self.panelWidth, visible.width - 24)
-        let height = Self.panelHeight
+        let preferredHeight = expanded ? Self.detailPanelHeight : Self.panelHeight
+        let height = min(preferredHeight, visible.height - 36)
         let x = visible.midX - width / 2
+        // Grow upward from the bottom shelf position.
         let y = visible.minY + 18
-        panel.setFrame(NSRect(x: x, y: y, width: width, height: height), display: true)
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.18
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            panel.animator().setFrame(
+                NSRect(x: x, y: y, width: width, height: height),
+                display: true
+            )
+        }
     }
 
     private func installDismissalMonitors() {
@@ -181,6 +216,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
             if event.keyCode == 53 { // Escape
                 if self?.appState?.shelfDetailItemID != nil {
                     self?.appState?.shelfDetailItemID = nil
+                    self?.setExpandedForDetail(false)
                     return nil
                 }
                 self?.hidePanel()
