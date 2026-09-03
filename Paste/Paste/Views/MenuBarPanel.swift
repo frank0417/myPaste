@@ -467,10 +467,6 @@ struct ClipboardItemDetailOverlay: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: .black.opacity(0.18), radius: 24, y: 10)
-        .overlay(alignment: .topTrailing) {
-            // Keep Esc / outside-close via the header close button; no translucent dim layer.
-            EmptyView()
-        }
     }
 
     private var detailHeader: some View {
