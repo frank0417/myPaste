@@ -19,32 +19,35 @@ struct MenuBarPanel: View {
 
     var body: some View {
         ZStack {
-            VStack(spacing: 0) {
-                topBar
-                if appState.panelViewMode == .shelf {
-                    shelf
-                } else {
-                    AutoTagFilterBar(items: items, compact: true)
-                    TimelineOutlineView(
-                        items: filtered,
-                        store: store,
-                        onOpenDetail: { item in
-                            appState.selectedItemID = item.id
-                            appState.shelfDetailItemID = item.id
-                        }
-                    )
+            // When detail is open, hide the shelf layer completely so nothing shows through.
+            if detailItem == nil {
+                VStack(spacing: 0) {
+                    topBar
+                    if appState.panelViewMode == .shelf {
+                        shelf
+                    } else {
+                        AutoTagFilterBar(items: items, compact: true)
+                        TimelineOutlineView(
+                            items: filtered,
+                            store: store,
+                            onOpenDetail: { item in
+                                appState.selectedItemID = item.id
+                                appState.shelfDetailItemID = item.id
+                            }
+                        )
+                    }
                 }
+                .background {
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(PasteTheme.panelFill.opacity(0.92))
+                        .background(
+                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                .fill(.ultraThinMaterial)
+                        )
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .shadow(color: .black.opacity(0.16), radius: 24, y: 10)
             }
-            .background {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(PasteTheme.panelFill.opacity(0.92))
-                    .background(
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                    )
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .shadow(color: .black.opacity(0.16), radius: 24, y: 10)
 
             if let detailItem = detailItem {
                 ClipboardItemDetailOverlay(
@@ -440,32 +443,33 @@ struct ClipboardItemDetailOverlay: View {
     let onPaste: () -> Void
 
     var body: some View {
-        ZStack {
-            Color.black.opacity(0.28)
-                .ignoresSafeArea()
-                .onTapGesture(perform: onClose)
-
-            VStack(spacing: 0) {
-                detailHeader
-                Divider()
-                ScrollView {
-                    detailBody
-                        .padding(20)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .frame(maxHeight: .infinity)
-                Divider()
-                detailFooter
+        // Opaque full-panel surface — no shelf/timeline layer behind it.
+        VStack(spacing: 0) {
+            detailHeader
+            Divider()
+            ScrollView {
+                detailBody
+                    .padding(20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: 640, maxHeight: .infinity)
-            .padding(18)
-            .background {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(.regularMaterial)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .shadow(color: .black.opacity(0.22), radius: 24, y: 12)
-            .padding(16)
+            .frame(maxHeight: .infinity)
+            Divider()
+            detailFooter
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color(nsColor: .windowBackgroundColor))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(PasteTheme.panelFill.opacity(0.96))
+                )
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shadow(color: .black.opacity(0.18), radius: 24, y: 10)
+        .overlay(alignment: .topTrailing) {
+            // Keep Esc / outside-close via the header close button; no translucent dim layer.
+            EmptyView()
         }
     }
 
