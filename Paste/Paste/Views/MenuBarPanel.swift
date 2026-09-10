@@ -85,10 +85,12 @@ struct MenuBarPanel: View {
         }
         .focusable()
         .onKeyPress(.leftArrow) {
+            guard !searchFocused else { return .ignored }
             moveSelection(by: -1)
             return .handled
         }
         .onKeyPress(.rightArrow) {
+            guard !searchFocused else { return .ignored }
             moveSelection(by: 1)
             return .handled
         }
@@ -97,6 +99,21 @@ struct MenuBarPanel: View {
                 paste(item)
             } else {
                 pasteSelected()
+            }
+            return .handled
+        }
+        .onKeyPress(.escape) {
+            if searchFocused && !appState.searchQuery.isEmpty {
+                appState.searchQuery = ""
+                return .handled
+            }
+            return .ignored
+        }
+        .onKeyPress(keys: [.init("f")]) { press in
+            guard press.modifiers.contains(.command) else { return .ignored }
+            withAnimation(.easeOut(duration: 0.18)) {
+                showSearch = true
+                searchFocused = true
             }
             return .handled
         }
@@ -112,26 +129,45 @@ struct MenuBarPanel: View {
             Button {
                 withAnimation(.easeOut(duration: 0.18)) {
                     showSearch.toggle()
-                    searchFocused = showSearch
+                    if showSearch {
+                        searchFocused = true
+                    } else {
+                        appState.searchQuery = ""
+                    }
                 }
             } label: {
-                Image(systemName: "magnifyingglass")
+                Image(systemName: showSearch ? "xmark" : "magnifyingglass")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(showSearch ? PasteTheme.accent : .secondary)
                     .frame(width: 26, height: 26)
             }
             .buttonStyle(.plain)
             .help("搜索")
 
             if showSearch {
-                TextField("搜索剪贴板…", text: $appState.searchQuery)
-                    .textFieldStyle(.plain)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Color.primary.opacity(0.06), in: Capsule())
-                    .frame(maxWidth: 180)
-                    .focused($searchFocused)
-                    .transition(.opacity.combined(with: .move(edge: .leading)))
+                HStack(spacing: 6) {
+                    TextField("搜索剪贴板…", text: $appState.searchQuery)
+                        .textFieldStyle(.plain)
+                        .focused($searchFocused)
+                    if !appState.searchQuery.isEmpty {
+                        Text("\(filtered.count)")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.tertiary)
+                        Button {
+                            appState.searchQuery = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Color.primary.opacity(0.06), in: Capsule())
+                .frame(maxWidth: 220)
+                .transition(.opacity.combined(with: .move(edge: .leading)))
             }
 
             boardTab(
@@ -338,13 +374,14 @@ struct MenuBarPanel: View {
     }
 
     private var emptyCard: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "doc.on.clipboard")
+        let searching = !appState.searchQuery.trimmingCharacters(in: .whitespaces).isEmpty
+        return VStack(spacing: 10) {
+            Image(systemName: searching ? "magnifyingglass" : "doc.on.clipboard")
                 .font(.system(size: 28, weight: .light))
                 .foregroundStyle(PasteTheme.accent)
-            Text("复制任意内容后会出现在这里")
+            Text(searching ? "没有匹配「\(appState.searchQuery)」的内容" : "复制任意内容后会出现在这里")
                 .font(.callout.weight(.medium))
-            Text("面板可随时关闭，App 继续在菜单栏后台运行")
+            Text(searching ? "换个关键词试试" : "面板可随时关闭，App 继续在菜单栏后台运行")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
