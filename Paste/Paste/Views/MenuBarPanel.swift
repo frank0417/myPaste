@@ -198,7 +198,7 @@ struct MenuBarPanel: View {
                 }
                 Divider()
                 Button("打开设置…") {
-                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                    StatusItemController.shared.openSettings()
                 }
                 Button("隐藏面板") {
                     StatusItemController.shared.hidePanel()

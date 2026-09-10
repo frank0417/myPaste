@@ -84,8 +84,32 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     @objc private func menuShowPanel() { showPanel() }
     @objc private func menuHidePanel() { hidePanel() }
     @objc private func menuOpenSettings() {
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        openSettings()
+    }
+
+    /// Bring up the SwiftUI Settings scene from an accessory (menu-bar) app.
+    /// The panel is a non-activating NSPanel, so the settings window must be
+    /// ordered in explicitly after the app activates, or it never appears.
+    func openSettings() {
+        hidePanel()
+        // Activate first so the settings window can come to the front.
         NSApp.activate(ignoringOtherApps: true)
+        DispatchQueue.main.async {
+            if #available(macOS 14, *) {
+                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            } else {
+                NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+            }
+            NSApp.activate(ignoringOtherApps: true)
+            // The scene window is created lazily; nudge it frontmost on the
+            // next runloop turn once it exists.
+            DispatchQueue.main.async {
+                NSApp.activate(ignoringOtherApps: true)
+                for window in NSApp.windows where !(window is NSPanel) {
+                    window.makeKeyAndOrderFront(nil)
+                }
+            }
+        }
     }
     @objc private func menuQuit() {
         NSApp.terminate(nil)

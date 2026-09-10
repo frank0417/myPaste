@@ -30,30 +30,6 @@ struct PasteApp: App {
                 .frame(minWidth: 720, minHeight: 480)
         }
         .defaultSize(width: 880, height: 600)
-        .commands {
-            CommandGroup(replacing: .newItem) {}
-            CommandMenu("Clipboard") {
-                Button("Show Clipboard Panel") {
-                    StatusItemController.shared.togglePanel()
-                }
-                .keyboardShortcut("v", modifiers: [.command, .shift])
-
-                Button("Clear History…") {
-                    appState.requestClearHistory = true
-                }
-                .keyboardShortcut("k", modifiers: [.command, .shift])
-
-                Button("Pin Selected") {
-                    appState.requestPinSelected = true
-                }
-                .keyboardShortcut("p", modifiers: [.command])
-
-                Button("Export JSON…") {
-                    appState.requestExportJSON = true
-                }
-                .keyboardShortcut("e", modifiers: [.command, .shift])
-            }
-        }
 
         Settings {
             SettingsView()
