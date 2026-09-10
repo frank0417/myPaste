@@ -39,8 +39,15 @@ struct SettingsView: View {
                     appState.savePreferences()
                     updateLaunchAtLogin(enabled)
                 }
-            LabeledContent("快捷键", value: appState.hotkeyDisplay)
-            Text("ClipStack 常驻菜单栏后台：关掉底部面板不会退出。入口是右上角层叠图标，或按 ⇧⌘V。右键图标可选退出。")
+            LabeledContent("唤出面板快捷键") {
+                HotKeyRecorderView(shortcut: $appState.hotkey) { newShortcut in
+                    appState.updateHotkey(newShortcut)
+                }
+            }
+            Text("点击右侧按钮后按下新的组合键（需包含 ⌘/⇧/⌥/⌃ 至少一个），按 Esc 取消。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text("ClipStack 常驻菜单栏后台：关掉底部面板不会退出。入口是右上角层叠图标，或按 \(appState.hotkeyDisplay)。右键图标可选退出。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -58,7 +65,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Text("请点击屏幕右上角剪贴板图标，或按 ⇧⌘V 打开面板。复制（⌘C）后稍等半秒，再点图标或按 ⇧⌘V 查看历史。")
+            Text("请点击屏幕右上角剪贴板图标，或按 \(appState.hotkeyDisplay) 打开面板。复制（⌘C）后稍等半秒，再点图标或按 \(appState.hotkeyDisplay) 查看历史。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

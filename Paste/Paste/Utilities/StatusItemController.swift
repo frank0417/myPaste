@@ -4,7 +4,7 @@ import SwiftData
 import QuartzCore
 
 /// Menu-bar status item + bottom floating clipboard shelf.
-/// Closing the panel only hides it — the app stays resident for ⇧⌘V.
+/// Closing the panel only hides it — the app stays resident for the global hotkey.
 @MainActor
 final class StatusItemController: NSObject, NSWindowDelegate {
     static let shared = StatusItemController()
@@ -36,7 +36,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
                 let image = NSImage(systemSymbolName: "square.stack.3d.up.fill", accessibilityDescription: "ClipStack")
                 image?.isTemplate = true
                 button.image = image
-                button.toolTip = "ClipStack — 常驻后台（⇧⌘V 唤出）"
+                button.toolTip = "ClipStack — 常驻后台（\(appState.hotkeyDisplay) 唤出）"
                 button.target = self
                 button.action = #selector(statusItemClicked(_:))
                 button.sendAction(on: [.leftMouseUp, .rightMouseUp])

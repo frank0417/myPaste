@@ -66,10 +66,13 @@ struct PasteApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var clipboardStore: ClipboardStore?
     private var monitoringObserver: NSObjectProtocol?
+    private var hotKeyObserver: NSObjectProtocol?
     private var didInstallStatusItem = false
+    private weak var appState: AppState?
 
     @MainActor
     func configure(container: ModelContainer, appState: AppState) {
+        self.appState = appState
         if clipboardStore == nil {
             let store = ClipboardStore(modelContext: container.mainContext, appState: appState, ownsMonitor: true)
             clipboardStore = store
@@ -106,7 +109,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         GlobalHotKeyManager.shared.onHotKey = {
             StatusItemController.shared.togglePanel()
         }
-        GlobalHotKeyManager.shared.registerDefault()
+        let shortcut = HotKeyShortcut.load()
+        GlobalHotKeyManager.shared.register(shortcut)
+        hotKeyObserver = NotificationCenter.default.addObserver(
+            forName: .hotKeyPreferenceChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                if let shortcut = self?.appState?.hotkey {
+                    GlobalHotKeyManager.shared.register(shortcut)
+                }
+            }
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

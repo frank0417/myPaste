@@ -29,6 +29,7 @@
 		C1D2E3F4A5B6478990A1B2C3 /* AutoTagService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E3F4A5B6C748990A1B2C3D4 /* AutoTagService.swift */; };
 		E3F4A5B6C7D84990A1B2C3D4E /* TimelineOutlineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4A5B6C7D8E94990A1B2C3D4E5 /* TimelineOutlineView.swift */; };
 		A5B6C7D8E9F04990A1B2C3D4E5 /* ClipboardItemFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6C7D8E9F0A14990A1B2C3D4E5F /* ClipboardItemFilter.swift */; };
+		DC771701182E4BD188ACC282 /* HotKeyRecorderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A57B86873CE445BFBE80F41F /* HotKeyRecorderView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -46,7 +47,7 @@
 		72F05B2CCFE249AFA44F04CA /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		0FAA7E75BC8A4BB59679AF95 /* PasteTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteTheme.swift; sourceTree = "<group>"; };
 		8C0CF0541C8A4203A2049492 /* HotKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKey.swift; sourceTree = "<group>"; };
-		E9D1A839A8C14B148802BBB2 /* Paste.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Paste.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E9D1A839A8C14B148802BBB2 /* ClipStack.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClipStack.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0E997FCFB67E400A82C97FAF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A6D457FE0C9E4A7789F0E471 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		BC4C25708741498F83434ECA /* Paste.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Paste.entitlements; sourceTree = "<group>"; };
@@ -57,6 +58,7 @@
 		D2E3F4A5B6C748990A1B2C3D4 /* AutoTagService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTagService.swift; sourceTree = "<group>"; };
 		F4A5B6C7D8E94990A1B2C3D4E5 /* TimelineOutlineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineOutlineView.swift; sourceTree = "<group>"; };
 		B6C7D8E9F0A14990A1B2C3D4E5F /* ClipboardItemFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardItemFilter.swift; sourceTree = "<group>"; };
+		A57B86873CE445BFBE80F41F /* HotKeyRecorderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKeyRecorderView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -81,7 +83,7 @@
 		BED633F87AD143F38C6D9F10 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				E9D1A839A8C14B148802BBB2 /* Paste.app */,
+				E9D1A839A8C14B148802BBB2 /* ClipStack.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -132,6 +134,7 @@
 				2661A50E8CCA46B5A44686E7 /* MenuBarPanel.swift */,
 				F4A5B6C7D8E94990A1B2C3D4E5 /* TimelineOutlineView.swift */,
 				72F05B2CCFE249AFA44F04CA /* SettingsView.swift */,
+				A57B86873CE445BFBE80F41F /* HotKeyRecorderView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -152,9 +155,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		D3AA28C6E22440C993BC3E84 /* Paste */ = {
+		D3AA28C6E22440C993BC3E84 /* ClipStack */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 2CF10E9ED22E4EC1B84FB8C1 /* Build configuration list for PBXNativeTarget "Paste" */;
+			buildConfigurationList = 2CF10E9ED22E4EC1B84FB8C1 /* Build configuration list for PBXNativeTarget "ClipStack" */;
 			buildPhases = (
 				040EB2E2801544ACB1040B33 /* Sources */,
 				599C493FE24B4C968B5F098B /* Frameworks */,
@@ -164,9 +167,9 @@
 			);
 			dependencies = (
 			);
-			name = Paste;
-			productName = Paste;
-			productReference = E9D1A839A8C14B148802BBB2 /* Paste.app */;
+			name = ClipStack;
+			productName = ClipStack;
+			productReference = E9D1A839A8C14B148802BBB2 /* ClipStack.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -198,7 +201,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				D3AA28C6E22440C993BC3E84 /* Paste */,
+				D3AA28C6E22440C993BC3E84 /* ClipStack */,
 			);
 		};
 /* End PBXProject section */
@@ -234,6 +237,7 @@
 				107224E5FED2465DA69FB0FA /* SettingsView.swift in Sources */,
 				9245626D0D7D407593908E2F /* PasteTheme.swift in Sources */,
 				3E1E44CB76F64529B6F44EE4 /* HotKey.swift in Sources */,
+				DC771701182E4BD188ACC282 /* HotKeyRecorderView.swift in Sources */,
 				B7C8D9E0F1A2435566778899 /* StatusItemController.swift in Sources */,
 				A1B2C3D4E5F64789A0B1C2D3 /* AccessibilityPermission.swift in Sources */,
 				ECD525F0B2204F9D80CDE8DE /* ContentTypeDetector.swift in Sources */,
@@ -341,7 +345,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		2CF10E9ED22E4EC1B84FB8C1 /* Build configuration list for PBXNativeTarget "Paste" */ = {
+		2CF10E9ED22E4EC1B84FB8C1 /* Build configuration list for PBXNativeTarget "ClipStack" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				DC747AB18A7C4027839BB95D /* Debug */,

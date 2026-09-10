@@ -13,7 +13,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROJECT="$ROOT/Paste/Paste.xcodeproj"
-SCHEME="Paste"
+SCHEME="ClipStack"
 CONFIG="Release"
 VERSION="${MARKETING_VERSION:-1.0.0}"
 BUILD_NUMBER="${CURRENT_PROJECT_VERSION:-1}"

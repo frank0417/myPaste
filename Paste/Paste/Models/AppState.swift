@@ -14,7 +14,7 @@ final class AppState: ObservableObject {
     @Published var showOnlyPinned: Bool = false
     @Published var requestClearHistory: Bool = false
     @Published var requestPinSelected: Bool = false
-    @Published var hotkeyDisplay: String = "⇧⌘V"
+    @Published var hotkey: HotKeyShortcut = .default
     @Published var requestExportJSON: Bool = false
     /// When set, the shelf panel shows a full-content detail overlay for this item.
     @Published var shelfDetailItemID: UUID?
@@ -78,9 +78,10 @@ final class AppState: ObservableObject {
         }
     }
 
+    var hotkeyDisplay: String { hotkey.display }
+
     init() {
         loadPreferences()
-        hotkeyDisplay = PasteHotKey.defaultDisplay
     }
 
     func loadPreferences() {
@@ -89,6 +90,7 @@ final class AppState: ObservableObject {
         launchAtLogin = defaults.bool(forKey: "launchAtLogin")
         maxHistoryCount = defaults.object(forKey: "maxHistoryCount") as? Int ?? 500
         syncEnabled = defaults.object(forKey: "syncEnabled") as? Bool ?? true
+        hotkey = HotKeyShortcut.load()
     }
 
     func savePreferences() {
@@ -97,10 +99,18 @@ final class AppState: ObservableObject {
         defaults.set(launchAtLogin, forKey: "launchAtLogin")
         defaults.set(maxHistoryCount, forKey: "maxHistoryCount")
         defaults.set(syncEnabled, forKey: "syncEnabled")
+        hotkey.save()
+    }
+
+    func updateHotkey(_ shortcut: HotKeyShortcut) {
+        hotkey = shortcut
+        shortcut.save()
+        NotificationCenter.default.post(name: .hotKeyPreferenceChanged, object: nil)
     }
 }
 
 
 extension Notification.Name {
     static let pasteMonitoringPreferenceChanged = Notification.Name("pasteMonitoringPreferenceChanged")
+    static let hotKeyPreferenceChanged = Notification.Name("hotKeyPreferenceChanged")
 }
