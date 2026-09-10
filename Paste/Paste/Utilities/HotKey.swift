@@ -86,8 +86,8 @@ struct HotKeyShortcut: Codable, Equatable {
         var deadKeyState: UInt32 = 0
         var chars = [UniChar](repeating: 0, count: 4)
         var length = 0
-        let status = layoutData.withUnsafeBytes { ptr -> OSStatus in
-            guard let base = ptr.baseAddress else { return errAEBadListItem }
+        let status: OSStatus = layoutData.withUnsafeBytes { ptr -> OSStatus in
+            guard let base = ptr.baseAddress else { return OSStatus(errAEBadListItem) }
             return UCKeyTranslate(
                 base.assumingMemoryBound(to: UCKeyboardLayout.self),
                 UInt16(keyCode),
