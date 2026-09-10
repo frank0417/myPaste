@@ -40,7 +40,7 @@ struct SettingsView: View {
                     updateLaunchAtLogin(enabled)
                 }
             LabeledContent("快捷键", value: appState.hotkeyDisplay)
-            Text("Paste 常驻菜单栏后台：关掉底部面板不会退出。入口是右上角剪贴板图标，或按 ⇧⌘V。右键图标可选退出。")
+            Text("ClipStack 常驻菜单栏后台：关掉底部面板不会退出。入口是右上角层叠图标，或按 ⇧⌘V。右键图标可选退出。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -49,11 +49,11 @@ struct SettingsView: View {
                     Text(AccessibilityPermission.isTrusted ? "已允许" : "未允许")
                         .foregroundStyle(AccessibilityPermission.isTrusted ? Color.secondary : Color.orange)
                 }
-                Button("在系统设置中允许 Paste…") {
+                Button("在系统设置中允许 ClipStack…") {
                     AccessibilityPermission.requestIfNeeded(prompt: true)
                     AccessibilityPermission.openSystemSettings()
                 }
-                Text("自动记录复制内容不需要辅助功能。只有「一键粘贴到其他 App」才需要。若列表里没有 Paste，先点此按钮再刷新列表。")
+                Text("自动记录复制内容不需要辅助功能。只有「一键粘贴到其他 App」才需要。若列表里没有 ClipStack，先点此按钮再刷新列表。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -106,14 +106,14 @@ struct SettingsView: View {
 
     private var aboutTab: some View {
         VStack(spacing: 12) {
-            Image(systemName: "doc.on.clipboard.fill")
+            Image(systemName: "square.stack.3d.up.fill")
                 .font(.system(size: 42))
                 .foregroundStyle(PasteTheme.accent)
-            Text("Paste")
+            Text("ClipStack")
                 .font(.title.weight(.bold))
             Text("保存、搜索、同步你复制的一切")
                 .foregroundStyle(.secondary)
-            Text("版本 1.0.10")
+            Text("版本 1.1.0")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
             Spacer()

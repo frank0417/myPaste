@@ -52,7 +52,7 @@ jobs:
             V="${{ inputs.version || '1.0.0' }}"
           fi
           echo "version=$V" >> "$GITHUB_OUTPUT"
-          echo "Building Paste $V"
+          echo "Building ClipStack $V"
 
       - name: Package (ad-hoc CI build)
         env:
@@ -69,7 +69,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Paste-${{ steps.ver.outputs.version }}-macos
+          name: ClipStack-${{ steps.ver.outputs.version }}-macos
           path: |
             dist/*.dmg
             dist/*.pkg
@@ -82,16 +82,16 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: Paste ${{ steps.ver.outputs.version }}
+          name: ClipStack ${{ steps.ver.outputs.version }}
           draft: false
           prerelease: true
           generate_release_notes: true
           body: |
-            ## Paste ${{ steps.ver.outputs.version }} macOS 安装包
+            ## ClipStack ${{ steps.ver.outputs.version }} macOS 安装包
 
             ### 下载
-            - **DMG（推荐）**：`Paste-${{ steps.ver.outputs.version }}.dmg` — 打开后拖到「应用程序」
-            - **ZIP**：`Paste-${{ steps.ver.outputs.version }}-macos.zip` — 解压得到 `Paste.app`
+            - **DMG（推荐）**：`ClipStack-${{ steps.ver.outputs.version }}.dmg` — 打开后拖到「应用程序」
+            - **ZIP**：`ClipStack-${{ steps.ver.outputs.version }}-macos.zip` — 解压得到 `ClipStack.app`
 
             ### 注意
             这是 GitHub Actions **ad-hoc / 未公证** 构建，主要用于试用。
@@ -106,10 +106,10 @@ jobs:
 
       - name: Summarize
         run: |
-          echo "## Paste ${{ steps.ver.outputs.version }} packages" >> "$GITHUB_STEP_SUMMARY"
+          echo "## ClipStack ${{ steps.ver.outputs.version }} packages" >> "$GITHUB_STEP_SUMMARY"
           ls -lh dist >> "$GITHUB_STEP_SUMMARY"
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
             echo >> "$GITHUB_STEP_SUMMARY"
             echo "Release: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}" >> "$GITHUB_STEP_SUMMARY"
-            echo "DMG: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/Paste-${{ steps.ver.outputs.version }}.dmg" >> "$GITHUB_STEP_SUMMARY"
+            echo "DMG: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/ClipStack-${{ steps.ver.outputs.version }}.dmg" >> "$GITHUB_STEP_SUMMARY"
           fi

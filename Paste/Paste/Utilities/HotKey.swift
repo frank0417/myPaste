@@ -1,7 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 
-/// Registers a global ⌘⇧V hotkey to reveal the Paste menu-bar panel / main window.
+/// Registers a global ⌘⇧V hotkey to reveal the ClipStack menu-bar panel / main window.
 @MainActor
 final class GlobalHotKeyManager {
     static let shared = GlobalHotKeyManager()

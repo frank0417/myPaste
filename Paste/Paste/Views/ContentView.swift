@@ -92,7 +92,7 @@ struct ContentView: View {
         guard let data = store?.exportJSON() else { return }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
-        panel.nameFieldStringValue = "Paste-History.json"
+        panel.nameFieldStringValue = "ClipStack-History.json"
         if panel.runModal() == .OK, let url = panel.url {
             try? data.write(to: url)
             syncService.markSyncing()
@@ -176,7 +176,7 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
-        .navigationTitle("Paste")
+        .navigationTitle("ClipStack")
     }
 }
 
@@ -230,10 +230,10 @@ enum SeedData {
 
         let demos: [(ClipboardContentType, String, String?)] = [
             (.link, "https://developer.apple.com/documentation/swiftdata", "Safari"),
-            (.code, "import SwiftUI\n\nstruct HelloView: View {\n  var body: some View { Text(\"Paste\") }\n}", "Xcode"),
+            (.code, "import SwiftUI\n\nstruct HelloView: View {\n  var body: some View { Text(\"ClipStack\") }\n}", "Xcode"),
             (.text, "明天下午三点同步剪贴板方案，优先做搜索与置顶。", "Notes"),
             (.color, "#0F766E", "Figma"),
-            (.snippet, "Paste 会自动保存你复制的文本、链接、图片与文件，并支持 iCloud 同步与全文搜索。", "Slack")
+            (.snippet, "ClipStack 会自动保存你复制的文本、链接、图片与文件，并支持 iCloud 同步与全文搜索。", "Slack")
         ]
 
         for (type, text, app) in demos {

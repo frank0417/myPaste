@@ -23,7 +23,7 @@ struct PasteApp: App {
         let _ = appDelegate.configure(container: sharedModelContainer, appState: appState)
 
         // Optional main window — closing it must NOT quit the agent app.
-        Window("Paste", id: "main") {
+        Window("ClipStack", id: "main") {
             ContentView()
                 .environmentObject(appState)
                 .modelContainer(sharedModelContainer)

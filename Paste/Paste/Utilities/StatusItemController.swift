@@ -33,10 +33,10 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         if statusItem == nil {
             let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
             if let button = item.button {
-                let image = NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: "Paste")
+                let image = NSImage(systemSymbolName: "square.stack.3d.up.fill", accessibilityDescription: "ClipStack")
                 image?.isTemplate = true
                 button.image = image
-                button.toolTip = "Paste — 常驻后台（⇧⌘V 唤出）"
+                button.toolTip = "ClipStack — 常驻后台（⇧⌘V 唤出）"
                 button.target = self
                 button.action = #selector(statusItemClicked(_:))
                 button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -69,7 +69,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         menu.addItem(NSMenuItem.separator())
         menu.addItem(withTitle: "设置…", action: #selector(menuOpenSettings), keyEquivalent: ",")
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(withTitle: "退出 Paste", action: #selector(menuQuit), keyEquivalent: "q")
+        menu.addItem(withTitle: "退出 ClipStack", action: #selector(menuQuit), keyEquivalent: "q")
         for item in menu.items {
             item.target = self
         }

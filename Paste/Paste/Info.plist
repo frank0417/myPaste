@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>zh-Hans</string>
 	<key>CFBundleDisplayName</key>
-	<string>Paste</string>
+	<string>ClipStack</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -17,9 +17,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0.10</string>
+	<string>1.1.0</string>
 	<key>CFBundleVersion</key>
-	<string>13</string>
+	<string>14</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>LSMinimumSystemVersion</key>
@@ -27,10 +27,10 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 2026 Paste. All rights reserved.</string>
+	<string>Copyright © 2026 ClipStack. All rights reserved.</string>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Paste 需要辅助功能权限，以便将历史记录直接粘贴到其他应用。</string>
+	<string>ClipStack 需要辅助功能权限，以便将历史记录直接粘贴到其他应用。</string>
 	<key>NSAccessibilityUsageDescription</key>
-	<string>Paste 使用辅助功能将选中的剪贴板内容粘贴到当前应用。</string>
+	<string>ClipStack 使用辅助功能将选中的剪贴板内容粘贴到当前应用。</string>
 </dict>
 </plist>
