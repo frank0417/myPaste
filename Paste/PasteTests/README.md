@@ -1,7 +1,8 @@
-# Content Type Detection — Logic Mirror Tests
+# Search / content tests
 
-These Node tests mirror `ContentTypeDetector` rules so CI / Linux agents can validate classification without Xcode.
+Node tests mirror Swift scoring rules so CI / Linux agents can validate logic without Xcode.
 
 ```bash
 node Paste/PasteTests/content_type_detector.test.mjs
+node Paste/PasteTests/hybrid_search.test.mjs
 ```

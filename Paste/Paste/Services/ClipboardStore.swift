@@ -48,6 +48,7 @@ final class ClipboardStore: ObservableObject {
         if let existing = try? modelContext.fetch(descriptor).first {
             existing.updatedAt = .now
             try? modelContext.save()
+            EmbeddingIndex.shared.upsert(id: existing.id, text: existing.searchableText)
             return
         }
 
@@ -68,6 +69,7 @@ final class ClipboardStore: ObservableObject {
         modelContext.insert(item)
         AutoTagService.apply(to: item)
         try? modelContext.save()
+        EmbeddingIndex.shared.upsert(id: item.id, text: item.searchableText)
         enforceHistoryLimit()
     }
 
@@ -102,17 +104,22 @@ final class ClipboardStore: ObservableObject {
     }
 
     func delete(_ item: ClipboardItem) {
+        let id = item.id
         modelContext.delete(item)
         try? modelContext.save()
+        EmbeddingIndex.shared.remove(ids: [id])
     }
 
     func clearHistory(keepPinned: Bool = true) {
         let descriptor = FetchDescriptor<ClipboardItem>()
         guard let items = try? modelContext.fetch(descriptor) else { return }
+        var removed: [UUID] = []
         for item in items where !(keepPinned && item.isPinned) {
+            removed.append(item.id)
             modelContext.delete(item)
         }
         try? modelContext.save()
+        EmbeddingIndex.shared.remove(ids: removed)
     }
 
     func assign(item: ClipboardItem, to board: ClipboardBoard?) {
@@ -179,10 +186,13 @@ final class ClipboardStore: ObservableObject {
             sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
         )
         guard let items = try? modelContext.fetch(descriptor), items.count > limit else { return }
+        var removed: [UUID] = []
         for item in items.suffix(from: limit) {
+            removed.append(item.id)
             modelContext.delete(item)
         }
         try? modelContext.save()
+        EmbeddingIndex.shared.remove(ids: removed)
     }
 
     private static func simulatePasteKeystroke() {

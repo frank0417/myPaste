@@ -381,7 +381,7 @@ struct MenuBarPanel: View {
                 .foregroundStyle(PasteTheme.accent)
             Text(searching ? "没有匹配「\(appState.searchQuery)」的内容" : "复制任意内容后会出现在这里")
                 .font(.callout.weight(.medium))
-            Text(searching ? "换个关键词试试" : "面板可随时关闭，App 继续在菜单栏后台运行")
+            Text(searching ? "换个关键词，或试试更口语的说法" : "面板可随时关闭，App 继续在菜单栏后台运行")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

@@ -44,6 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var monitoringObserver: NSObjectProtocol?
     private var hotKeyObserver: NSObjectProtocol?
     private var didInstallStatusItem = false
+    private var didPrepareSearchIndex = false
     private weak var appState: AppState?
 
     @MainActor
@@ -76,6 +77,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         AutoTagService.backfillIfNeeded(in: container.mainContext)
+        if !didPrepareSearchIndex {
+            didPrepareSearchIndex = true
+            EmbeddingIndex.shared.onDidUpdate = { [weak appState] in
+                guard let appState else { return }
+                appState.embeddingRevision += 1
+            }
+            EmbeddingIndex.shared.prepare()
+            let history = (try? container.mainContext.fetch(FetchDescriptor<ClipboardItem>())) ?? []
+            EmbeddingIndex.shared.backfill(history.map { ($0.id, $0.searchableText) })
+        }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {

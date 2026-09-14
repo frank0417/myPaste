@@ -20,6 +20,8 @@ final class AppState: ObservableObject {
     @Published var shelfDetailItemID: UUID?
     /// Filter by automatic content tag (图片 / 链接 / 富文本 …).
     @Published var selectedAutoTag: String?
+    /// Bumped when on-device embeddings finish a batch so search results can refresh.
+    @Published var embeddingRevision: Int = 0
     @Published var panelViewMode: PanelViewMode = .shelf
     @Published var mainHistoryMode: MainHistoryMode = .list
 

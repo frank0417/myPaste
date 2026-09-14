@@ -251,6 +251,7 @@ enum SeedData {
             if type == .link { item.isPinned = true }
             AutoTagService.apply(to: item)
             context.insert(item)
+            EmbeddingIndex.shared.upsert(id: item.id, text: item.searchableText)
         }
         try? context.save()
     }
