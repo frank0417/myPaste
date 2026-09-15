@@ -132,7 +132,9 @@ struct MenuBarPanel: View {
         .onAppear {
             StatusItemController.shared.setExpandedForDetail(appState.shelfDetailItemID != nil)
         }
-        .focusable()
+        // While the search box is up it owns first responder; making the whole
+        // panel focusable at the same time steals keystrokes back from the field.
+        .focusable(!showSearch)
         .onKeyPress(.leftArrow) {
             guard !isSearchFieldEditing else { return .ignored }
             moveSelection(by: -1)
@@ -144,6 +146,7 @@ struct MenuBarPanel: View {
             return .handled
         }
         .onKeyPress(.return) {
+            guard !isSearchFieldEditing else { return .ignored }
             if appState.shelfDetailItemID != nil, let item = detailItem {
                 paste(item)
             } else {
@@ -180,13 +183,7 @@ struct MenuBarPanel: View {
     /// The panel is a non-activating NSPanel: it must become key and the field must be
     /// made first responder, or every keystroke falls through to the app behind it.
     private func focusSearchField() {
-        DispatchQueue.main.async {
-            guard let searchField, let window = searchField.window else { return }
-            if !window.isKeyWindow {
-                window.makeKey()
-            }
-            window.makeFirstResponder(searchField)
-        }
+        PanelSearchField.focus(searchField)
     }
 
     private var detailItem: ClipboardItem? {
@@ -395,13 +392,17 @@ struct MenuBarPanel: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.secondary)
-            TextField("搜索剪贴板…", text: $draftQuery)
-                .textFieldStyle(.plain)
-                .font(.system(size: 13))
-                .background(SearchFieldAccessor(field: $searchField))
-                .onChange(of: draftQuery) { _, value in
-                    scheduleSearch(value)
-                }
+            PanelSearchField(
+                text: $draftQuery,
+                placeholder: "搜索剪贴板…",
+                shouldFocus: true,
+                field: $searchField,
+                onSubmit: pasteSelected
+            )
+            .frame(maxWidth: .infinity, minHeight: 18)
+            .onChange(of: draftQuery) { _, value in
+                scheduleSearch(value)
+            }
             if !draftQuery.isEmpty {
                 Text("\(filtered.count)")
                     .font(.caption2.monospacedDigit())
@@ -706,28 +707,191 @@ struct MenuBarPanel: View {
     }
 }
 
-/// Hands the panel the actual NSTextField so it can be made first responder directly.
-/// The shelf lives in a non-activating NSPanel, where SwiftUI's @FocusState alone does
-/// not move the key window's first responder — the field looked focused but swallowed
-/// no keystrokes.
-private struct SearchFieldAccessor: NSViewRepresentable {
+/// Native AppKit field for the floating shelf.
+///
+/// SwiftUI `TextField` inside a non-activating `NSPanel` never reliably becomes
+/// first responder — `@FocusState` is a no-op there, and walking the SwiftUI
+/// hosting tree for an `NSTextField` misses the real editor (it sits beside the
+/// background accessor, not above it). A representable `NSTextField` is the
+/// field, so it can be made first responder and Chinese IME composes correctly.
+private struct PanelSearchField: NSViewRepresentable {
+    @Binding var text: String
+    var placeholder: String
+    var shouldFocus: Bool
     @Binding var field: NSTextField?
+    var onSubmit: () -> Void
 
-    func makeNSView(context: Context) -> NSView {
-        NSView(frame: .zero)
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async {
-            var view = nsView.superview
-            while let current = view {
-                if let textField = current as? NSTextField {
-                    field = textField
-                    return
-                }
-                view = current.superview
+    func makeNSView(context: Context) -> PanelSearchFieldHost {
+        let host = PanelSearchFieldHost()
+        host.textField.placeholderString = placeholder
+        host.textField.stringValue = text
+        host.textField.delegate = context.coordinator
+        context.coordinator.host = host
+        context.coordinator.text = $text
+        context.coordinator.fieldRef = $field
+        context.coordinator.onSubmit = onSubmit
+        host.onAttachedToWindow = { [weak coordinator = context.coordinator] in
+            DispatchQueue.main.async {
+                coordinator?.publishField()
+                coordinator?.focusIfNeeded()
             }
         }
+        return host
+    }
+
+    func updateNSView(_ host: PanelSearchFieldHost, context: Context) {
+        context.coordinator.text = $text
+        context.coordinator.fieldRef = $field
+        context.coordinator.onSubmit = onSubmit
+        if host.textField.placeholderString != placeholder {
+            host.textField.placeholderString = placeholder
+        }
+        // Never overwrite the field editor while the user is composing (IME).
+        // The clear button is the one external edit that must land mid-edit.
+        let editing = host.textField.currentEditor() != nil
+        if editing {
+            if text.isEmpty, !host.textField.stringValue.isEmpty {
+                host.textField.stringValue = ""
+            }
+        } else if host.textField.stringValue != text {
+            host.textField.stringValue = text
+        }
+        DispatchQueue.main.async {
+            context.coordinator.publishField()
+        }
+        if shouldFocus {
+            context.coordinator.focusIfNeeded()
+        } else {
+            context.coordinator.didFocus = false
+        }
+    }
+
+    /// Makes the shelf key and the field first responder. Safe to call before
+    /// the representable has a window — it no-ops until `viewDidMoveToWindow`.
+    static func focus(_ field: NSTextField?) {
+        guard let field, let window = field.window else { return }
+        if !NSApp.isActive {
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        if !window.isKeyWindow {
+            window.makeKeyAndOrderFront(nil)
+        }
+        if window.firstResponder !== field.currentEditor() {
+            window.makeFirstResponder(field)
+        }
+    }
+
+    final class Coordinator: NSObject, NSTextFieldDelegate {
+        var text: Binding<String> = .constant("")
+        var fieldRef: Binding<NSTextField?> = .constant(nil)
+        var onSubmit: () -> Void = {}
+        weak var host: PanelSearchFieldHost?
+        var didFocus = false
+
+        func publishField() {
+            fieldRef.wrappedValue = host?.textField
+        }
+
+        func focusIfNeeded() {
+            guard !didFocus, let field = host?.textField, field.window != nil else { return }
+            PanelSearchField.focus(field)
+            if field.currentEditor() != nil {
+                didFocus = true
+            }
+        }
+
+        func controlTextDidChange(_ obj: Notification) {
+            guard let field = obj.object as? NSTextField else { return }
+            if text.wrappedValue != field.stringValue {
+                text.wrappedValue = field.stringValue
+            }
+        }
+
+        func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            if commandSelector == #selector(NSResponder.insertNewline(_:)) {
+                onSubmit()
+                return true
+            }
+            return false
+        }
+    }
+}
+
+/// Fills the SwiftUI slot so clicks land on the text field instead of dragging
+/// the borderless panel (`isMovableByWindowBackground`).
+private final class PanelSearchFieldHost: NSView {
+    let textField = PanelSearchTextField()
+    var onAttachedToWindow: (() -> Void)?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        textField.isBordered = false
+        textField.isBezeled = false
+        textField.drawsBackground = false
+        textField.isEditable = true
+        textField.isSelectable = true
+        textField.focusRingType = .none
+        textField.font = .systemFont(ofSize: 13)
+        textField.lineBreakMode = .byClipping
+        textField.cell?.wraps = false
+        textField.cell?.isScrollable = true
+        textField.cell?.usesSingleLineMode = true
+        textField.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        textField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        addSubview(textField)
+        textField.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            textField.leadingAnchor.constraint(equalTo: leadingAnchor),
+            textField.trailingAnchor.constraint(equalTo: trailingAnchor),
+            textField.centerYAnchor.constraint(equalTo: centerYAnchor)
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { nil }
+
+    override var mouseDownCanMoveWindow: Bool { false }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        bounds.contains(point) ? textField : nil
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if window != nil {
+            onAttachedToWindow?()
+        }
+    }
+}
+
+private final class PanelSearchTextField: NSTextField {
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: NSView.noIntrinsicMetric, height: 18)
+    }
+
+    override var acceptsFirstResponder: Bool { true }
+    override var mouseDownCanMoveWindow: Bool { false }
+
+    override func mouseDown(with event: NSEvent) {
+        window?.makeKey()
+        window?.makeFirstResponder(self)
+        super.mouseDown(with: event)
+    }
+
+    override func becomeFirstResponder() -> Bool {
+        let ok = super.becomeFirstResponder()
+        if let editor = currentEditor() as? NSTextView {
+            editor.isContinuousSpellCheckingEnabled = false
+            editor.isAutomaticQuoteSubstitutionEnabled = false
+            editor.isAutomaticDashSubstitutionEnabled = false
+            editor.isAutomaticTextReplacementEnabled = false
+            editor.isAutomaticSpellingCorrectionEnabled = false
+        }
+        return ok
     }
 }
 

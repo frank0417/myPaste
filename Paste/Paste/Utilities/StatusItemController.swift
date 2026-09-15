@@ -258,7 +258,9 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     }
 
     private func makePanel() -> NSPanel {
-        let panel = NSPanel(
+        // ClipboardShelfPanel overrides `canBecomeKey` — a borderless NSPanel
+        // otherwise refuses to become key, and the search field cannot type.
+        let panel = ClipboardShelfPanel(
             contentRect: NSRect(x: 0, y: 0, width: Self.panelWidth, height: Self.panelHeight),
             styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
             backing: .buffered,
@@ -378,4 +380,12 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         // Belt-and-suspenders: never let close tear down residency.
         removeDismissalMonitors()
     }
+}
+
+/// Borderless panels return `false` from `canBecomeKey`, so `makeKeyAndOrderFront`
+/// and `makeFirstResponder` are no-ops and every keystroke falls through. The
+/// floating shelf must be keyable for search, arrow navigation, and Escape.
+final class ClipboardShelfPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { false }
 }
