@@ -151,8 +151,17 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     func hidePanel() {
         removeDismissalMonitors()
         appState?.shelfDetailItemID = nil
+        closePanelSearch()
         isDetailExpanded = false
         panel?.orderOut(nil)
+    }
+
+    /// The shelf always reopens without the search field; the query would otherwise
+    /// keep filtering a panel whose search box is gone.
+    private func closePanelSearch() {
+        guard let appState, appState.isPanelSearchVisible else { return }
+        appState.isPanelSearchVisible = false
+        appState.searchQuery = ""
     }
 
     /// Grow the floating shelf so the detail overlay is fully visible.
@@ -241,6 +250,12 @@ final class StatusItemController: NSObject, NSWindowDelegate {
                 if self?.appState?.shelfDetailItemID != nil {
                     self?.appState?.shelfDetailItemID = nil
                     self?.setExpandedForDetail(false)
+                    return nil
+                }
+                // Escape backs out of search before it dismisses the whole shelf.
+                // The panel clears its draft text when the box closes.
+                if let appState = self?.appState, appState.isPanelSearchVisible {
+                    appState.isPanelSearchVisible = false
                     return nil
                 }
                 self?.hidePanel()

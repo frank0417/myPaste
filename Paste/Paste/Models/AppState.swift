@@ -18,6 +18,9 @@ final class AppState: ObservableObject {
     @Published var requestExportJSON: Bool = false
     /// When set, the shelf panel shows a full-content detail overlay for this item.
     @Published var shelfDetailItemID: UUID?
+    /// The shelf panel's standalone search field, floating above its nav bar.
+    /// Owned by AppState so the panel controller can close it from its key monitor.
+    @Published var isPanelSearchVisible: Bool = false
     /// Filter by automatic content tag (图片 / 链接 / 富文本 …).
     @Published var selectedAutoTag: String?
     /// Bumped when on-device embeddings finish a batch so search results can refresh.

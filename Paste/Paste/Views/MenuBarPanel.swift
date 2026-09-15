@@ -8,7 +8,6 @@ struct MenuBarPanel: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ClipboardItem.updatedAt, order: .reverse) private var items: [ClipboardItem]
     @State private var store: ClipboardStore?
-    @State private var showSearch = false
     @FocusState private var searchFocused: Bool
     @State private var draftQuery = ""
     @State private var searchDebounce: DispatchWorkItem?
@@ -19,39 +18,19 @@ struct MenuBarPanel: View {
         Array(ClipboardItemFilter.filter(items, appState: appState).prefix(appState.panelViewMode == .shelf ? 40 : 200))
     }
 
+    private var showSearch: Bool { appState.isPanelSearchVisible }
+
     var body: some View {
         ZStack {
             // When detail is open, hide the shelf layer completely so nothing shows through.
             if detailItem == nil {
-                VStack(spacing: 0) {
-                    topBar
+                VStack(spacing: 2) {
+                    // A standalone floating field above the nav bar, not part of the card.
                     if showSearch {
-                        searchRow
+                        searchField
                     }
-                    if appState.panelViewMode == .shelf {
-                        shelf
-                    } else {
-                        AutoTagFilterBar(items: items, compact: true)
-                        TimelineOutlineView(
-                            items: filtered,
-                            store: store,
-                            onOpenDetail: { item in
-                                appState.selectedItemID = item.id
-                                appState.shelfDetailItemID = item.id
-                            }
-                        )
-                    }
+                    panelCard
                 }
-                .background {
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(PasteTheme.panelFill.opacity(0.92))
-                        .background(
-                            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                                .fill(.ultraThinMaterial)
-                        )
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                .shadow(color: .black.opacity(0.16), radius: 24, y: 10)
                 .animation(.easeOut(duration: 0.18), value: showSearch)
             }
 
@@ -109,19 +88,22 @@ struct MenuBarPanel: View {
             return .handled
         }
         .onKeyPress(.escape) {
-            if searchFocused && !draftQuery.isEmpty {
-                clearSearch(immediate: true)
-                return .handled
-            }
-            return .ignored
+            guard showSearch else { return .ignored }
+            closeSearch()
+            return .handled
         }
         .onKeyPress(keys: [.init("f")]) { press in
             guard press.modifiers.contains(.command) else { return .ignored }
-            withAnimation(.easeOut(duration: 0.18)) {
-                showSearch = true
-            }
-            DispatchQueue.main.async { searchFocused = true }
+            openSearch()
             return .handled
+        }
+        .onChange(of: appState.isPanelSearchVisible) { _, visible in
+            // The panel controller can close the box from its Escape monitor.
+            if visible {
+                searchFocused = true
+            } else if !draftQuery.isEmpty {
+                clearSearch()
+            }
         }
     }
 
@@ -130,25 +112,54 @@ struct MenuBarPanel: View {
         return items.first(where: { $0.id == id })
     }
 
+    private var panelCard: some View {
+        VStack(spacing: 0) {
+            topBar
+            if appState.panelViewMode == .shelf {
+                shelf
+            } else {
+                AutoTagFilterBar(items: items, compact: true)
+                TimelineOutlineView(
+                    items: filtered,
+                    store: store,
+                    onOpenDetail: { item in
+                        appState.selectedItemID = item.id
+                        appState.shelfDetailItemID = item.id
+                    }
+                )
+            }
+        }
+        .background {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(PasteTheme.panelFill.opacity(0.92))
+                .background(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                )
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shadow(color: .black.opacity(0.16), radius: 24, y: 10)
+    }
+
     private var topBar: some View {
         HStack(spacing: 10) {
             Button {
-                withAnimation(.easeOut(duration: 0.18)) {
-                    showSearch.toggle()
-                    if showSearch {
-                        DispatchQueue.main.async { searchFocused = true }
-                    } else {
-                        clearSearch(immediate: true)
-                    }
+                if showSearch {
+                    closeSearch()
+                } else {
+                    openSearch()
                 }
             } label: {
-                Image(systemName: showSearch ? "xmark" : "magnifyingglass")
+                Image(systemName: "magnifyingglass")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(showSearch ? PasteTheme.accent : .secondary)
                     .frame(width: 26, height: 26)
+                    .background(
+                        Circle().fill(showSearch ? PasteTheme.accent.opacity(0.14) : .clear)
+                    )
             }
             .buttonStyle(.plain)
-            .help("搜索")
+            .help(showSearch ? "收起搜索" : "搜索")
 
             boardTab(
                 title: "剪贴板",
@@ -246,13 +257,15 @@ struct MenuBarPanel: View {
         .padding(.bottom, 10)
     }
 
-    private var searchRow: some View {
+    /// Floats above the nav bar as its own pill so the bar keeps its single-line layout.
+    private var searchField: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
             TextField("搜索剪贴板…", text: $draftQuery)
                 .textFieldStyle(.plain)
+                .font(.system(size: 13))
                 .focused($searchFocused)
                 .onChange(of: draftQuery) { _, value in
                     scheduleSearch(value)
@@ -261,22 +274,65 @@ struct MenuBarPanel: View {
                 Text("\(filtered.count)")
                     .font(.caption2.monospacedDigit())
                     .foregroundStyle(.tertiary)
-                Button {
-                    clearSearch(immediate: true)
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
-                }
-                .buttonStyle(.plain)
             }
+            Button {
+                if draftQuery.isEmpty {
+                    closeSearch()
+                } else {
+                    clearSearch()
+                }
+            } label: {
+                Image(systemName: draftQuery.isEmpty ? "xmark" : "xmark.circle.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 16, height: 16)
+            }
+            .buttonStyle(.plain)
+            .help(draftQuery.isEmpty ? "收起搜索" : "清空")
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 7)
-        .background(Color.primary.opacity(0.06), in: Capsule())
+        .padding(.vertical, 8)
+        .background {
+            Capsule(style: .continuous)
+                .fill(PasteTheme.panelFill.opacity(0.92))
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(.ultraThinMaterial)
+                )
+        }
+        .clipShape(Capsule(style: .continuous))
+        .shadow(color: .black.opacity(0.14), radius: 14, y: 5)
+        .frame(maxWidth: 420)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 18)
-        .padding(.bottom, 6)
-        .transition(.opacity.combined(with: .move(edge: .top)))
+        // Keeps the pill's shadow off the window edge.
+        .padding(.top, 6)
+        // Slides up out of the nav bar it belongs to.
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+        .onAppear {
+            // The panel rebuilds its hosting view on show / detail toggle; adopt the
+            // live query so the field never disagrees with the filtered results.
+            if draftQuery != appState.searchQuery {
+                draftQuery = appState.searchQuery
+            }
+            searchFocused = true
+        }
+    }
+
+    private func openSearch() {
+        withAnimation(.easeOut(duration: 0.18)) {
+            appState.isPanelSearchVisible = true
+        }
+        // Focus only lands reliably once the field is in the hierarchy.
+        DispatchQueue.main.async { searchFocused = true }
+    }
+
+    private func closeSearch() {
+        searchFocused = false
+        withAnimation(.easeOut(duration: 0.18)) {
+            appState.isPanelSearchVisible = false
+        }
+        clearSearch()
     }
 
     private func scheduleSearch(_ value: String) {
@@ -295,11 +351,10 @@ struct MenuBarPanel: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.14, execute: work)
     }
 
-    private func clearSearch(immediate: Bool) {
+    private func clearSearch() {
         searchDebounce?.cancel()
         draftQuery = ""
         appState.searchQuery = ""
-        if !immediate { return }
     }
 
     private var topTagCounts: [(AutoTag, Int)] {
