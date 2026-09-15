@@ -35,6 +35,8 @@
 		C08F617293A4B5C6D7E8F9A0 /* EmbeddingIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF7E50618293A4B5C6D7E8F1 /* EmbeddingIndex.swift */; };
 		E20B8394B5C6D7E8F9A0B1C2 /* SensitiveClipboardText.swift in Sources */ = {isa = PBXBuildFile; fileRef = D19A7283A4B5C6D7E8F9A0B3 /* SensitiveClipboardText.swift */; };
 		F1A2B3C4D5E6F70819203A4B /* ScreenshotService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5C /* ScreenshotService.swift */; };
+		C2D3E4F5A6B70819203A4B5C /* TextRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C4D5E6F7A80819203A4B5D /* TextRecognizer.swift */; };
+		D4E5F6A7B8C90819203A4B5E /* ScreenshotHUD.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F6A7B8C9D00819203A4B5F /* ScreenshotHUD.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -69,6 +71,8 @@
 		BF7E50618293A4B5C6D7E8F1 /* EmbeddingIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddingIndex.swift; sourceTree = "<group>"; };
 		D19A7283A4B5C6D7E8F9A0B3 /* SensitiveClipboardText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SensitiveClipboardText.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B5C /* ScreenshotService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotService.swift; sourceTree = "<group>"; };
+		B3C4D5E6F7A80819203A4B5D /* TextRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextRecognizer.swift; sourceTree = "<group>"; };
+		E5F6A7B8C9D00819203A4B5F /* ScreenshotHUD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotHUD.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -132,6 +136,7 @@
 				D2E3F4A5B6C748990A1B2C3D4 /* AutoTagService.swift */,
 				BF7E50618293A4B5C6D7E8F1 /* EmbeddingIndex.swift */,
 				A1B2C3D4E5F60718293A4B5C /* ScreenshotService.swift */,
+				B3C4D5E6F7A80819203A4B5D /* TextRecognizer.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -147,6 +152,7 @@
 				F4A5B6C7D8E94990A1B2C3D4E5 /* TimelineOutlineView.swift */,
 				72F05B2CCFE249AFA44F04CA /* SettingsView.swift */,
 				A57B86873CE445BFBE80F41F /* HotKeyRecorderView.swift */,
+				E5F6A7B8C9D00819203A4B5F /* ScreenshotHUD.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -264,6 +270,8 @@
 				C08F617293A4B5C6D7E8F9A0 /* EmbeddingIndex.swift in Sources */,
 				E20B8394B5C6D7E8F9A0B1C2 /* SensitiveClipboardText.swift in Sources */,
 				F1A2B3C4D5E6F70819203A4B /* ScreenshotService.swift in Sources */,
+				C2D3E4F5A6B70819203A4B5C /* TextRecognizer.swift in Sources */,
+				D4E5F6A7B8C90819203A4B5E /* ScreenshotHUD.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

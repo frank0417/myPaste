@@ -193,6 +193,24 @@ final class ClipboardMonitor: ObservableObject {
         return rep.representation(using: .jpeg, properties: [.compressionFactor: 0.75])
     }
 
+    /// One pasteboard item carrying both representations of an image: the picture
+    /// plus, when we have it, the text recognized inside it. The receiving app asks
+    /// for the type it wants, so a text field gets the text and an image view the png.
+    nonisolated static func imagePasteboardItem(imageData: Data, text: String?) -> NSPasteboardItem? {
+        guard let image = NSImage(data: imageData), let tiff = image.tiffRepresentation else { return nil }
+        let item = NSPasteboardItem()
+        // Some apps only read tiff, so offer both image encodings. Both are derived
+        // from the decoded image: stored data is tiff for copies and png for captures.
+        item.setData(tiff, forType: .tiff)
+        if let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+            item.setData(png, forType: .png)
+        }
+        if let text, !text.isEmpty {
+            item.setString(text, forType: .string)
+        }
+        return item
+    }
+
     nonisolated static func hashString(_ value: String) -> String {
         let digest = SHA256.hash(data: Data(value.utf8))
         return digest.map { String(format: "%02x", $0) }.joined()

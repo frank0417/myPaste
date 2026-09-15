@@ -69,6 +69,8 @@ final class ScreenshotService: ObservableObject {
     /// Set by `AppDelegate` to the store that owns pasteboard monitoring, so a
     /// screenshot lands in history exactly once.
     var onCaptured: ((CapturedClipboardPayload) -> Void)?
+    /// Set by `AppDelegate`; only used to read the text-recognition preference.
+    weak var appState: AppState?
 
     @Published private(set) var isCapturing = false
 
@@ -92,22 +94,32 @@ final class ScreenshotService: ObservableObject {
         let arguments = mode.arguments(output: output.path)
         // Give the shelf time to animate away before the pixels are read.
         let delay: TimeInterval = restorePanel ? 0.3 : 0
+        let recognizeText = appState?.screenshotTextRecognition ?? true
 
         // Captured strongly: this is a singleton, and a weak capture cannot be read
         // from the nested task that hands the result back to the main actor.
         queue.asyncAfter(deadline: .now() + delay) { [self] in
             let status = Self.runScreenCapture(arguments)
             let data = Self.readPNG(at: output)
+            // OCR stays on this queue and ahead of the pasteboard write: the text has
+            // to be there by the time the user reaches for ⌘V.
+            let text = data.flatMap { recognizeText ? TextRecognizer.recognize(imageData: $0) : nil }
             Task { @MainActor in
-                self.finish(mode: mode, data: data, status: status, restorePanel: restorePanel)
+                self.finish(mode: mode, data: data, text: text, status: status, restorePanel: restorePanel)
             }
         }
     }
 
-    private func finish(mode: ScreenshotMode, data: Data?, status: Int32, restorePanel: Bool) {
+    private func finish(
+        mode: ScreenshotMode,
+        data: Data?,
+        text: String?,
+        status: Int32,
+        restorePanel: Bool
+    ) {
         isCapturing = false
 
-        guard let data, let payload = Self.payload(mode: mode, pngData: data) else {
+        guard let data, let payload = Self.payload(mode: mode, pngData: data, text: text) else {
             // No file means the user pressed Esc — unless macOS never let us capture
             // at all, which is a permission problem worth explaining.
             if !Self.hasScreenRecordingAccess {
@@ -121,20 +133,35 @@ final class ScreenshotService: ObservableObject {
             return
         }
 
-        writeToPasteboard(data)
+        writeToPasteboard(data, text: text)
         onCaptured?(payload)
         if restorePanel {
             StatusItemController.shared.showPanel()
+        } else {
+            // Nothing else on screen would confirm the capture, so say what happened.
+            ScreenshotHUD.shared.show(
+                thumbnail: payload.thumbnailData.flatMap(NSImage.init(data:)),
+                title: payload.previewTitle,
+                detail: Self.hudDetail(text: text, recognitionEnabled: appState?.screenshotTextRecognition ?? true)
+            )
         }
     }
 
     /// Screenshots go on the pasteboard too, so ⌘V works right after capturing.
-    private func writeToPasteboard(_ pngData: Data) {
-        guard let image = NSImage(data: pngData) else { return }
+    /// Image and recognized text ride along as two representations of one item, so
+    /// a text field pastes the text while an image view pastes the picture.
+    private func writeToPasteboard(_ pngData: Data, text: String?) {
+        guard let item = ClipboardMonitor.imagePasteboardItem(imageData: pngData, text: text) else { return }
         ClipboardMonitor.shared.ignoreNextPasteboardChange()
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.writeObjects([image])
+        pasteboard.writeObjects([item])
+    }
+
+    static func hudDetail(text: String?, recognitionEnabled: Bool) -> String {
+        guard recognitionEnabled else { return "图片已复制" }
+        guard let text else { return "图片已复制 · 未识别到文字" }
+        return "已识别 \(TextRecognizer.characterCount(of: text)) 字，文字已复制"
     }
 
     /// macOS gates screen capture behind 屏幕录制 (TCC), including captures made by
@@ -221,18 +248,20 @@ final class ScreenshotService: ObservableObject {
         return data
     }
 
-    static func payload(mode: ScreenshotMode, pngData: Data) -> CapturedClipboardPayload? {
+    static func payload(mode: ScreenshotMode, pngData: Data, text: String?) -> CapturedClipboardPayload? {
         guard let image = NSImage(data: pngData) else { return nil }
         let size = pixelSize(of: image)
         return CapturedClipboardPayload(
             contentType: .image,
-            plainText: nil,
+            // Recognized text rides on the image item, which makes the capture
+            // findable by its own content through the existing hybrid search.
+            plainText: text,
             imageData: pngData,
             richTextData: nil,
             fileURLs: [],
             contentHash: ClipboardMonitor.hashData(pngData),
             previewTitle: previewTitle(width: size.width, height: size.height),
-            previewSubtitle: mode.subtitle,
+            previewSubtitle: subtitle(mode: mode, text: text),
             colorHex: nil,
             sourceAppName: "截图",
             sourceAppBundleID: nil,
@@ -243,6 +272,11 @@ final class ScreenshotService: ObservableObject {
     /// Searchable on its own: typing 截图 finds every capture.
     static func previewTitle(width: Int, height: Int) -> String {
         "截图 \(width)×\(height)"
+    }
+
+    static func subtitle(mode: ScreenshotMode, text: String?) -> String {
+        guard let text else { return mode.subtitle }
+        return "\(mode.subtitle) · 识别 \(TextRecognizer.characterCount(of: text)) 字"
     }
 
     /// `NSImage.size` is in points; the bitmap rep carries the Retina pixel count.

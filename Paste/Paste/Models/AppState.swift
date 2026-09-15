@@ -11,6 +11,8 @@ final class AppState: ObservableObject {
     @Published var launchAtLogin: Bool = false
     @Published var maxHistoryCount: Int = 500
     @Published var syncEnabled: Bool = true
+    /// Run on-device OCR on every capture and copy the text along with the image.
+    @Published var screenshotTextRecognition: Bool = true
     @Published var showOnlyPinned: Bool = false
     @Published var requestClearHistory: Bool = false
     @Published var requestPinSelected: Bool = false
@@ -112,6 +114,7 @@ final class AppState: ObservableObject {
         launchAtLogin = defaults.bool(forKey: "launchAtLogin")
         maxHistoryCount = defaults.object(forKey: "maxHistoryCount") as? Int ?? 500
         syncEnabled = defaults.object(forKey: "syncEnabled") as? Bool ?? true
+        screenshotTextRecognition = defaults.object(forKey: "screenshotTextRecognition") as? Bool ?? true
         hotkey = HotKeyShortcut.load(.panel)
         mainWindowHotkey = HotKeyShortcut.load(.mainWindow)
         screenshotHotkey = HotKeyShortcut.load(.screenshot)
@@ -123,6 +126,7 @@ final class AppState: ObservableObject {
         defaults.set(launchAtLogin, forKey: "launchAtLogin")
         defaults.set(maxHistoryCount, forKey: "maxHistoryCount")
         defaults.set(syncEnabled, forKey: "syncEnabled")
+        defaults.set(screenshotTextRecognition, forKey: "screenshotTextRecognition")
         hotkey.save(for: .panel)
         mainWindowHotkey.save(for: .mainWindow)
         screenshotHotkey.save(for: .screenshot)

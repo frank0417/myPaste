@@ -34,6 +34,13 @@ struct SettingsView: View {
             Text("复制后会按类型自动打标签（图片、链接、富文本等），可在时间线或标签栏筛选。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            Toggle("截图后识别文字", isOn: $appState.screenshotTextRecognition)
+                .onChange(of: appState.screenshotTextRecognition) { _, _ in
+                    appState.savePreferences()
+                }
+            Text("截图后在本机识别画面中的文字（中英文），文字与图片一起放进剪贴板：粘贴到输入框得到文字，粘贴到图片位置得到图片。识别结果也会存进历史，可直接搜索截图里的字。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Toggle("登录时启动", isOn: $appState.launchAtLogin)
                 .onChange(of: appState.launchAtLogin) { _, enabled in
                     appState.savePreferences()

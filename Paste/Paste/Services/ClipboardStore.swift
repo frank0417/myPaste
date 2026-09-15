@@ -93,6 +93,18 @@ final class ClipboardStore: ObservableObject {
         try? modelContext.save()
     }
 
+    /// Copies only the text an item carries — for a screenshot, the recognized text
+    /// without the picture tagging along.
+    func copyText(_ item: ClipboardItem) {
+        guard let text = item.plainText, !text.isEmpty else { return }
+        monitor.ignoreNextPasteboardChange()
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(text, forType: .string)
+        item.updatedAt = .now
+        try? modelContext.save()
+    }
+
     func togglePin(_ item: ClipboardItem) {
         item.isPinned.toggle()
         try? modelContext.save()
@@ -160,8 +172,11 @@ final class ClipboardStore: ObservableObject {
         pb.clearContents()
         switch item.contentType {
         case .image:
-            if let data = item.imageData, let image = NSImage(data: data) {
-                pb.writeObjects([image])
+            // Screenshots carry their recognized text in plainText; pasting one offers
+            // both, exactly like the capture did.
+            if let data = item.imageData,
+               let pasteboardItem = ClipboardMonitor.imagePasteboardItem(imageData: data, text: item.plainText) {
+                pb.writeObjects([pasteboardItem])
             }
         case .file:
             pb.writeObjects(item.fileURLs as [NSURL])

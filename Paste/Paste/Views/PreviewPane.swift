@@ -65,17 +65,40 @@ struct PreviewPane: View {
         }
     }
 
+    /// Text OCR found inside a screenshot; other image items have none.
+    private func recognizedText(_ item: ClipboardItem) -> String? {
+        guard item.contentType == .image,
+              let text = item.plainText,
+              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return text
+    }
+
     @ViewBuilder
     private func previewBody(_ item: ClipboardItem) -> some View {
         switch item.contentType {
         case .image:
-            if let data = item.imageData, let image = NSImage(data: data) {
-                Image(nsImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxHeight: 280)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
+            VStack(alignment: .leading, spacing: 14) {
+                if let data = item.imageData, let image = NSImage(data: data) {
+                    Image(nsImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxHeight: 280)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
+                }
+                if let text = recognizedText(item) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("识别到的文字 · \(TextRecognizer.characterCount(of: text)) 字", systemImage: "text.viewfinder")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        Text(text)
+                            .font(.callout)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(12)
+                            .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                }
             }
         case .color:
             RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -155,6 +178,15 @@ struct PreviewPane: View {
                 Label("复制", systemImage: "doc.on.doc")
             }
             .buttonStyle(.bordered)
+
+            if recognizedText(item) != nil {
+                Button {
+                    store?.copyText(item)
+                } label: {
+                    Label("复制文字", systemImage: "text.viewfinder")
+                }
+                .buttonStyle(.bordered)
+            }
 
             Button {
                 store?.togglePin(item)

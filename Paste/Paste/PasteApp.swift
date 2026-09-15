@@ -49,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     func configure(container: ModelContainer, appState: AppState) {
         self.appState = appState
+        ScreenshotService.shared.appState = appState
         if clipboardStore == nil {
             let store = ClipboardStore(modelContext: container.mainContext, appState: appState, ownsMonitor: true)
             clipboardStore = store

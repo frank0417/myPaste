@@ -39,6 +39,7 @@ struct MenuBarPanel: View {
                     item: detailItem,
                     onClose: { appState.shelfDetailItemID = nil },
                     onCopy: { copyOnlyItem(detailItem) },
+                    onCopyText: { store?.copyText(detailItem) },
                     onPaste: { paste(detailItem) }
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
@@ -472,6 +473,7 @@ struct MenuBarPanel: View {
                                 appState.shelfDetailItemID = item.id
                             },
                             onPaste: { paste(item) },
+                            onCopyText: { store?.copyText(item) },
                             onPin: { store?.togglePin(item) },
                             onDelete: { store?.delete(item) }
                         )
@@ -592,7 +594,16 @@ struct ClipboardItemDetailOverlay: View {
     let item: ClipboardItem
     let onClose: () -> Void
     let onCopy: () -> Void
+    let onCopyText: () -> Void
     let onPaste: () -> Void
+
+    /// Text recognized inside a screenshot, shown under the picture.
+    private var recognizedText: String? {
+        guard item.contentType == .image,
+              let text = item.plainText,
+              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return text
+    }
 
     var body: some View {
         // Opaque full-panel surface — no shelf/timeline layer behind it.
@@ -663,16 +674,22 @@ struct ClipboardItemDetailOverlay: View {
     private var detailBody: some View {
         switch item.contentType {
         case .image:
-            if let data = item.imageData ?? item.thumbnailData, let image = NSImage(data: data) {
-                Image(nsImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: .infinity)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            } else {
-                Text("无法预览图片")
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 14) {
+                if let data = item.imageData ?? item.thumbnailData, let image = NSImage(data: data) {
+                    Image(nsImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                } else {
+                    Text("无法预览图片")
+                        .foregroundStyle(.secondary)
+                }
+                if let recognizedText {
+                    recognizedTextSection(recognizedText)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         case .color:
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color(hex: item.colorHex ?? "#888888") ?? .gray)
@@ -734,12 +751,44 @@ struct ClipboardItemDetailOverlay: View {
         }
     }
 
+    private func recognizedTextSection(_ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Label("识别到的文字", systemImage: "text.viewfinder")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text("\(TextRecognizer.characterCount(of: text)) 字")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.tertiary)
+                Spacer(minLength: 0)
+                Button(action: onCopyText) {
+                    Label("复制文字", systemImage: "doc.on.clipboard")
+                        .font(.caption)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+            Text(text)
+                .font(.system(size: 12.5))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+    }
+
     private var detailFooter: some View {
         HStack(spacing: 10) {
             Text(item.updatedAt.formatted(date: .abbreviated, time: .shortened))
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
+            if recognizedText != nil {
+                Button(action: onCopyText) {
+                    Label("复制文字", systemImage: "text.viewfinder")
+                }
+                .buttonStyle(.bordered)
+            }
             Button(action: onCopy) {
                 Label("复制", systemImage: "doc.on.doc")
             }
@@ -762,10 +811,16 @@ struct ClipboardShelfCard: View {
     let onSelect: () -> Void
     let onOpenDetail: () -> Void
     let onPaste: () -> Void
+    let onCopyText: () -> Void
     let onPin: () -> Void
     let onDelete: () -> Void
 
     @State private var isHovered = false
+
+    /// Only screenshots carry text on an image item.
+    private var hasRecognizedText: Bool {
+        item.contentType == .image && !(item.plainText ?? "").isEmpty
+    }
 
     private let cardWidth: CGFloat = 176
     private let cardHeight: CGFloat = 236
@@ -817,6 +872,9 @@ struct ClipboardShelfCard: View {
         .contextMenu {
             Button("查看详情", action: onOpenDetail)
             Button("粘贴", action: onPaste)
+            if hasRecognizedText {
+                Button("复制识别的文字", action: onCopyText)
+            }
             Button(item.isPinned ? "取消置顶" : "置顶", action: onPin)
             Divider()
             Button("删除", role: .destructive, action: onDelete)
@@ -847,11 +905,20 @@ struct ClipboardShelfCard: View {
     }
 
     private var previewArea: some View {
-        ZStack {
+        ZStack(alignment: .topTrailing) {
             Color.white
             previewBody
                 .padding(10)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            if hasRecognizedText {
+                Label("文字", systemImage: "text.viewfinder")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .padding(6)
+            }
         }
         .frame(height: previewHeight)
         .clipped()
