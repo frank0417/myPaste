@@ -167,7 +167,8 @@ final class ClipboardMonitor: ObservableObject {
         return nil
     }
 
-    private static func thumbnailData(from image: NSImage, maxSize: CGFloat) -> Data? {
+    /// Shared with `ScreenshotService` so captures get the same shelf thumbnails.
+    static func thumbnailData(from image: NSImage, maxSize: CGFloat) -> Data? {
         let size = image.size
         guard size.width > 0, size.height > 0 else { return nil }
         let scale = min(maxSize / size.width, maxSize / size.height, 1)

@@ -1,11 +1,12 @@
 import AppKit
 import Carbon.HIToolbox
 
-/// The two UI surfaces a global shortcut can reveal. They are mutually exclusive:
-/// showing one always hides the other.
+/// Everything a global shortcut can trigger. The two window surfaces are mutually
+/// exclusive: showing one always hides the other. Screenshots need no window at all.
 enum HotKeyAction: String, CaseIterable, Identifiable {
     case panel
     case mainWindow
+    case screenshot
 
     var id: String { rawValue }
 
@@ -14,6 +15,7 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
         switch self {
         case .panel: return "唤出剪贴板面板"
         case .mainWindow: return "唤出主窗口"
+        case .screenshot: return "截图（区域）"
         }
     }
 
@@ -22,6 +24,7 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
         switch self {
         case .panel: return "剪贴板面板"
         case .mainWindow: return "主窗口"
+        case .screenshot: return "截图"
         }
     }
 
@@ -30,6 +33,7 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
         // Unchanged so shortcuts saved by earlier versions keep working.
         case .panel: return "globalHotKeyShortcut"
         case .mainWindow: return "mainWindowHotKeyShortcut"
+        case .screenshot: return "screenshotHotKeyShortcut"
         }
     }
 
@@ -39,6 +43,9 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
             return HotKeyShortcut(keyCode: UInt32(kVK_ANSI_V), carbonModifiers: UInt32(cmdKey | shiftKey))
         case .mainWindow:
             return HotKeyShortcut(keyCode: UInt32(kVK_ANSI_V), carbonModifiers: UInt32(cmdKey | optionKey))
+        case .screenshot:
+            // ⌃⇧⌘4 keeps the muscle memory of the system ⇧⌘4, which is reserved.
+            return HotKeyShortcut(keyCode: UInt32(kVK_ANSI_4), carbonModifiers: UInt32(cmdKey | shiftKey | controlKey))
         }
     }
 
@@ -46,6 +53,7 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
         switch self {
         case .panel: return 1
         case .mainWindow: return 2
+        case .screenshot: return 3
         }
     }
 }

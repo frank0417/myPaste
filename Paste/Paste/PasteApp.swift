@@ -53,6 +53,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let store = ClipboardStore(modelContext: container.mainContext, appState: appState, ownsMonitor: true)
             clipboardStore = store
             store.startMonitoringIfNeeded()
+            // Screenshots bypass the pasteboard poll, so file them through the same
+            // store that owns monitoring — otherwise they land twice or not at all.
+            ScreenshotService.shared.onCaptured = { [weak self] payload in
+                self?.clipboardStore?.ingest(payload)
+            }
             monitoringObserver = NotificationCenter.default.addObserver(
                 forName: .pasteMonitoringPreferenceChanged,
                 object: nil,
@@ -98,6 +103,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 StatusItemController.shared.togglePanel()
             case .mainWindow:
                 StatusItemController.shared.toggleMainWindow()
+            case .screenshot:
+                ScreenshotService.shared.capture(.region)
             }
         }
         // Bind right away so the hotkeys work even before the scene hands us AppState,

@@ -57,6 +57,11 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         statusItem?.button?.toolTip = "ClipStack — 常驻后台（\(display) 唤出）"
     }
 
+    /// `ScreenshotService` hides the shelf before a capture and restores it after.
+    var isPanelVisible: Bool {
+        panel?.isVisible == true
+    }
+
     func registerMainWindow(_ window: NSWindow) {
         guard mainWindow !== window else { return }
         window.isReleasedWhenClosed = false
@@ -84,6 +89,11 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         menu.addItem(withTitle: "显示主窗口\(windowHint)", action: #selector(menuShowMainWindow), keyEquivalent: "")
         menu.addItem(withTitle: "隐藏面板", action: #selector(menuHidePanel), keyEquivalent: "")
         menu.addItem(NSMenuItem.separator())
+        let shotHint = appState.map { "（\($0.screenshotHotkeyDisplay)）" } ?? ""
+        menu.addItem(withTitle: "截取区域\(shotHint)", action: #selector(menuCaptureRegion), keyEquivalent: "")
+        menu.addItem(withTitle: "截取窗口", action: #selector(menuCaptureWindow), keyEquivalent: "")
+        menu.addItem(withTitle: "截取整屏", action: #selector(menuCaptureFullScreen), keyEquivalent: "")
+        menu.addItem(NSMenuItem.separator())
         menu.addItem(withTitle: "设置…", action: #selector(menuOpenSettings), keyEquivalent: ",")
         menu.addItem(NSMenuItem.separator())
         menu.addItem(withTitle: "退出 ClipStack", action: #selector(menuQuit), keyEquivalent: "q")
@@ -101,6 +111,9 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     @objc private func menuShowPanel() { showPanel() }
     @objc private func menuShowMainWindow() { showMainWindow() }
     @objc private func menuHidePanel() { hidePanel() }
+    @objc private func menuCaptureRegion() { ScreenshotService.shared.capture(.region) }
+    @objc private func menuCaptureWindow() { ScreenshotService.shared.capture(.window) }
+    @objc private func menuCaptureFullScreen() { ScreenshotService.shared.capture(.fullScreen) }
     @objc private func menuOpenSettings() {
         openSettings()
     }

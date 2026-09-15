@@ -34,6 +34,7 @@
 		AE6D4F50718293A4B5C6D7E8 /* HybridSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D5C3E4F60718293A4B5C6D7 /* HybridSearch.swift */; };
 		C08F617293A4B5C6D7E8F9A0 /* EmbeddingIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF7E50618293A4B5C6D7E8F1 /* EmbeddingIndex.swift */; };
 		E20B8394B5C6D7E8F9A0B1C2 /* SensitiveClipboardText.swift in Sources */ = {isa = PBXBuildFile; fileRef = D19A7283A4B5C6D7E8F9A0B3 /* SensitiveClipboardText.swift */; };
+		F1A2B3C4D5E6F70819203A4B /* ScreenshotService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5C /* ScreenshotService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -67,6 +68,7 @@
 		9D5C3E4F60718293A4B5C6D7 /* HybridSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HybridSearch.swift; sourceTree = "<group>"; };
 		BF7E50618293A4B5C6D7E8F1 /* EmbeddingIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddingIndex.swift; sourceTree = "<group>"; };
 		D19A7283A4B5C6D7E8F9A0B3 /* SensitiveClipboardText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SensitiveClipboardText.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5C /* ScreenshotService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -129,6 +131,7 @@
 				CFABF960A04C47C18BCC5B4C /* SyncService.swift */,
 				D2E3F4A5B6C748990A1B2C3D4 /* AutoTagService.swift */,
 				BF7E50618293A4B5C6D7E8F1 /* EmbeddingIndex.swift */,
+				A1B2C3D4E5F60718293A4B5C /* ScreenshotService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -260,6 +263,7 @@
 				AE6D4F50718293A4B5C6D7E8 /* HybridSearch.swift in Sources */,
 				C08F617293A4B5C6D7E8F9A0 /* EmbeddingIndex.swift in Sources */,
 				E20B8394B5C6D7E8F9A0B1C2 /* SensitiveClipboardText.swift in Sources */,
+				F1A2B3C4D5E6F70819203A4B /* ScreenshotService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -307,7 +311,7 @@
 				CODE_SIGN_ENTITLEMENTS = Paste/Paste.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 18;
+				CURRENT_PROJECT_VERSION = 19;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Paste/Info.plist;
@@ -316,7 +320,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.3.2;
+				MARKETING_VERSION = 1.4.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mypaste.ClipStack;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -332,7 +336,7 @@
 				CODE_SIGN_ENTITLEMENTS = Paste/Paste.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 18;
+				CURRENT_PROJECT_VERSION = 19;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Paste/Info.plist;
@@ -341,7 +345,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.3.2;
+				MARKETING_VERSION = 1.4.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mypaste.ClipStack;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

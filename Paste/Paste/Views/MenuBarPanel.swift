@@ -161,6 +161,17 @@ struct MenuBarPanel: View {
             .buttonStyle(.plain)
             .help(showSearch ? "收起搜索" : "搜索")
 
+            Button {
+                ScreenshotService.shared.capture(.region)
+            } label: {
+                Image(systemName: "camera.viewfinder")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 26, height: 26)
+            }
+            .buttonStyle(.plain)
+            .help("截图（\(appState.screenshotHotkeyDisplay)）— 结果自动存入历史")
+
             boardTab(
                 title: "剪贴板",
                 systemImage: "clock.arrow.circlepath",
@@ -216,6 +227,11 @@ struct MenuBarPanel: View {
 
             Menu {
                 Button("粘贴选中项") { pasteSelected() }
+                Divider()
+                ForEach(ScreenshotMode.allCases) { mode in
+                    Button(mode.title) { ScreenshotService.shared.capture(mode) }
+                }
+                Divider()
                 Button(appState.isMonitoringEnabled ? "暂停监听" : "恢复监听") {
                     appState.isMonitoringEnabled.toggle()
                     appState.savePreferences()

@@ -18,6 +18,8 @@ final class AppState: ObservableObject {
     @Published var hotkey: HotKeyShortcut = HotKeyAction.panel.defaultShortcut
     /// Reveals the main window.
     @Published var mainWindowHotkey: HotKeyShortcut = HotKeyAction.mainWindow.defaultShortcut
+    /// Starts an interactive region screenshot.
+    @Published var screenshotHotkey: HotKeyShortcut = HotKeyAction.screenshot.defaultShortcut
     /// Result of the last change per shortcut, shown in Settings.
     @Published var hotkeyFeedback: [HotKeyAction: HotKeyFeedback] = [:]
     @Published var requestExportJSON: Bool = false
@@ -90,11 +92,13 @@ final class AppState: ObservableObject {
 
     var hotkeyDisplay: String { hotkey.display }
     var mainWindowHotkeyDisplay: String { mainWindowHotkey.display }
+    var screenshotHotkeyDisplay: String { screenshotHotkey.display }
 
     func shortcut(for action: HotKeyAction) -> HotKeyShortcut {
         switch action {
         case .panel: return hotkey
         case .mainWindow: return mainWindowHotkey
+        case .screenshot: return screenshotHotkey
         }
     }
 
@@ -110,6 +114,7 @@ final class AppState: ObservableObject {
         syncEnabled = defaults.object(forKey: "syncEnabled") as? Bool ?? true
         hotkey = HotKeyShortcut.load(.panel)
         mainWindowHotkey = HotKeyShortcut.load(.mainWindow)
+        screenshotHotkey = HotKeyShortcut.load(.screenshot)
     }
 
     func savePreferences() {
@@ -120,6 +125,7 @@ final class AppState: ObservableObject {
         defaults.set(syncEnabled, forKey: "syncEnabled")
         hotkey.save(for: .panel)
         mainWindowHotkey.save(for: .mainWindow)
+        screenshotHotkey.save(for: .screenshot)
     }
 
     /// Only persists the shortcut once it is actually registered with the system.
@@ -174,6 +180,8 @@ final class AppState: ObservableObject {
             StatusItemController.shared.refreshHotkeyHint(shortcut.display)
         case .mainWindow:
             mainWindowHotkey = shortcut
+        case .screenshot:
+            screenshotHotkey = shortcut
         }
         if persist {
             shortcut.save(for: action)

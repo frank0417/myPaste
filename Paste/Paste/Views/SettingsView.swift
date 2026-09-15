@@ -43,7 +43,7 @@ struct SettingsView: View {
                 ForEach(HotKeyAction.allCases) { action in
                     hotkeyRow(action)
                 }
-                Text("点击按钮后按下新的组合键（需包含 ⌘ / ⌃ / ⌥ 中至少一个），按 Esc 取消。两个窗口不会同时出现：唤出其中一个会自动收起另一个。")
+                Text("点击按钮后按下新的组合键（需包含 ⌘ / ⌃ / ⌥ 中至少一个），按 Esc 取消。两个窗口不会同时出现：唤出其中一个会自动收起另一个。截图快捷键直接进入区域选择，按 Esc 放弃本次截图。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -58,6 +58,17 @@ struct SettingsView: View {
                     AccessibilityPermission.openSystemSettings()
                 }
                 Text("自动记录复制内容不需要辅助功能。只有「一键粘贴到其他 App」才需要。若列表里没有 ClipStack，先点此按钮再刷新列表。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                LabeledContent("屏幕录制") {
+                    Text(ScreenshotService.hasScreenRecordingAccess ? "已允许" : "未允许")
+                        .foregroundStyle(ScreenshotService.hasScreenRecordingAccess ? Color.secondary : Color.orange)
+                }
+                Button("在系统设置中允许截图…") {
+                    ScreenshotService.requestScreenRecordingAccess()
+                }
+                Text("截图需要「屏幕录制」权限。授权后需重新启动 ClipStack 才会生效。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -148,6 +159,7 @@ struct SettingsView: View {
         switch action {
         case .panel: return $appState.hotkey
         case .mainWindow: return $appState.mainWindowHotkey
+        case .screenshot: return $appState.screenshotHotkey
         }
     }
 

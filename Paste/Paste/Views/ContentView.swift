@@ -29,6 +29,20 @@ struct ContentView: View {
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 SyncStatusBadge(status: syncService.status)
+                Menu {
+                    ForEach(ScreenshotMode.allCases) { mode in
+                        Button {
+                            ScreenshotService.shared.capture(mode)
+                        } label: {
+                            Label(mode.title, systemImage: mode.systemImage)
+                        }
+                    }
+                } label: {
+                    Label("截图", systemImage: "camera.viewfinder")
+                } primaryAction: {
+                    ScreenshotService.shared.capture(.region)
+                }
+                .help("截图（\(appState.screenshotHotkeyDisplay)）— 结果自动存入历史")
                 Button {
                     appState.isMonitoringEnabled.toggle()
                     appState.savePreferences()
