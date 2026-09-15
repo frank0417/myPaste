@@ -7,6 +7,7 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
     case panel
     case mainWindow
     case screenshot
+    case screenshotOCR
 
     var id: String { rawValue }
 
@@ -16,6 +17,7 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
         case .panel: return "唤出剪贴板面板"
         case .mainWindow: return "唤出主窗口"
         case .screenshot: return "截图（区域）"
+        case .screenshotOCR: return "截图识字（区域）"
         }
     }
 
@@ -25,6 +27,7 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
         case .panel: return "剪贴板面板"
         case .mainWindow: return "主窗口"
         case .screenshot: return "截图"
+        case .screenshotOCR: return "截图识字"
         }
     }
 
@@ -34,6 +37,7 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
         case .panel: return "globalHotKeyShortcut"
         case .mainWindow: return "mainWindowHotKeyShortcut"
         case .screenshot: return "screenshotHotKeyShortcut"
+        case .screenshotOCR: return "screenshotOCRHotKeyShortcut"
         }
     }
 
@@ -46,6 +50,8 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
         case .screenshot:
             // ⌃⇧⌘4 keeps the muscle memory of the system ⇧⌘4, which is reserved.
             return HotKeyShortcut(keyCode: UInt32(kVK_ANSI_4), carbonModifiers: UInt32(cmdKey | shiftKey | controlKey))
+        case .screenshotOCR:
+            return HotKeyShortcut(keyCode: UInt32(kVK_ANSI_5), carbonModifiers: UInt32(cmdKey | shiftKey | controlKey))
         }
     }
 
@@ -54,6 +60,7 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
         case .panel: return 1
         case .mainWindow: return 2
         case .screenshot: return 3
+        case .screenshotOCR: return 4
         }
     }
 }
@@ -105,7 +112,7 @@ struct HotKeyShortcut: Codable, Equatable {
         kVK_CapsLock, kVK_Function
     ]
 
-    /// Combos macOS or ClipStack itself owns; registering them would silently never fire
+    /// Combos macOS or PasteNest itself owns; registering them would silently never fire
     /// or break a core action, so reject them while recording instead.
     private static let reserved: [(keyCode: Int, carbon: UInt32, name: String)] = [
         (kVK_Space, UInt32(cmdKey), "⌘Space（聚焦搜索）"),
@@ -203,7 +210,7 @@ enum HotKeyApplyResult: Equatable {
     case rejected(String)
 }
 
-/// Registers the global hotkeys that reveal the ClipStack shelf and main window.
+/// Registers the global hotkeys that reveal the PasteNest shelf and main window.
 @MainActor
 final class GlobalHotKeyManager {
     static let shared = GlobalHotKeyManager()
@@ -235,7 +242,7 @@ final class GlobalHotKeyManager {
             return .rejected("与「\(clash.key.shortTitle)」快捷键相同，请换一个")
         }
         guard installHandlerIfNeeded() else {
-            return .rejected("无法注册全局快捷键，请重启 ClipStack 后重试")
+            return .rejected("无法注册全局快捷键，请重启 PasteNest 后重试")
         }
 
         let previous = bindings[action]?.shortcut

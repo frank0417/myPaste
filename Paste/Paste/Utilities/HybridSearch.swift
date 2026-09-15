@@ -19,13 +19,13 @@ enum HybridSearch {
 
         let folded = query.lowercased()
         let queryTokens = KeywordScorer.tokens(in: folded)
-        let fields = Dictionary(uniqueKeysWithValues: hard.map { ($0.id, KeywordFields($0.keywordDocument)) })
+        let fields = Dictionary(uniqueKeysWithValues: hard.map { ($0.id, KeywordScorer.fields(for: $0)) })
         let semanticScores = EmbeddingIndex.shared.scores(query: query, ids: hard.map(\.id))
 
         var hits: [Hit] = []
         hits.reserveCapacity(hard.count)
         for item in hard {
-            let doc = fields[item.id] ?? KeywordFields(item.keywordDocument)
+            let doc = fields[item.id] ?? KeywordScorer.fields(for: item)
             let keyword = KeywordScorer.score(tokens: queryTokens, foldedQuery: folded, fields: doc)
             let semanticRaw = semanticScores[item.id] ?? 0
             let semantic = semanticRaw >= semanticFloor ? semanticRaw : 0

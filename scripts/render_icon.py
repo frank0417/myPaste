@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the ClipStack macOS app icon at all required sizes.
+"""Render the PasteNest macOS app icon at all required sizes.
 
 Design: indigo->violet gradient squircle; three fanned clipboard cards
 (back two translucent white), front card solid white with an indigo clip

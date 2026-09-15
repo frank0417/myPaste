@@ -37,6 +37,10 @@
 		F1A2B3C4D5E6F70819203A4B /* ScreenshotService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5C /* ScreenshotService.swift */; };
 		C2D3E4F5A6B70819203A4B5C /* TextRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C4D5E6F7A80819203A4B5D /* TextRecognizer.swift */; };
 		D4E5F6A7B8C90819203A4B5E /* ScreenshotHUD.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F6A7B8C9D00819203A4B5F /* ScreenshotHUD.swift */; };
+		A6B7C8D9E0F10819203A4B60 /* RetentionPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C8D9E0F1A20819203A4B61 /* RetentionPolicy.swift */; };
+		C8D9E0F1A2B30819203A4B62 /* FavoriteTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9E0F1A2B3C40819203A4B63 /* FavoriteTag.swift */; };
+		E0F1A2B3C4D50819203A4B64 /* FavoritesFolderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E60819203A4B65 /* FavoritesFolderView.swift */; };
+		A2B3C4D5E6F70819203A4B66 /* ImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C4D5E6F7A80819203A4B67 /* ImageCache.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -54,7 +58,7 @@
 		72F05B2CCFE249AFA44F04CA /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		0FAA7E75BC8A4BB59679AF95 /* PasteTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteTheme.swift; sourceTree = "<group>"; };
 		8C0CF0541C8A4203A2049492 /* HotKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKey.swift; sourceTree = "<group>"; };
-		E9D1A839A8C14B148802BBB2 /* ClipStack.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClipStack.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E9D1A839A8C14B148802BBB2 /* PasteNest.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PasteNest.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0E997FCFB67E400A82C97FAF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A6D457FE0C9E4A7789F0E471 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		BC4C25708741498F83434ECA /* Paste.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Paste.entitlements; sourceTree = "<group>"; };
@@ -73,6 +77,10 @@
 		A1B2C3D4E5F60718293A4B5C /* ScreenshotService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotService.swift; sourceTree = "<group>"; };
 		B3C4D5E6F7A80819203A4B5D /* TextRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextRecognizer.swift; sourceTree = "<group>"; };
 		E5F6A7B8C9D00819203A4B5F /* ScreenshotHUD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotHUD.swift; sourceTree = "<group>"; };
+		B7C8D9E0F1A20819203A4B61 /* RetentionPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetentionPolicy.swift; sourceTree = "<group>"; };
+		D9E0F1A2B3C40819203A4B63 /* FavoriteTag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoriteTag.swift; sourceTree = "<group>"; };
+		F1A2B3C4D5E60819203A4B65 /* FavoritesFolderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesFolderView.swift; sourceTree = "<group>"; };
+		B3C4D5E6F7A80819203A4B67 /* ImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCache.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -97,7 +105,7 @@
 		BED633F87AD143F38C6D9F10 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				E9D1A839A8C14B148802BBB2 /* ClipStack.app */,
+				E9D1A839A8C14B148802BBB2 /* PasteNest.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -153,6 +161,7 @@
 				72F05B2CCFE249AFA44F04CA /* SettingsView.swift */,
 				A57B86873CE445BFBE80F41F /* HotKeyRecorderView.swift */,
 				E5F6A7B8C9D00819203A4B5F /* ScreenshotHUD.swift */,
+				F1A2B3C4D5E60819203A4B65 /* FavoritesFolderView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -169,6 +178,9 @@
 				7F3A1B2C4D5E6F708192A3B4 /* KeywordScorer.swift */,
 				9D5C3E4F60718293A4B5C6D7 /* HybridSearch.swift */,
 				D19A7283A4B5C6D7E8F9A0B3 /* SensitiveClipboardText.swift */,
+				B7C8D9E0F1A20819203A4B61 /* RetentionPolicy.swift */,
+				D9E0F1A2B3C40819203A4B63 /* FavoriteTag.swift */,
+				B3C4D5E6F7A80819203A4B67 /* ImageCache.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -176,9 +188,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		D3AA28C6E22440C993BC3E84 /* ClipStack */ = {
+		D3AA28C6E22440C993BC3E84 /* PasteNest */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 2CF10E9ED22E4EC1B84FB8C1 /* Build configuration list for PBXNativeTarget "ClipStack" */;
+			buildConfigurationList = 2CF10E9ED22E4EC1B84FB8C1 /* Build configuration list for PBXNativeTarget "PasteNest" */;
 			buildPhases = (
 				040EB2E2801544ACB1040B33 /* Sources */,
 				599C493FE24B4C968B5F098B /* Frameworks */,
@@ -188,9 +200,9 @@
 			);
 			dependencies = (
 			);
-			name = ClipStack;
-			productName = ClipStack;
-			productReference = E9D1A839A8C14B148802BBB2 /* ClipStack.app */;
+			name = PasteNest;
+			productName = PasteNest;
+			productReference = E9D1A839A8C14B148802BBB2 /* PasteNest.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -222,7 +234,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				D3AA28C6E22440C993BC3E84 /* ClipStack */,
+				D3AA28C6E22440C993BC3E84 /* PasteNest */,
 			);
 		};
 /* End PBXProject section */
@@ -272,6 +284,10 @@
 				F1A2B3C4D5E6F70819203A4B /* ScreenshotService.swift in Sources */,
 				C2D3E4F5A6B70819203A4B5C /* TextRecognizer.swift in Sources */,
 				D4E5F6A7B8C90819203A4B5E /* ScreenshotHUD.swift in Sources */,
+				A6B7C8D9E0F10819203A4B60 /* RetentionPolicy.swift in Sources */,
+				C8D9E0F1A2B30819203A4B62 /* FavoriteTag.swift in Sources */,
+				E0F1A2B3C4D50819203A4B64 /* FavoritesFolderView.swift in Sources */,
+				A2B3C4D5E6F70819203A4B66 /* ImageCache.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -319,7 +335,7 @@
 				CODE_SIGN_ENTITLEMENTS = Paste/Paste.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Paste/Info.plist;
@@ -328,8 +344,8 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.4.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mypaste.ClipStack;
+				MARKETING_VERSION = 1.5.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mypaste.PasteNest;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -344,7 +360,7 @@
 				CODE_SIGN_ENTITLEMENTS = Paste/Paste.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Paste/Info.plist;
@@ -353,8 +369,8 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.4.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mypaste.ClipStack;
+				MARKETING_VERSION = 1.5.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mypaste.PasteNest;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -373,7 +389,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		2CF10E9ED22E4EC1B84FB8C1 /* Build configuration list for PBXNativeTarget "ClipStack" */ = {
+		2CF10E9ED22E4EC1B84FB8C1 /* Build configuration list for PBXNativeTarget "PasteNest" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				DC747AB18A7C4027839BB95D /* Debug */,

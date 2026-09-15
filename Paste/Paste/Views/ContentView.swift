@@ -37,12 +37,20 @@ struct ContentView: View {
                             Label(mode.title, systemImage: mode.systemImage)
                         }
                     }
+                    Divider()
+                    ForEach(ScreenshotMode.allCases) { mode in
+                        Button {
+                            ScreenshotService.shared.capture(mode, recognizeText: true)
+                        } label: {
+                            Label("\(mode.title)并识字", systemImage: "text.viewfinder")
+                        }
+                    }
                 } label: {
                     Label("截图", systemImage: "camera.viewfinder")
                 } primaryAction: {
                     ScreenshotService.shared.capture(.region)
                 }
-                .help("截图（\(appState.screenshotHotkeyDisplay)）— 结果自动存入历史")
+                .help("截图（\(appState.screenshotHotkeyDisplay)）只存图片；截图识字（\(appState.screenshotOCRHotkeyDisplay)）只存文字")
                 Button {
                     appState.isMonitoringEnabled.toggle()
                     appState.savePreferences()
@@ -107,7 +115,7 @@ struct ContentView: View {
         guard let data = store?.exportJSON() else { return }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.json]
-        panel.nameFieldStringValue = "ClipStack-History.json"
+        panel.nameFieldStringValue = "PasteNest-History.json"
         if panel.runModal() == .OK, let url = panel.url {
             try? data.write(to: url)
             syncService.markSyncing()
@@ -137,15 +145,71 @@ private struct MainWindowAccessor: NSViewRepresentable {
 struct SidebarView: View {
     @EnvironmentObject private var appState: AppState
     @Query(sort: \ClipboardBoard.sortOrder) private var boards: [ClipboardBoard]
+    @Query(
+        filter: #Predicate<ClipboardItem> { $0.isFavorite },
+        sort: \ClipboardItem.updatedAt,
+        order: .reverse
+    ) private var favorites: [ClipboardItem]
 
     var body: some View {
         List {
+            Section("收藏夹") {
+                Button {
+                    appState.mainHistoryMode = .favorites
+                    appState.showFavorites(scope: .all)
+                } label: {
+                    HStack {
+                        Label("全部收藏", systemImage: "star.fill")
+                            .foregroundStyle(
+                                appState.mainHistoryMode == .favorites && appState.favoriteScope == .all
+                                ? PasteTheme.accent
+                                : .primary
+                            )
+                        Spacer()
+                        Text("\(favorites.count)")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                ForEach(favorites.favoriteTagCounts) { tag in
+                    Button {
+                        appState.mainHistoryMode = .favorites
+                        appState.showFavorites(scope: .tag(tag.name))
+                    } label: {
+                        HStack {
+                            Label(tag.name, systemImage: "tag.fill")
+                                .foregroundStyle(
+                                    appState.mainHistoryMode == .favorites
+                                    && appState.favoriteScope == .tag(tag.name)
+                                    ? (Color(hex: tag.accentHex) ?? PasteTheme.accent)
+                                    : .primary
+                                )
+                            Spacer()
+                            Text("\(tag.count)")
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Text("收藏的内容长期保存，未收藏的只保留 \(appState.keepUnfavoritedDays) 天。")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("自动标签") {
                 ForEach(AutoTag.allCases) { tag in
                     Button {
                         appState.selectedAutoTag = tag.rawValue
                         appState.selectedFilter = .all
                         appState.showOnlyPinned = false
+                        appState.leaveFavorites()
+                        if appState.mainHistoryMode == .favorites {
+                            appState.mainHistoryMode = .list
+                        }
                     } label: {
                         Label(tag.displayName, systemImage: tag.systemImage)
                             .foregroundStyle(
@@ -168,6 +232,7 @@ struct SidebarView: View {
             Section("视图") {
                 Button {
                     appState.mainHistoryMode = .list
+                    appState.leaveFavorites()
                 } label: {
                     Label("列表", systemImage: "list.bullet")
                         .foregroundStyle(appState.mainHistoryMode == .list ? PasteTheme.accent : .primary)
@@ -175,6 +240,7 @@ struct SidebarView: View {
                 .buttonStyle(.plain)
                 Button {
                     appState.mainHistoryMode = .timeline
+                    appState.leaveFavorites()
                 } label: {
                     Label("时间线大纲", systemImage: "calendar.day.timeline.leading")
                         .foregroundStyle(appState.mainHistoryMode == .timeline ? PasteTheme.accent : .primary)
@@ -187,6 +253,15 @@ struct SidebarView: View {
                     Button {
                         appState.selectedFilter = filter
                         appState.showOnlyPinned = (filter == .pinned)
+                        if filter == .favorite {
+                            appState.mainHistoryMode = .favorites
+                            appState.showFavorites(scope: .all)
+                        } else {
+                            appState.leaveFavorites()
+                            if appState.mainHistoryMode == .favorites {
+                                appState.mainHistoryMode = .list
+                            }
+                        }
                     } label: {
                         Label(filter.title, systemImage: filter.systemImage)
                             .foregroundStyle(appState.selectedFilter == filter ? PasteTheme.accent : .primary)
@@ -210,7 +285,7 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
-        .navigationTitle("ClipStack")
+        .navigationTitle("PasteNest")
     }
 }
 
@@ -264,10 +339,10 @@ enum SeedData {
 
         let demos: [(ClipboardContentType, String, String?)] = [
             (.link, "https://developer.apple.com/documentation/swiftdata", "Safari"),
-            (.code, "import SwiftUI\n\nstruct HelloView: View {\n  var body: some View { Text(\"ClipStack\") }\n}", "Xcode"),
+            (.code, "import SwiftUI\n\nstruct HelloView: View {\n  var body: some View { Text(\"PasteNest\") }\n}", "Xcode"),
             (.text, "明天下午三点同步剪贴板方案，优先做搜索与置顶。", "Notes"),
             (.color, "#0F766E", "Figma"),
-            (.snippet, "ClipStack 会自动保存你复制的文本、链接、图片与文件，并支持 iCloud 同步与全文搜索。", "Slack")
+            (.snippet, "PasteNest 会自动保存你复制的文本、链接、图片与文件，并支持 iCloud 同步与全文搜索。", "Slack")
         ]
 
         for (type, text, app) in demos {
@@ -283,6 +358,12 @@ enum SeedData {
                 colorHex: type == .color ? text : nil
             )
             if type == .link { item.isPinned = true }
+            // One favorite out of the box so the folder shows what it is for.
+            if type == .code {
+                item.isFavorite = true
+                item.favoritedAt = .now
+                item.favoriteTags = ["代码"]
+            }
             AutoTagService.apply(to: item)
             context.insert(item)
             EmbeddingIndex.shared.upsert(id: item.id, text: item.searchableText)

@@ -24,7 +24,7 @@ final class EmbeddingIndex: @unchecked Sendable {
         case cjk
     }
 
-    private let embedQueue = DispatchQueue(label: "com.mypaste.ClipStack.embeddings", qos: .utility)
+    private let embedQueue = DispatchQueue(label: "com.mypaste.PasteNest.embeddings", qos: .utility)
     private let recordLock = NSLock()
     private var records: [UUID: Record] = [:]
     private var models: [ScriptSpace: NLContextualEmbedding] = [:]
@@ -271,9 +271,33 @@ final class EmbeddingIndex: @unchecked Sendable {
         }
     }
 
+    /// Every notification makes each observer re-render and re-rank. Backfill writes
+    /// in batches of eight, so without coalescing a 500-item library re-renders the
+    /// whole UI 60+ times at launch. Immediate first, then at most one trailing
+    /// notification per interval. Called on `embedQueue` only.
+    private var lastNotify: Date = .distantPast
+    private var trailingNotifyScheduled = false
+    private static let notifyInterval: TimeInterval = 0.4
+
     private func notify() {
-        DispatchQueue.main.async { [weak self] in
-            self?.onDidUpdate?()
+        let now = Date()
+        let elapsed = now.timeIntervalSince(lastNotify)
+        if elapsed >= Self.notifyInterval {
+            lastNotify = now
+            DispatchQueue.main.async { [weak self] in
+                self?.onDidUpdate?()
+            }
+            return
+        }
+        guard !trailingNotifyScheduled else { return }
+        trailingNotifyScheduled = true
+        embedQueue.asyncAfter(deadline: .now() + (Self.notifyInterval - elapsed)) { [weak self] in
+            guard let self else { return }
+            self.trailingNotifyScheduled = false
+            self.lastNotify = Date()
+            DispatchQueue.main.async { [weak self] in
+                self?.onDidUpdate?()
+            }
         }
     }
 
@@ -319,7 +343,7 @@ final class EmbeddingIndex: @unchecked Sendable {
     private static var fileURL: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSTemporaryDirectory())
-        return base.appendingPathComponent("ClipStack", isDirectory: true)
+        return base.appendingPathComponent("PasteNest", isDirectory: true)
             .appendingPathComponent("embeddings.plist")
     }
 

@@ -34,11 +34,7 @@ struct SettingsView: View {
             Text("复制后会按类型自动打标签（图片、链接、富文本等），可在时间线或标签栏筛选。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Toggle("截图后识别文字", isOn: $appState.screenshotTextRecognition)
-                .onChange(of: appState.screenshotTextRecognition) { _, _ in
-                    appState.savePreferences()
-                }
-            Text("截图后在本机识别画面中的文字（中英文），文字与图片一起放进剪贴板：粘贴到输入框得到文字，粘贴到图片位置得到图片。识别结果也会存进历史，可直接搜索截图里的字。")
+            Text("截图与截图识字是两个独立动作：普通截图只保存图片；「截图识字」只保留识别出的文字、不存图片。可从菜单栏图标、面板菜单发起，识字也有独立快捷键（默认 \(appState.screenshotOCRHotkeyDisplay)）。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Toggle("登录时启动", isOn: $appState.launchAtLogin)
@@ -50,7 +46,7 @@ struct SettingsView: View {
                 ForEach(HotKeyAction.allCases) { action in
                     hotkeyRow(action)
                 }
-                Text("点击按钮后按下新的组合键（需包含 ⌘ / ⌃ / ⌥ 中至少一个），按 Esc 取消。两个窗口不会同时出现：唤出其中一个会自动收起另一个。截图快捷键直接进入区域选择，按 Esc 放弃本次截图。")
+                Text("点击按钮后按下新的组合键（需包含 ⌘ / ⌃ / ⌥ 中至少一个），按 Esc 取消。两个窗口不会同时出现：唤出其中一个会自动收起另一个。截图与截图识字快捷键都直接进入区域选择，按 Esc 放弃本次截图。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -60,11 +56,11 @@ struct SettingsView: View {
                     Text(AccessibilityPermission.isTrusted ? "已允许" : "未允许")
                         .foregroundStyle(AccessibilityPermission.isTrusted ? Color.secondary : Color.orange)
                 }
-                Button("在系统设置中允许 ClipStack…") {
+                Button("在系统设置中允许 PasteNest…") {
                     AccessibilityPermission.requestIfNeeded(prompt: true)
                     AccessibilityPermission.openSystemSettings()
                 }
-                Text("自动记录复制内容不需要辅助功能。只有「一键粘贴到其他 App」才需要。若列表里没有 ClipStack，先点此按钮再刷新列表。")
+                Text("自动记录复制内容不需要辅助功能。只有「一键粘贴到其他 App」才需要。若列表里没有 PasteNest，先点此按钮再刷新列表。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -75,12 +71,12 @@ struct SettingsView: View {
                 Button("在系统设置中允许截图…") {
                     ScreenshotService.requestScreenRecordingAccess()
                 }
-                Text("截图需要「屏幕录制」权限。授权后需重新启动 ClipStack 才会生效。")
+                Text("截图需要「屏幕录制」权限。授权后需重新启动 PasteNest 才会生效。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
-            Text("ClipStack 常驻菜单栏后台，关掉窗口不会退出：按 \(appState.hotkeyDisplay) 唤出底部面板，按 \(appState.mainWindowHotkeyDisplay) 唤出主窗口，也可点击右上角层叠图标。右键图标可退出。")
+            Text("PasteNest 常驻菜单栏后台，关掉窗口不会退出：按 \(appState.hotkeyDisplay) 唤出底部面板，按 \(appState.mainWindowHotkeyDisplay) 唤出主窗口，也可点击右上角层叠图标。右键图标可退出。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -90,18 +86,40 @@ struct SettingsView: View {
 
     private var historyTab: some View {
         Form {
-            Stepper(value: $appState.maxHistoryCount, in: 50...5000, step: 50) {
-                Text("最多保存 \(appState.maxHistoryCount) 条")
+            Section("收藏与保留") {
+                Stepper(
+                    value: $appState.keepUnfavoritedDays,
+                    in: RetentionPolicy.minimumDays...RetentionPolicy.maximumDays
+                ) {
+                    Text("未收藏的内容保留 \(appState.keepUnfavoritedDays) 天")
+                }
+                .onChange(of: appState.keepUnfavoritedDays) { _, _ in
+                    appState.savePreferences()
+                    // Shortening the window should take effect now, not at the next copy.
+                    NotificationCenter.default.post(name: .pasteRetentionSweepRequested, object: nil)
+                }
+                Button("立即清理过期内容") {
+                    NotificationCenter.default.post(name: .pasteRetentionSweepRequested, object: nil)
+                }
+                Text("收藏夹里的内容长期保存；其余记录在最后一次使用满 \(appState.keepUnfavoritedDays) 天后自动删除（置顶的也会保留）。粘贴或再次复制都会重新计时。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .onChange(of: appState.maxHistoryCount) { _, _ in
-                appState.savePreferences()
+
+            Section("容量") {
+                Stepper(value: $appState.maxHistoryCount, in: 50...5000, step: 50) {
+                    Text("最多保存 \(appState.maxHistoryCount) 条")
+                }
+                .onChange(of: appState.maxHistoryCount) { _, _ in
+                    appState.savePreferences()
+                }
+                Button("导出历史为 JSON…") {
+                    appState.requestExportJSON = true
+                }
+                Text("超出限制时会自动清理最早的记录，收藏与置顶不计入这个上限。图片与文件会占用更多磁盘空间。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            Button("导出历史为 JSON…") {
-                appState.requestExportJSON = true
-            }
-            Text("超出限制时会自动清理最早的非置顶记录。图片与文件会占用更多磁盘空间。")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
         .padding(20)
         .formStyle(.grouped)
@@ -131,7 +149,7 @@ struct SettingsView: View {
             Image(systemName: "square.stack.3d.up.fill")
                 .font(.system(size: 42))
                 .foregroundStyle(PasteTheme.accent)
-            Text("ClipStack")
+            Text("PasteNest")
                 .font(.title.weight(.bold))
             Text("保存、搜索、同步你复制的一切")
                 .foregroundStyle(.secondary)
@@ -167,6 +185,7 @@ struct SettingsView: View {
         case .panel: return $appState.hotkey
         case .mainWindow: return $appState.mainWindowHotkey
         case .screenshot: return $appState.screenshotHotkey
+        case .screenshotOCR: return $appState.screenshotOCRHotkey
         }
     }
 

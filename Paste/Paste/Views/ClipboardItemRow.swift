@@ -8,6 +8,8 @@ struct ClipboardItemRow: View {
     let onPaste: () -> Void
     let onPin: () -> Void
     let onDelete: () -> Void
+    var onToggleFavorite: (() -> Void)?
+    var retentionDays: Int = RetentionPolicy.defaultDays
 
     @State private var isHovered = false
 
@@ -26,6 +28,28 @@ struct ClipboardItemRow: View {
                                 .font(.caption2)
                                 .foregroundStyle(PasteTheme.accent)
                         }
+                        if item.isFavorite {
+                            Image(systemName: "star.fill")
+                                .font(.caption2)
+                                .foregroundStyle(Color(hex: "#F59E0B") ?? .orange)
+                        }
+                        ForEach(item.favoriteTags.prefix(2), id: \.self) { tag in
+                            Text(tag)
+                                .font(.caption2.weight(.semibold))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1)
+                                .background(
+                                    (Color(hex: FavoriteTagCatalog.accentHex(for: tag)) ?? PasteTheme.accent).opacity(0.16),
+                                    in: Capsule()
+                                )
+                                .foregroundStyle(Color(hex: FavoriteTagCatalog.accentHex(for: tag)) ?? PasteTheme.accent)
+                        }
+                        if item.isExpiringSoon(days: retentionDays) {
+                            Image(systemName: "clock.badge.exclamationmark")
+                                .font(.caption2)
+                                .foregroundStyle(Color(hex: "#EE6C4D") ?? .orange)
+                                .help("未收藏，不到 1 天后自动清理")
+                        }
                         Text(item.previewSubtitle ?? item.contentType.displayName)
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -38,6 +62,9 @@ struct ClipboardItemRow: View {
                 }
                 if isHovered || isSelected {
                     HStack(spacing: 4) {
+                        if let onToggleFavorite {
+                            iconButton(item.isFavorite ? "star.fill" : "star", action: onToggleFavorite)
+                        }
                         iconButton("pin", action: onPin)
                         iconButton("return", action: onPaste)
                         iconButton("trash", action: onDelete)
@@ -65,6 +92,9 @@ struct ClipboardItemRow: View {
         }
         .contextMenu {
             Button("粘贴", action: onPaste)
+            if let onToggleFavorite {
+                Button(item.isFavorite ? "从收藏夹移除" : "收藏（长期保存）", action: onToggleFavorite)
+            }
             Button(item.isPinned ? "取消置顶" : "置顶", action: onPin)
             Divider()
             Button("删除", role: .destructive, action: onDelete)
@@ -78,8 +108,7 @@ struct ClipboardItemRow: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color(hex: item.contentType.accentHex)?.opacity(0.14) ?? PasteTheme.accent.opacity(0.14))
                 .frame(width: 42, height: 42)
-            if item.contentType == .image, let data = item.thumbnailData ?? item.imageData,
-               let nsImage = NSImage(data: data) {
+            if item.contentType == .image, let nsImage = ImageCache.shared.image(for: item) {
                 Image(nsImage: nsImage)
                     .resizable()
                     .scaledToFill()

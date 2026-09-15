@@ -36,10 +36,10 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         if statusItem == nil {
             let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
             if let button = item.button {
-                let image = NSImage(systemSymbolName: "square.stack.3d.up.fill", accessibilityDescription: "ClipStack")
+                let image = NSImage(systemSymbolName: "square.stack.3d.up.fill", accessibilityDescription: "PasteNest")
                 image?.isTemplate = true
                 button.image = image
-                button.toolTip = "ClipStack — 常驻后台（\(appState.hotkeyDisplay) 唤出）"
+                button.toolTip = "PasteNest — 常驻后台（\(appState.hotkeyDisplay) 唤出）"
                 button.target = self
                 button.action = #selector(statusItemClicked(_:))
                 button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -54,7 +54,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
 
     /// Keeps the status-item tooltip in sync after the user changes the shortcut.
     func refreshHotkeyHint(_ display: String) {
-        statusItem?.button?.toolTip = "ClipStack — 常驻后台（\(display) 唤出）"
+        statusItem?.button?.toolTip = "PasteNest — 常驻后台（\(display) 唤出）"
     }
 
     /// `ScreenshotService` hides the shelf before a capture and restores it after.
@@ -90,13 +90,15 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         menu.addItem(withTitle: "隐藏面板", action: #selector(menuHidePanel), keyEquivalent: "")
         menu.addItem(NSMenuItem.separator())
         let shotHint = appState.map { "（\($0.screenshotHotkeyDisplay)）" } ?? ""
+        let ocrHint = appState.map { "（\($0.screenshotOCRHotkeyDisplay)）" } ?? ""
         menu.addItem(withTitle: "截取区域\(shotHint)", action: #selector(menuCaptureRegion), keyEquivalent: "")
         menu.addItem(withTitle: "截取窗口", action: #selector(menuCaptureWindow), keyEquivalent: "")
         menu.addItem(withTitle: "截取整屏", action: #selector(menuCaptureFullScreen), keyEquivalent: "")
+        menu.addItem(withTitle: "截取区域并识字\(ocrHint)", action: #selector(menuCaptureRegionOCR), keyEquivalent: "")
         menu.addItem(NSMenuItem.separator())
         menu.addItem(withTitle: "设置…", action: #selector(menuOpenSettings), keyEquivalent: ",")
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(withTitle: "退出 ClipStack", action: #selector(menuQuit), keyEquivalent: "q")
+        menu.addItem(withTitle: "退出 PasteNest", action: #selector(menuQuit), keyEquivalent: "q")
         for item in menu.items {
             item.target = self
         }
@@ -114,6 +116,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     @objc private func menuCaptureRegion() { ScreenshotService.shared.capture(.region) }
     @objc private func menuCaptureWindow() { ScreenshotService.shared.capture(.window) }
     @objc private func menuCaptureFullScreen() { ScreenshotService.shared.capture(.fullScreen) }
+    @objc private func menuCaptureRegionOCR() { ScreenshotService.shared.capture(.region, recognizeText: true) }
     @objc private func menuOpenSettings() {
         openSettings()
     }
@@ -136,8 +139,10 @@ final class StatusItemController: NSObject, NSWindowDelegate {
             // next runloop turn once it exists.
             DispatchQueue.main.async {
                 NSApp.activate(ignoringOtherApps: true)
-                // Skip the main window: settings must not drag it back on screen.
+                // Only bring forward the settings window itself. Ordering every plain
+                // window in also raised the main window's leftover blank surface.
                 for window in NSApp.windows where !(window is NSPanel) && window !== self.mainWindow {
+                    guard !window.title.isEmpty else { continue }
                     window.makeKeyAndOrderFront(nil)
                 }
             }
@@ -191,7 +196,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
             if let identifier = window.identifier?.rawValue {
                 return !identifier.contains("Settings") && identifier.contains("main")
             }
-            return window.title == "ClipStack"
+            return window.title == "PasteNest"
         }
         mainWindow = found
         return found

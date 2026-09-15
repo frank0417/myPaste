@@ -1,6 +1,7 @@
 // Mirrors ScreenshotService so CI / Linux agents can check the capture rules without
 // Xcode: which screencapture flags each mode passes, how an exit status plus the
-// output file classify the attempt, and what the history payload looks like.
+// output file classify the attempt, and what the history payload looks like for the
+// two purposes — plain capture keeps the image, 识字 keeps only the text.
 
 const MODES = ["region", "window", "fullScreen"];
 
@@ -38,42 +39,63 @@ function characterCount(text) {
   return [...text].filter((c) => !/\s/u.test(c)).length;
 }
 
-// Mirrors ScreenshotService.payload(mode:pngData:text:): recognized text rides on
-// the image item as plainText, and the subtitle reports how much was found.
-function payload(mode, { width, height, bytes, text = null }) {
+// Mirrors ContentTypeDetector.detect for the 识字 result.
+function detect(text) {
+  const trimmed = text.trim();
+  if (/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/.test(trimmed)) return "color";
+  if (/^(https?:\/\/|www\.)\S+$/i.test(trimmed) && !trimmed.includes("\n")) return "link";
+  if (trimmed.length > 120 || trimmed.includes("\n")) return "snippet";
+  return "text";
+}
+
+// Mirrors ScreenshotService.payload: a plain capture is an image item and nothing
+// else — OCR never runs, so there is no text to carry.
+function payload(mode, { width, height, bytes }) {
   return {
     contentType: "image",
-    plainText: text,
+    plainText: null,
     previewTitle: `截图 ${width}×${height}`,
-    previewSubtitle: text ? `${SUBTITLE[mode]} · 识别 ${characterCount(text)} 字` : SUBTITLE[mode],
+    previewSubtitle: SUBTITLE[mode],
     sourceAppName: "截图",
     sourceAppBundleID: null,
     hasThumbnail: bytes > 0
   };
 }
 
-// Mirrors ScreenshotService.hudDetail.
-function hudDetail(text, recognitionEnabled) {
-  if (!recognitionEnabled) return "图片已复制";
-  if (!text) return "图片已复制 · 未识别到文字";
+// Mirrors ScreenshotService.textPayload: a 识字 capture keeps only the words. The
+// image is discarded, and normal type detection still applies to the text.
+function textPayload(mode, text) {
+  const type = detect(text);
+  return {
+    contentType: type,
+    plainText: text,
+    imageData: null,
+    previewTitle: text.trim().split("\n")[0].slice(0, 80),
+    previewSubtitle: `截图识字 · ${characterCount(text)} 字`,
+    sourceAppName: "截图识字",
+    hasThumbnail: false
+  };
+}
+
+// Mirrors ScreenshotService.hudDetail (识字 mode; plain mode just says 图片已复制).
+function hudDetail(text) {
+  if (!text) return "未识别到文字";
   return `已识别 ${characterCount(text)} 字，文字已复制`;
 }
 
-// Mirrors ClipboardMonitor.imagePasteboardItem: one item, both representations, so
-// the receiving app decides whether it wants the picture or the text.
-function pasteboardTypes(text) {
-  const types = ["tiff", "png"];
-  if (text) types.push("string");
-  return types;
+// The pasteboard contents per purpose: a plain capture offers the image, a 识字
+// capture offers only the string.
+function pasteboardTypes(purpose) {
+  return purpose === "text" ? ["string"] : ["tiff", "png"];
 }
 
-// Mirrors ClipboardItem.searchableText for a screenshot. Without OCR only the title
-// and source label are searchable; with it, the screenshot's own words are too.
+// Mirrors ClipboardItem.searchableText. A plain capture is found by 截图 / 图片 /
+// its size; a 识字 capture is found by the words inside it.
 function searchableText(p) {
   const parts = [p.previewTitle, p.previewSubtitle];
   if (p.plainText) parts.push(p.plainText);
-  parts.push(p.sourceAppName, "图片");
-  return parts.join("\n");
+  parts.push(p.sourceAppName, p.contentType === "image" ? "图片" : null);
+  return parts.filter(Boolean).join("\n");
 }
 
 let failed = 0;
@@ -89,7 +111,7 @@ function assertTrue(cond, name) {
   assertEqual(Boolean(cond), true, name);
 }
 
-const OUT = "/tmp/ClipStack-Screenshot-ABC.png";
+const OUT = "/tmp/PasteNest-Screenshot-ABC.png";
 
 assertEqual(argumentsFor("region", OUT), ["-i", "-t", "png", OUT], "region captures interactively");
 assertEqual(argumentsFor("window", OUT), ["-i", "-W", "-t", "png", OUT], "window starts in window mode");
@@ -137,43 +159,41 @@ assertEqual(
   "pixels win over status and permission"
 );
 
+// --- Plain capture: image only, OCR never runs --------------------------------
 const shot = payload("region", { width: 1920, height: 1080, bytes: 52_480 });
-assertEqual(shot.contentType, "image", "screenshots are image items");
+assertEqual(shot.contentType, "image", "plain captures are image items");
+assertEqual(shot.plainText, null, "a plain capture carries no text");
 assertEqual(shot.previewTitle, "截图 1920×1080", "title carries the pixel size");
 assertEqual(shot.previewSubtitle, "区域截图", "subtitle names the mode");
 assertEqual(shot.sourceAppName, "截图", "source label marks it as a capture");
-assertEqual(
-  payload("fullScreen", { width: 3456, height: 2234, bytes: 1 }).previewSubtitle,
-  "整屏截图",
-  "full screen subtitle"
-);
 assertTrue(shot.hasThumbnail, "captures get a shelf thumbnail");
 
-// Typing either word has to find a screenshot, since it has no text content at all.
-const text = searchableText(shot);
-assertTrue(text.includes("截图"), "searchable by 截图");
-assertTrue(text.includes("图片"), "searchable by 图片");
-assertTrue(text.includes("1920"), "searchable by pixel size");
+const shotText = searchableText(shot);
+assertTrue(shotText.includes("截图"), "searchable by 截图");
+assertTrue(shotText.includes("图片"), "searchable by 图片");
+assertTrue(shotText.includes("1920"), "searchable by pixel size");
 
-// With OCR the capture carries its own words, which is what makes a screenshot
-// findable by what it says rather than only by when it was taken.
-const ocr = payload("region", {
-  width: 889,
-  height: 383,
-  bytes: 52_480,
-  text: "安静、好用的 Mac 工具。\n岸上工作室"
-});
-assertEqual(ocr.plainText, "安静、好用的 Mac 工具。\n岸上工作室", "recognized text lands in plainText");
-assertEqual(ocr.previewSubtitle, "区域截图 · 识别 17 字", "subtitle reports the recognized length");
-assertEqual(ocr.contentType, "image", "an OCR capture is still an image item");
-assertTrue(searchableText(ocr).includes("好用的"), "searchable by words inside the screenshot");
+// --- 识字 capture: text only, image discarded ----------------------------------
+const ocr = textPayload("region", "安静、好用的 Mac 工具。\n岸上工作室");
+assertEqual(ocr.contentType, "snippet", "multi-line recognized text is a snippet");
+assertEqual(ocr.plainText, "安静、好用的 Mac 工具。\n岸上工作室", "the words are the whole item");
+assertEqual(ocr.imageData, null, "the image is not kept");
+assertEqual(ocr.previewSubtitle, "截图识字 · 17 字", "subtitle reports the recognized length");
+assertEqual(ocr.sourceAppName, "截图识字", "source label marks it as recognized text");
+assertTrue(!ocr.hasThumbnail, "no thumbnail without an image");
+assertTrue(searchableText(ocr).includes("好用的"), "searchable by the recognized words");
+assertTrue(searchableText(ocr).includes("截图识字"), "searchable by 截图识字");
 
-assertEqual(hudDetail(null, false), "图片已复制", "recognition off just confirms the copy");
-assertEqual(hudDetail(null, true), "图片已复制 · 未识别到文字", "an empty result is reported");
-assertEqual(hudDetail("安静好用", true), "已识别 4 字，文字已复制", "a result reports its length");
+// Type detection still applies: a recognized URL becomes a link item.
+assertEqual(textPayload("region", "https://example.com/docs").contentType, "link", "a recognized URL is a link");
+assertEqual(textPayload("region", "#0F766E").contentType, "color", "a recognized hex is a color");
+assertEqual(textPayload("region", "短句").contentType, "text", "a short line is plain text");
 
-assertEqual(pasteboardTypes("文字"), ["tiff", "png", "string"], "a capture with text offers both");
-assertEqual(pasteboardTypes(null), ["tiff", "png"], "a capture without text offers only the image");
+assertEqual(hudDetail("安静好用"), "已识别 4 字，文字已复制", "a result reports its length");
+assertEqual(hudDetail(null), "未识别到文字", "an empty result says so and saves nothing");
+
+assertEqual(pasteboardTypes("image"), ["tiff", "png"], "a plain capture offers the image");
+assertEqual(pasteboardTypes("text"), ["string"], "a 识字 capture offers only the text");
 
 if (failed > 0) {
   console.error(`\n${failed} test(s) failed`);

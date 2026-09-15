@@ -7,26 +7,72 @@ struct ClipboardHistoryPane: View {
     var store: ClipboardStore?
 
     private var filtered: [ClipboardItem] {
-        ClipboardItemFilter.filter(items, appState: appState)
+        var hasher = Hasher()
+        hasher.combine(appState.searchQuery)
+        hasher.combine(appState.selectedFilter.rawValue)
+        hasher.combine(appState.showOnlyPinned)
+        hasher.combine(appState.showOnlyFavorites)
+        hasher.combine(appState.favoriteScope)
+        hasher.combine(appState.selectedAutoTag)
+        hasher.combine(appState.embeddingRevision)
+        for item in items {
+            hasher.combine(item.id)
+            hasher.combine(item.updatedAt)
+            hasher.combine(item.isFavorite)
+            hasher.combine(item.isPinned)
+            hasher.combine(item.favoriteTagsJSON)
+            hasher.combine(item.autoTagsJSON)
+        }
+        let key = hasher.finalize()
+        if filterMemo.key == key { return filterMemo.value }
+        let value = ClipboardItemFilter.filter(items, appState: appState)
+        filterMemo.key = key
+        filterMemo.value = value
+        return value
     }
+
+    @State private var filterMemo = FilterMemo()
 
     private var pinned: [ClipboardItem] { filtered.filter(\.isPinned) }
     private var recent: [ClipboardItem] { filtered.filter { !$0.isPinned } }
+    private var favorites: [ClipboardItem] { items.filter(\.isFavorite) }
 
     var body: some View {
         VStack(spacing: 0) {
             historyModeBar
-            AutoTagFilterBar(items: items)
-            FilterChipBar()
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
-
-            if filtered.isEmpty {
-                EmptyHistoryView(hasSearch: !appState.searchQuery.isEmpty)
-            } else if appState.mainHistoryMode == .timeline {
-                TimelineOutlineView(items: filtered, store: store)
+            if appState.mainHistoryMode == .favorites {
+                // The folder brings its own category chips and empty state.
+                FavoritesFolderView(
+                    items: filtered,
+                    favorites: favorites,
+                    layout: .grid,
+                    store: store,
+                    // The preview pane is always on screen here, so a double click
+                    // pastes like it does on the list rows.
+                    onOpenDetail: { store?.paste($0) }
+                )
             } else {
-                listContent
+                AutoTagFilterBar(items: items)
+                FilterChipBar()
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+
+                if filtered.isEmpty {
+                    EmptyHistoryView(hasSearch: !appState.searchQuery.isEmpty)
+                } else if appState.mainHistoryMode == .timeline {
+                    TimelineOutlineView(items: filtered, store: store)
+                } else {
+                    listContent
+                }
+            }
+        }
+        .onChange(of: appState.showOnlyFavorites) { _, only in
+            // The shelf panel shares this filter; follow it so the list never silently
+            // shows favorites only, without the folder's category chips.
+            if only, appState.mainHistoryMode != .favorites {
+                appState.mainHistoryMode = .favorites
+            } else if !only, appState.mainHistoryMode == .favorites {
+                appState.mainHistoryMode = .list
             }
         }
     }
@@ -35,6 +81,7 @@ struct ClipboardHistoryPane: View {
         HStack(spacing: 8) {
             modeButton(title: "列表", systemImage: "list.bullet", mode: .list)
             modeButton(title: "时间线", systemImage: "calendar.day.timeline.leading", mode: .timeline)
+            modeButton(title: "收藏夹", systemImage: "star.fill", mode: .favorites)
             Spacer()
             Text("\(filtered.count) 条")
                 .font(.caption)
@@ -49,6 +96,11 @@ struct ClipboardHistoryPane: View {
         Button {
             withAnimation(.easeOut(duration: 0.18)) {
                 appState.mainHistoryMode = mode
+                if mode == .favorites {
+                    appState.showFavorites(scope: .all)
+                } else {
+                    appState.leaveFavorites()
+                }
             }
         } label: {
             Label(title, systemImage: systemImage)
@@ -94,7 +146,9 @@ struct ClipboardHistoryPane: View {
             onSelect: { appState.selectedItemID = item.id },
             onPaste: { store?.paste(item) },
             onPin: { store?.togglePin(item) },
-            onDelete: { store?.delete(item) }
+            onDelete: { store?.delete(item) },
+            onToggleFavorite: { store?.toggleFavorite(item) },
+            retentionDays: appState.keepUnfavoritedDays
         )
     }
 
@@ -119,6 +173,12 @@ struct FilterChipBar: View {
                         withAnimation(.easeInOut(duration: 0.18)) {
                             appState.selectedFilter = filter
                             appState.showOnlyPinned = filter == .pinned
+                            if filter == .favorite {
+                                appState.mainHistoryMode = .favorites
+                                appState.showFavorites(scope: .all)
+                            } else {
+                                appState.leaveFavorites()
+                            }
                             if filter != .all {
                                 appState.selectedAutoTag = nil
                             }
