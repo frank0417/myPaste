@@ -33,6 +33,9 @@ final class EmbeddingIndex: @unchecked Sendable {
     private var pending: [(UUID, String)] = []
     private var persistWorkItem: DispatchWorkItem?
     private var didLoadFromDisk = false
+    private var queryCache: (query: String, vector: [Float], modelID: String)?
+    private var latestQuery: String = ""
+    private var inflightQuery: String?
 
     private init() {}
 
@@ -83,32 +86,62 @@ final class EmbeddingIndex: @unchecked Sendable {
         }
     }
 
-    /// Never waits for model downloads; returns empty while assets are still arriving.
+    /// Keyword path stays on the caller; query embedding never blocks the main thread.
+    /// A cache miss returns `[:]` and refreshes via `onDidUpdate` when the vector is ready.
     func scores(query: String, ids: [UUID]) -> [UUID: Double] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !ids.isEmpty else { return [:] }
 
-        var embedded: (vector: [Float], modelID: String)?
-        embedQueue.sync {
-            self.loadFromDiskIfNeeded()
-            embedded = self.embedNow(trimmed)
-        }
-        guard let embedded else { return [:] }
-
         recordLock.lock()
         let snapshot = records
+        let cached = queryCache
         recordLock.unlock()
+
+        guard let cached, cached.query == trimmed else {
+            requestQueryEmbed(trimmed)
+            return [:]
+        }
 
         var out: [UUID: Double] = [:]
         out.reserveCapacity(ids.count)
         for id in ids {
-            guard let record = snapshot[id], record.modelID == embedded.modelID else { continue }
-            let cosine = Self.dot(embedded.vector, record.vector)
+            guard let record = snapshot[id], record.modelID == cached.modelID else { continue }
+            let cosine = Self.dot(cached.vector, record.vector)
             if cosine > 0 {
                 out[id] = Double(cosine)
             }
         }
         return out
+    }
+
+    private func requestQueryEmbed(_ query: String) {
+        recordLock.lock()
+        latestQuery = query
+        if inflightQuery == query || queryCache?.query == query {
+            recordLock.unlock()
+            return
+        }
+        inflightQuery = query
+        recordLock.unlock()
+
+        embedQueue.async { [weak self] in
+            guard let self else { return }
+            self.loadFromDiskIfNeeded()
+            let embedded = self.embedNow(query)
+            var shouldNotify = false
+            self.recordLock.lock()
+            if self.inflightQuery == query {
+                self.inflightQuery = nil
+            }
+            if self.latestQuery == query, let embedded {
+                self.queryCache = (query, embedded.vector, embedded.modelID)
+                shouldNotify = true
+            }
+            self.recordLock.unlock()
+            if shouldNotify {
+                self.notify()
+            }
+        }
     }
 
     private enum UpsertOutcome {

@@ -38,9 +38,7 @@ enum ClipboardItemFilter {
         guard matchesHard(item, appState: appState) else { return false }
         let query = appState.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return true }
-        if KeywordScorer.score(query: query, item: item) > 0 { return true }
-        let semantic = EmbeddingIndex.shared.scores(query: query, ids: [item.id])[item.id] ?? 0
-        return semantic >= HybridSearch.semanticFloor
+        return KeywordScorer.score(query: query, item: item) > 0
     }
 
     static func filter(_ items: [ClipboardItem], appState: AppState) -> [ClipboardItem] {

@@ -10,6 +10,8 @@ struct MenuBarPanel: View {
     @State private var store: ClipboardStore?
     @State private var showSearch = false
     @FocusState private var searchFocused: Bool
+    @State private var draftQuery = ""
+    @State private var searchDebounce: DispatchWorkItem?
     @State private var dismissLaunchCard = UserDefaults.standard.bool(forKey: "dismissedLaunchAtLoginCard")
     @State private var acknowledgedBackgroundTip = UserDefaults.standard.bool(forKey: "acknowledgedBackgroundTip")
 
@@ -23,6 +25,9 @@ struct MenuBarPanel: View {
             if detailItem == nil {
                 VStack(spacing: 0) {
                     topBar
+                    if showSearch {
+                        searchRow
+                    }
                     if appState.panelViewMode == .shelf {
                         shelf
                     } else {
@@ -47,6 +52,7 @@ struct MenuBarPanel: View {
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 .shadow(color: .black.opacity(0.16), radius: 24, y: 10)
+                .animation(.easeOut(duration: 0.18), value: showSearch)
             }
 
             if let detailItem = detailItem {
@@ -103,8 +109,8 @@ struct MenuBarPanel: View {
             return .handled
         }
         .onKeyPress(.escape) {
-            if searchFocused && !appState.searchQuery.isEmpty {
-                appState.searchQuery = ""
+            if searchFocused && !draftQuery.isEmpty {
+                clearSearch(immediate: true)
                 return .handled
             }
             return .ignored
@@ -113,8 +119,8 @@ struct MenuBarPanel: View {
             guard press.modifiers.contains(.command) else { return .ignored }
             withAnimation(.easeOut(duration: 0.18)) {
                 showSearch = true
-                searchFocused = true
             }
+            DispatchQueue.main.async { searchFocused = true }
             return .handled
         }
     }
@@ -130,9 +136,9 @@ struct MenuBarPanel: View {
                 withAnimation(.easeOut(duration: 0.18)) {
                     showSearch.toggle()
                     if showSearch {
-                        searchFocused = true
+                        DispatchQueue.main.async { searchFocused = true }
                     } else {
-                        appState.searchQuery = ""
+                        clearSearch(immediate: true)
                     }
                 }
             } label: {
@@ -143,32 +149,6 @@ struct MenuBarPanel: View {
             }
             .buttonStyle(.plain)
             .help("搜索")
-
-            if showSearch {
-                HStack(spacing: 6) {
-                    TextField("搜索剪贴板…", text: $appState.searchQuery)
-                        .textFieldStyle(.plain)
-                        .focused($searchFocused)
-                    if !appState.searchQuery.isEmpty {
-                        Text("\(filtered.count)")
-                            .font(.caption2.monospacedDigit())
-                            .foregroundStyle(.tertiary)
-                        Button {
-                            appState.searchQuery = ""
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.tertiary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(Color.primary.opacity(0.06), in: Capsule())
-                .frame(maxWidth: 220)
-                .transition(.opacity.combined(with: .move(edge: .leading)))
-            }
 
             boardTab(
                 title: "剪贴板",
@@ -216,9 +196,11 @@ struct MenuBarPanel: View {
                 Text(appState.isMonitoringEnabled ? "后台监听中" : "已暂停")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
                 Text(appState.hotkeyDisplay)
                     .font(.caption2.monospaced())
                     .foregroundStyle(.tertiary)
+                    .lineLimit(1)
             }
 
             Menu {
@@ -251,6 +233,7 @@ struct MenuBarPanel: View {
             }
             .menuStyle(.borderlessButton)
         }
+        .lineLimit(1)
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .background(
@@ -261,6 +244,62 @@ struct MenuBarPanel: View {
         .padding(.horizontal, 18)
         .padding(.top, 14)
         .padding(.bottom, 10)
+    }
+
+    private var searchRow: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.tertiary)
+            TextField("搜索剪贴板…", text: $draftQuery)
+                .textFieldStyle(.plain)
+                .focused($searchFocused)
+                .onChange(of: draftQuery) { _, value in
+                    scheduleSearch(value)
+                }
+            if !draftQuery.isEmpty {
+                Text("\(filtered.count)")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.tertiary)
+                Button {
+                    clearSearch(immediate: true)
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(Color.primary.opacity(0.06), in: Capsule())
+        .padding(.horizontal, 18)
+        .padding(.bottom, 6)
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    private func scheduleSearch(_ value: String) {
+        searchDebounce?.cancel()
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            appState.searchQuery = ""
+            return
+        }
+        let work = DispatchWorkItem {
+            if appState.searchQuery != value {
+                appState.searchQuery = value
+            }
+        }
+        searchDebounce = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14, execute: work)
+    }
+
+    private func clearSearch(immediate: Bool) {
+        searchDebounce?.cancel()
+        draftQuery = ""
+        appState.searchQuery = ""
+        if !immediate { return }
     }
 
     private var topTagCounts: [(AutoTag, Int)] {
@@ -300,6 +339,8 @@ struct MenuBarPanel: View {
                 }
                 Text(title)
                     .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                 if let badge {
                     Text("\(badge)")
                         .font(.caption2.monospacedDigit())

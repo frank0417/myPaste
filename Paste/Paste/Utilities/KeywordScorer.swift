@@ -64,24 +64,25 @@ enum KeywordScorer {
     static func score(query: String, document: KeywordDocument) -> Double {
         let foldedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !foldedQuery.isEmpty else { return 0 }
+        return score(tokens: tokens(in: foldedQuery), foldedQuery: foldedQuery, fields: KeywordFields(document))
+    }
 
-        let queryTokens = tokens(in: foldedQuery)
-        guard !queryTokens.isEmpty else { return 0 }
+    static func score(tokens queryTokens: [String], foldedQuery: String, fields: KeywordFields) -> Double {
+        guard !foldedQuery.isEmpty, !queryTokens.isEmpty else { return 0 }
 
-        let fields: [(String, Double)] = [
-            (document.title.lowercased(), 1.3),
-            (document.subtitle?.lowercased() ?? "", 0.9),
-            (document.body?.lowercased() ?? "", 1.0),
-            (document.source?.lowercased() ?? "", 0.6),
-            (document.tag?.lowercased() ?? "", 0.8)
+        let weighted: [(String, Double)] = [
+            (fields.title, 1.3),
+            (fields.subtitle, 0.9),
+            (fields.body, 1.0),
+            (fields.source, 0.6),
+            (fields.tag, 0.8)
         ]
-        let haystack = fields.map(\.0).filter { !$0.isEmpty }.joined(separator: " ")
 
         var score = 0.0
         var hits = 0
         for token in queryTokens {
             var tokenScore = 0.0
-            for (text, weight) in fields where !text.isEmpty && text.contains(token) {
+            for (text, weight) in weighted where !text.isEmpty && text.contains(token) {
                 tokenScore += weight
             }
             if tokenScore > 0 {
@@ -94,10 +95,11 @@ enum KeywordScorer {
         if hits == queryTokens.count {
             score *= 1.4
         }
-        if haystack.contains(foldedQuery) {
+        if fields.haystack.contains(foldedQuery) {
             score += 2.0
         }
-        if isIdentifierQuery(foldedQuery), haystack.split(whereSeparator: { $0.isWhitespace || $0.isPunctuation }).map(String.init).contains(foldedQuery) {
+        if isIdentifierQuery(foldedQuery),
+           fields.haystack.split(whereSeparator: { $0.isWhitespace || $0.isPunctuation }).map(String.init).contains(foldedQuery) {
             score += 3.0
         }
         return score
@@ -108,7 +110,7 @@ enum KeywordScorer {
     }
 
     static func haystack(item: ClipboardItem) -> String {
-        item.keywordDocument.joinedHaystack
+        KeywordFields(item.keywordDocument).haystack
     }
 
     private static func isIdentifierQuery(_ query: String) -> Bool {
@@ -117,14 +119,28 @@ enum KeywordScorer {
     }
 }
 
-extension KeywordDocument {
-    var joinedHaystack: String {
-        ([title] + [subtitle, body, source, tag].compactMap { $0 })
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+struct KeywordFields {
+    let title: String
+    let subtitle: String
+    let body: String
+    let source: String
+    let tag: String
+    let haystack: String
+
+    init(_ document: KeywordDocument) {
+        title = document.title.lowercased()
+        subtitle = document.subtitle?.lowercased() ?? ""
+        body = String((document.body ?? "").prefix(2000)).lowercased()
+        source = document.source?.lowercased() ?? ""
+        tag = document.tag?.lowercased() ?? ""
+        haystack = [title, subtitle, body, source, tag]
             .filter { !$0.isEmpty }
             .joined(separator: " ")
-            .lowercased()
     }
+}
+
+extension KeywordDocument {
+    var joinedHaystack: String { KeywordFields(self).haystack }
 }
 
 extension ClipboardItem {
@@ -132,7 +148,7 @@ extension ClipboardItem {
         KeywordDocument(
             title: previewTitle,
             subtitle: previewSubtitle,
-            body: plainText,
+            body: plainText.map { String($0.prefix(2000)) },
             source: sourceAppName,
             tag: primaryAutoTag?.displayName
         )

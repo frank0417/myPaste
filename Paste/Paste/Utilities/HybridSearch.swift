@@ -17,19 +17,20 @@ enum HybridSearch {
         let query = appState.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return hard }
 
-        let keywordScores = Dictionary(uniqueKeysWithValues: hard.map { ($0.id, KeywordScorer.score(query: query, item: $0)) })
-        let semanticScores = EmbeddingIndex.shared.scores(query: query, ids: hard.map(\.id))
         let folded = query.lowercased()
+        let queryTokens = KeywordScorer.tokens(in: folded)
+        let fields = Dictionary(uniqueKeysWithValues: hard.map { ($0.id, KeywordFields($0.keywordDocument)) })
+        let semanticScores = EmbeddingIndex.shared.scores(query: query, ids: hard.map(\.id))
 
         var hits: [Hit] = []
         hits.reserveCapacity(hard.count)
         for item in hard {
-            let keyword = keywordScores[item.id] ?? 0
+            let doc = fields[item.id] ?? KeywordFields(item.keywordDocument)
+            let keyword = KeywordScorer.score(tokens: queryTokens, foldedQuery: folded, fields: doc)
             let semanticRaw = semanticScores[item.id] ?? 0
             let semantic = semanticRaw >= semanticFloor ? semanticRaw : 0
             if keyword <= 0 && semantic <= 0 { continue }
-            let phrase = KeywordScorer.haystack(item: item).contains(folded)
-            hits.append(Hit(id: item.id, keyword: keyword, semantic: semantic, phrase: phrase))
+            hits.append(Hit(id: item.id, keyword: keyword, semantic: semantic, phrase: doc.haystack.contains(folded)))
         }
 
         let fused = fuse(hits)
