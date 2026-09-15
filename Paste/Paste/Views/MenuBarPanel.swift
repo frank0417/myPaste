@@ -56,8 +56,23 @@ struct MenuBarPanel: View {
             if store == nil {
                 store = ClipboardStore(modelContext: modelContext, appState: appState, ownsMonitor: false)
             }
+            // The panel is rebuilt on every show, and the favorites filter is shared with
+            // the main window — re-apply whatever this tab means before the first render.
+            if appState.panelViewMode == .favorites {
+                appState.showFavorites(scope: appState.favoriteScope)
+            } else {
+                appState.leaveFavorites()
+            }
             if appState.selectedItemID == nil {
                 appState.selectedItemID = filtered.first?.id
+            }
+        }
+        .onChange(of: appState.showOnlyFavorites) { _, only in
+            // Keep the tab and the filter in step even when another surface flips it.
+            if only, appState.panelViewMode != .favorites {
+                appState.panelViewMode = .favorites
+            } else if !only, appState.panelViewMode == .favorites {
+                appState.panelViewMode = .shelf
             }
         }
         .onChange(of: filtered.map(\.id)) { _, ids in

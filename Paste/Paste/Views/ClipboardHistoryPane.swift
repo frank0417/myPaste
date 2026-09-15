@@ -40,6 +40,15 @@ struct ClipboardHistoryPane: View {
                 }
             }
         }
+        .onChange(of: appState.showOnlyFavorites) { _, only in
+            // The shelf panel shares this filter; follow it so the list never silently
+            // shows favorites only, without the folder's category chips.
+            if only, appState.mainHistoryMode != .favorites {
+                appState.mainHistoryMode = .favorites
+            } else if !only, appState.mainHistoryMode == .favorites {
+                appState.mainHistoryMode = .list
+            }
+        }
     }
 
     private var historyModeBar: some View {
@@ -139,7 +148,8 @@ struct FilterChipBar: View {
                             appState.selectedFilter = filter
                             appState.showOnlyPinned = filter == .pinned
                             if filter == .favorite {
-                                appState.favoriteScope = .all
+                                appState.mainHistoryMode = .favorites
+                                appState.showFavorites(scope: .all)
                             } else {
                                 appState.leaveFavorites()
                             }
