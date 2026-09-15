@@ -1,7 +1,7 @@
 import Foundation
 
 /// Which slice of the favorites folder is on screen.
-enum FavoriteScope: Equatable {
+enum FavoriteScope: Equatable, Hashable {
     case all
     case tag(String)
     case untagged
@@ -127,18 +127,41 @@ enum FavoriteTagCatalog {
         let used = Set(existing.compactMap { normalize($0)?.lowercased() })
         return suggestions.filter { !used.contains($0.lowercased()) }
     }
+
+    /// `favoriteTags` is read for every card render; the decoded list is memoized
+    /// against the raw stored string instead of decoding JSON on each access.
+    private static let listCacheLock = NSLock()
+    private static var listCache: [UUID: (raw: String?, tags: [String])] = [:]
+
+    static func cachedTags(for item: ClipboardItem) -> [String] {
+        let raw = item.favoriteTagsJSON
+        listCacheLock.lock()
+        if let cached = listCache[item.id], cached.raw == raw {
+            listCacheLock.unlock()
+            return cached.tags
+        }
+        listCacheLock.unlock()
+
+        var decoded: [String] = []
+        if let raw,
+           let data = raw.data(using: .utf8),
+           let tags = try? JSONDecoder().decode([String].self, from: data) {
+            decoded = sanitize(tags)
+        }
+
+        listCacheLock.lock()
+        if listCache.count > 4000 {
+            listCache.removeAll(keepingCapacity: false)
+        }
+        listCache[item.id] = (raw, decoded)
+        listCacheLock.unlock()
+        return decoded
+    }
 }
 
 extension ClipboardItem {
     var favoriteTags: [String] {
-        get {
-            guard let favoriteTagsJSON,
-                  let data = favoriteTagsJSON.data(using: .utf8),
-                  let tags = try? JSONDecoder().decode([String].self, from: data) else {
-                return []
-            }
-            return FavoriteTagCatalog.sanitize(tags)
-        }
+        get { FavoriteTagCatalog.cachedTags(for: self) }
         set {
             let clean = FavoriteTagCatalog.sanitize(newValue)
             favoriteTagsJSON = (try? String(data: JSONEncoder().encode(clean), encoding: .utf8)) ?? "[]"

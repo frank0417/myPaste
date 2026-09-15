@@ -48,7 +48,6 @@ final class AppState: ObservableObject {
         case timeline
         case favorites
     }
-
     enum MainHistoryMode: String {
         case list
         case timeline

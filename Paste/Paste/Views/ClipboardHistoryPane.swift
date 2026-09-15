@@ -7,8 +7,31 @@ struct ClipboardHistoryPane: View {
     var store: ClipboardStore?
 
     private var filtered: [ClipboardItem] {
-        ClipboardItemFilter.filter(items, appState: appState)
+        var hasher = Hasher()
+        hasher.combine(appState.searchQuery)
+        hasher.combine(appState.selectedFilter.rawValue)
+        hasher.combine(appState.showOnlyPinned)
+        hasher.combine(appState.showOnlyFavorites)
+        hasher.combine(appState.favoriteScope)
+        hasher.combine(appState.selectedAutoTag)
+        hasher.combine(appState.embeddingRevision)
+        for item in items {
+            hasher.combine(item.id)
+            hasher.combine(item.updatedAt)
+            hasher.combine(item.isFavorite)
+            hasher.combine(item.isPinned)
+            hasher.combine(item.favoriteTagsJSON)
+            hasher.combine(item.autoTagsJSON)
+        }
+        let key = hasher.finalize()
+        if filterMemo.key == key { return filterMemo.value }
+        let value = ClipboardItemFilter.filter(items, appState: appState)
+        filterMemo.key = key
+        filterMemo.value = value
+        return value
     }
+
+    @State private var filterMemo = FilterMemo()
 
     private var pinned: [ClipboardItem] { filtered.filter(\.isPinned) }
     private var recent: [ClipboardItem] { filtered.filter { !$0.isPinned } }

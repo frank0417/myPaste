@@ -47,7 +47,7 @@ struct FavoritesFolderView: View {
 
     private var shelfContent: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .bottom, spacing: 14) {
+            LazyHStack(alignment: .bottom, spacing: 14) {
                 ForEach(Array(sorted.enumerated()), id: \.element.id) { index, item in
                     card(item, index: index + 1)
                 }

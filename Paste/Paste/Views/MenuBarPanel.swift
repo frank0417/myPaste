@@ -3,6 +3,13 @@ import SwiftData
 import AppKit
 import ServiceManagement
 
+/// Reference-type memo so a computed view property can cache without mutating
+/// @State during a body evaluation.
+final class FilterMemo {
+    var key: Int = -1
+    var value: [ClipboardItem] = []
+}
+
 struct MenuBarPanel: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.modelContext) private var modelContext
@@ -16,15 +23,48 @@ struct MenuBarPanel: View {
     @State private var dismissLaunchCard = UserDefaults.standard.bool(forKey: "dismissedLaunchAtLoginCard")
     @State private var acknowledgedBackgroundTip = UserDefaults.standard.bool(forKey: "acknowledgedBackgroundTip")
 
-    private var filtered: [ClipboardItem] {
-        Array(ClipboardItemFilter.filter(items, appState: appState).prefix(appState.panelViewMode == .timeline ? 200 : 40))
-    }
-
     private var favorites: [ClipboardItem] {
         items.filter(\.isFavorite)
     }
 
     private var showSearch: Bool { appState.isPanelSearchVisible }
+
+    /// `filtered` is read several times per body evaluation (list, count, change
+    /// handlers). Ranking is pure given the inputs, so the result is memoized against
+    /// a fingerprint of everything that can change the answer — including favorite
+    /// and tag flips, which leave the id list untouched.
+    /// @State keeps the memo alive across the struct's re-instantiations; mutating
+    /// the referenced box during body is fine, only the wrapper must not change.
+    @State private var filterMemo = FilterMemo()
+
+    private var filtered: [ClipboardItem] {
+        var hasher = Hasher()
+        hasher.combine(appState.searchQuery)
+        hasher.combine(appState.selectedFilter.rawValue)
+        hasher.combine(appState.showOnlyPinned)
+        hasher.combine(appState.showOnlyFavorites)
+        hasher.combine(appState.favoriteScope)
+        hasher.combine(appState.selectedAutoTag)
+        hasher.combine(appState.embeddingRevision)
+        hasher.combine(appState.panelViewMode.rawValue)
+        for item in items {
+            hasher.combine(item.id)
+            hasher.combine(item.updatedAt)
+            hasher.combine(item.isFavorite)
+            hasher.combine(item.isPinned)
+            hasher.combine(item.favoriteTagsJSON)
+            hasher.combine(item.autoTagsJSON)
+        }
+        let key = hasher.finalize()
+        if filterMemo.key == key { return filterMemo.value }
+        let value = Array(
+            ClipboardItemFilter.filter(items, appState: appState)
+                .prefix(appState.panelViewMode == .timeline ? 200 : 40)
+        )
+        filterMemo.key = key
+        filterMemo.value = value
+        return value
+    }
 
     var body: some View {
         ZStack {
@@ -501,7 +541,8 @@ struct MenuBarPanel: View {
 
     private var shelf: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .bottom, spacing: 14) {
+            // Lazy: the panel opens with only the visible cards built.
+            LazyHStack(alignment: .bottom, spacing: 14) {
                 if shouldShowLaunchCard {
                     onboardingCard(
                         icon: "power",
