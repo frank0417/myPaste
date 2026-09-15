@@ -136,8 +136,10 @@ final class StatusItemController: NSObject, NSWindowDelegate {
             // next runloop turn once it exists.
             DispatchQueue.main.async {
                 NSApp.activate(ignoringOtherApps: true)
-                // Skip the main window: settings must not drag it back on screen.
+                // Only bring forward the settings window itself. Ordering every plain
+                // window in also raised the main window's leftover blank surface.
                 for window in NSApp.windows where !(window is NSPanel) && window !== self.mainWindow {
+                    guard !window.title.isEmpty else { continue }
                     window.makeKeyAndOrderFront(nil)
                 }
             }
