@@ -11,7 +11,6 @@ struct HotKeyRecorderView: View {
 
     @State private var isRecording = false
     @State private var monitor: Any?
-    @State private var recordingToken: Int?
 
     var body: some View {
         HStack(spacing: 8) {
@@ -57,7 +56,7 @@ struct HotKeyRecorderView: View {
     private func startRecording() {
         guard !isRecording else { return }
         isRecording = true
-        recordingToken = HotKeyRecordingSession.shared.begin { stopRecording() }
+        HotKeyRecordingSession.shared.begin(action) { stopRecording() }
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { event in
             guard !event.isARepeat else { return nil }
             // Esc cancels without changing the shortcut.
@@ -83,10 +82,7 @@ struct HotKeyRecorderView: View {
             NSEvent.removeMonitor(monitor)
             self.monitor = nil
         }
-        if let recordingToken {
-            self.recordingToken = nil
-            HotKeyRecordingSession.shared.end(recordingToken)
-        }
+        HotKeyRecordingSession.shared.end(action)
     }
 
     static func carbonModifiers(from flags: NSEvent.ModifierFlags) -> UInt32 {
@@ -105,27 +101,23 @@ struct HotKeyRecorderView: View {
 private final class HotKeyRecordingSession {
     static let shared = HotKeyRecordingSession()
 
-    private var nextToken = 1
-    private var activeToken: Int?
+    private var activeAction: HotKeyAction?
     private var cancelActive: (() -> Void)?
 
-    func begin(cancel: @escaping () -> Void) -> Int {
+    func begin(_ action: HotKeyAction, cancel: @escaping () -> Void) {
         if let previous = cancelActive {
+            activeAction = nil
             cancelActive = nil
-            activeToken = nil
             previous()
         }
-        let token = nextToken
-        nextToken += 1
-        activeToken = token
+        activeAction = action
         cancelActive = cancel
         GlobalHotKeyManager.shared.suspend()
-        return token
     }
 
-    func end(_ token: Int) {
-        guard activeToken == token else { return }
-        activeToken = nil
+    func end(_ action: HotKeyAction) {
+        guard activeAction == action else { return }
+        activeAction = nil
         cancelActive = nil
         GlobalHotKeyManager.shared.resume()
     }
