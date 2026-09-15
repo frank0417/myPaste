@@ -24,9 +24,9 @@ struct TimelineOutlineView: View {
                 Image(systemName: appState.searchQuery.isEmpty ? "calendar.day.timeline.leading" : "magnifyingglass")
                     .font(.system(size: 28, weight: .light))
                     .foregroundStyle(PasteTheme.accent)
-                Text(appState.searchQuery.isEmpty ? "时间线为空" : "无匹配记录")
+                Text(appState.searchQuery.isEmpty ? "时间线为空" : "没有字面或相近的记录")
                     .font(.callout.weight(.medium))
-                Text(appState.searchQuery.isEmpty ? "复制内容后会按日期出现在这里" : "试试其他关键词或切换标签")
+                Text(appState.searchQuery.isEmpty ? "复制内容后会按日期出现在这里" : "试试其他关键词、口语说法或切换标签")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -46,7 +46,8 @@ struct TimelineOutlineView: View {
                                         onOpenDetail: { onOpenDetail?(item) },
                                         onPaste: { store?.paste(item) },
                                         onPin: { store?.togglePin(item) },
-                                        onDelete: { store?.delete(item) }
+                                        onDelete: { store?.delete(item) },
+                                        onToggleFavorite: { store?.toggleFavorite(item) }
                                     )
                                     .id(item.id)
                                 }
@@ -93,6 +94,7 @@ struct TimelineOutlineRow: View {
     let onPaste: () -> Void
     let onPin: () -> Void
     let onDelete: () -> Void
+    var onToggleFavorite: (() -> Void)?
 
     @State private var isHovered = false
 
@@ -122,6 +124,11 @@ struct TimelineOutlineRow: View {
                                     .font(.caption2)
                                     .foregroundStyle(PasteTheme.accent)
                             }
+                            if item.isFavorite {
+                                Image(systemName: "star.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(Color(hex: "#F59E0B") ?? .orange)
+                            }
                             Spacer()
                             if let tag = item.primaryAutoTag {
                                 Text(tag.displayName)
@@ -150,6 +157,9 @@ struct TimelineOutlineRow: View {
                     if isHovered || isSelected {
                         HStack(spacing: 4) {
                             smallAction("return", onPaste)
+                            if let onToggleFavorite {
+                                smallAction(item.isFavorite ? "star.fill" : "star", onToggleFavorite)
+                            }
                             smallAction("pin", onPin)
                         }
                     }
@@ -167,6 +177,9 @@ struct TimelineOutlineRow: View {
             .contextMenu {
                 Button("查看详情", action: onOpenDetail)
                 Button("粘贴", action: onPaste)
+                if let onToggleFavorite {
+                    Button(item.isFavorite ? "从收藏夹移除" : "收藏（长期保存）", action: onToggleFavorite)
+                }
                 Button(item.isPinned ? "取消置顶" : "置顶", action: onPin)
                 Divider()
                 Button("删除", role: .destructive, action: onDelete)
@@ -200,7 +213,37 @@ struct TimelineOutlineRow: View {
 }
 
 enum TimelineGrouper {
+    /// Grouping sorts and buckets the whole list, so the result is memoized by a
+    /// fingerprint of the inputs instead of recomputed on every body evaluation.
+    private static var cachedFingerprint: Int?
+    private static var cachedSections: [TimelineSection] = []
+
+    private static let weekdayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh-Hans")
+        formatter.dateFormat = "EEEE"
+        return formatter
+    }()
+
+    private static let dayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh-Hans")
+        formatter.dateFormat = "yyyy年M月d日"
+        return formatter
+    }()
+
     static func sections(from items: [ClipboardItem]) -> [TimelineSection] {
+        var hasher = Hasher()
+        hasher.combine(items.count)
+        for item in items {
+            hasher.combine(item.id)
+            hasher.combine(item.updatedAt)
+        }
+        let fingerprint = hasher.finalize()
+        if fingerprint == cachedFingerprint {
+            return cachedSections
+        }
+
         let calendar = Calendar.current
         let sorted = items.sorted { $0.updatedAt > $1.updatedAt }
         var buckets: [(String, String, [ClipboardItem])] = []
@@ -217,7 +260,10 @@ enum TimelineGrouper {
                 buckets.append((key, title, [item]))
             }
         }
-        return buckets.map { TimelineSection(id: $0.0, title: $0.1, items: $0.2) }
+        let sections = buckets.map { TimelineSection(id: $0.0, title: $0.1, items: $0.2) }
+        cachedFingerprint = fingerprint
+        cachedSections = sections
+        return sections
     }
 
     private static func sectionTitle(for day: Date, calendar: Calendar) -> String {
@@ -225,15 +271,9 @@ enum TimelineGrouper {
         if calendar.isDateInYesterday(day) { return "昨天" }
         if let weekAgo = calendar.date(byAdding: .day, value: -7, to: calendar.startOfDay(for: .now)),
            day >= weekAgo {
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "zh-Hans")
-            formatter.dateFormat = "EEEE"
-            return formatter.string(from: day)
+            return weekdayFormatter.string(from: day)
         }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh-Hans")
-        formatter.dateFormat = "yyyy年M月d日"
-        return formatter.string(from: day)
+        return dayFormatter.string(from: day)
     }
 }
 

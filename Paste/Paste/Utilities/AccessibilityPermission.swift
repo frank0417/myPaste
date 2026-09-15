@@ -8,7 +8,7 @@ enum AccessibilityPermission {
         AXIsProcessTrusted()
     }
 
-    /// Shows the system prompt / opens Privacy settings so ClipStack appears in the list.
+    /// Shows the system prompt / opens Privacy settings so PasteNest appears in the list.
     /// Unsigned apps only show up after this is called (or after posting CGEvents).
     @discardableResult
     static func requestIfNeeded(prompt: Bool = true) -> Bool {

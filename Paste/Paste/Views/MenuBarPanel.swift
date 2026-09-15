@@ -3,58 +3,92 @@ import SwiftData
 import AppKit
 import ServiceManagement
 
+/// Reference-type memo so a computed view property can cache without mutating
+/// @State during a body evaluation.
+final class FilterMemo {
+    var key: Int = -1
+    var value: [ClipboardItem] = []
+}
+
 struct MenuBarPanel: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ClipboardItem.updatedAt, order: .reverse) private var items: [ClipboardItem]
     @State private var store: ClipboardStore?
-    @State private var showSearch = false
-    @FocusState private var searchFocused: Bool
+    /// The field owns its focus directly; the panel's NSPanel is non-activating, and
+    /// routing focus through the view tree's @FocusState is unreliable there.
+    @State private var searchField: NSTextField?
+    @State private var draftQuery = ""
+    @State private var searchDebounce: DispatchWorkItem?
     @State private var dismissLaunchCard = UserDefaults.standard.bool(forKey: "dismissedLaunchAtLoginCard")
     @State private var acknowledgedBackgroundTip = UserDefaults.standard.bool(forKey: "acknowledgedBackgroundTip")
 
+    private var favorites: [ClipboardItem] {
+        items.filter(\.isFavorite)
+    }
+
+    private var showSearch: Bool { appState.isPanelSearchVisible }
+
+    /// `filtered` is read several times per body evaluation (list, count, change
+    /// handlers). Ranking is pure given the inputs, so the result is memoized against
+    /// a fingerprint of everything that can change the answer — including favorite
+    /// and tag flips, which leave the id list untouched.
+    /// @State keeps the memo alive across the struct's re-instantiations; mutating
+    /// the referenced box during body is fine, only the wrapper must not change.
+    @State private var filterMemo = FilterMemo()
+
     private var filtered: [ClipboardItem] {
-        Array(ClipboardItemFilter.filter(items, appState: appState).prefix(appState.panelViewMode == .shelf ? 40 : 200))
+        var hasher = Hasher()
+        hasher.combine(appState.searchQuery)
+        hasher.combine(appState.selectedFilter.rawValue)
+        hasher.combine(appState.showOnlyPinned)
+        hasher.combine(appState.showOnlyFavorites)
+        hasher.combine(appState.favoriteScope)
+        hasher.combine(appState.selectedAutoTag)
+        hasher.combine(appState.embeddingRevision)
+        hasher.combine(appState.panelViewMode.rawValue)
+        for item in items {
+            hasher.combine(item.id)
+            hasher.combine(item.updatedAt)
+            hasher.combine(item.isFavorite)
+            hasher.combine(item.isPinned)
+            hasher.combine(item.favoriteTagsJSON)
+            hasher.combine(item.autoTagsJSON)
+        }
+        let key = hasher.finalize()
+        if filterMemo.key == key { return filterMemo.value }
+        let value = Array(
+            ClipboardItemFilter.filter(items, appState: appState)
+                .prefix(appState.panelViewMode == .timeline ? 200 : 40)
+        )
+        filterMemo.key = key
+        filterMemo.value = value
+        return value
     }
 
     var body: some View {
         ZStack {
             // When detail is open, hide the shelf layer completely so nothing shows through.
             if detailItem == nil {
-                VStack(spacing: 0) {
-                    topBar
-                    if appState.panelViewMode == .shelf {
-                        shelf
-                    } else {
-                        AutoTagFilterBar(items: items, compact: true)
-                        TimelineOutlineView(
-                            items: filtered,
-                            store: store,
-                            onOpenDetail: { item in
-                                appState.selectedItemID = item.id
-                                appState.shelfDetailItemID = item.id
-                            }
-                        )
+                VStack(spacing: 2) {
+                    // A standalone floating field above the nav bar, not part of the card.
+                    if showSearch {
+                        searchPill
                     }
+                    panelCard
                 }
-                .background {
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(PasteTheme.panelFill.opacity(0.92))
-                        .background(
-                            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                                .fill(.ultraThinMaterial)
-                        )
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                .shadow(color: .black.opacity(0.16), radius: 24, y: 10)
+                .animation(.easeOut(duration: 0.18), value: showSearch)
             }
 
             if let detailItem = detailItem {
                 ClipboardItemDetailOverlay(
                     item: detailItem,
+                    retentionDays: appState.keepUnfavoritedDays,
                     onClose: { appState.shelfDetailItemID = nil },
                     onCopy: { copyOnlyItem(detailItem) },
-                    onPaste: { paste(detailItem) }
+                    onCopyText: { store?.copyText(detailItem) },
+                    onPaste: { paste(detailItem) },
+                    onToggleFavorite: { store?.toggleFavorite(detailItem) }
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
@@ -64,8 +98,23 @@ struct MenuBarPanel: View {
             if store == nil {
                 store = ClipboardStore(modelContext: modelContext, appState: appState, ownsMonitor: false)
             }
+            // The panel is rebuilt on every show, and the favorites filter is shared with
+            // the main window — re-apply whatever this tab means before the first render.
+            if appState.panelViewMode == .favorites {
+                appState.showFavorites(scope: appState.favoriteScope)
+            } else {
+                appState.leaveFavorites()
+            }
             if appState.selectedItemID == nil {
                 appState.selectedItemID = filtered.first?.id
+            }
+        }
+        .onChange(of: appState.showOnlyFavorites) { _, only in
+            // Keep the tab and the filter in step even when another surface flips it.
+            if only, appState.panelViewMode != .favorites {
+                appState.panelViewMode = .favorites
+            } else if !only, appState.panelViewMode == .favorites {
+                appState.panelViewMode = .shelf
             }
         }
         .onChange(of: filtered.map(\.id)) { _, ids in
@@ -85,12 +134,12 @@ struct MenuBarPanel: View {
         }
         .focusable()
         .onKeyPress(.leftArrow) {
-            guard !searchFocused else { return .ignored }
+            guard !isSearchFieldEditing else { return .ignored }
             moveSelection(by: -1)
             return .handled
         }
         .onKeyPress(.rightArrow) {
-            guard !searchFocused else { return .ignored }
+            guard !isSearchFieldEditing else { return .ignored }
             moveSelection(by: 1)
             return .handled
         }
@@ -103,19 +152,40 @@ struct MenuBarPanel: View {
             return .handled
         }
         .onKeyPress(.escape) {
-            if searchFocused && !appState.searchQuery.isEmpty {
-                appState.searchQuery = ""
-                return .handled
-            }
-            return .ignored
+            guard showSearch else { return .ignored }
+            closeSearch()
+            return .handled
         }
         .onKeyPress(keys: [.init("f")]) { press in
             guard press.modifiers.contains(.command) else { return .ignored }
-            withAnimation(.easeOut(duration: 0.18)) {
-                showSearch = true
-                searchFocused = true
-            }
+            openSearch()
             return .handled
+        }
+        .onChange(of: appState.isPanelSearchVisible) { _, visible in
+            // The panel controller can close the box from its Escape monitor.
+            if visible {
+                focusSearchField()
+            } else if !draftQuery.isEmpty {
+                clearSearch()
+            }
+        }
+    }
+
+    /// Whether the search field's editor currently owns key events.
+    private var isSearchFieldEditing: Bool {
+        guard let window = searchField?.window else { return false }
+        return window.firstResponder === searchField?.currentEditor()
+    }
+
+    /// The panel is a non-activating NSPanel: it must become key and the field must be
+    /// made first responder, or every keystroke falls through to the app behind it.
+    private func focusSearchField() {
+        DispatchQueue.main.async {
+            guard let searchField, let window = searchField.window else { return }
+            if !window.isKeyWindow {
+                window.makeKey()
+            }
+            window.makeFirstResponder(searchField)
         }
     }
 
@@ -124,51 +194,77 @@ struct MenuBarPanel: View {
         return items.first(where: { $0.id == id })
     }
 
+    private var panelCard: some View {
+        VStack(spacing: 0) {
+            topBar
+            if appState.panelViewMode == .shelf {
+                shelf
+            } else if appState.panelViewMode == .favorites {
+                FavoritesFolderView(
+                    items: filtered,
+                    favorites: favorites,
+                    layout: .shelf,
+                    store: store,
+                    onOpenDetail: { item in
+                        appState.selectedItemID = item.id
+                        appState.shelfDetailItemID = item.id
+                    },
+                    onPaste: { paste($0) }
+                )
+            } else {
+                AutoTagFilterBar(items: items, compact: true)
+                TimelineOutlineView(
+                    items: filtered,
+                    store: store,
+                    onOpenDetail: { item in
+                        appState.selectedItemID = item.id
+                        appState.shelfDetailItemID = item.id
+                    }
+                )
+            }
+        }
+        .background {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(PasteTheme.panelFill.opacity(0.92))
+                .background(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                )
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .shadow(color: .black.opacity(0.16), radius: 24, y: 10)
+    }
+
     private var topBar: some View {
         HStack(spacing: 10) {
             Button {
-                withAnimation(.easeOut(duration: 0.18)) {
-                    showSearch.toggle()
-                    if showSearch {
-                        searchFocused = true
-                    } else {
-                        appState.searchQuery = ""
-                    }
+                if showSearch {
+                    closeSearch()
+                } else {
+                    openSearch()
                 }
             } label: {
-                Image(systemName: showSearch ? "xmark" : "magnifyingglass")
+                Image(systemName: "magnifyingglass")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(showSearch ? PasteTheme.accent : .secondary)
                     .frame(width: 26, height: 26)
+                    .background(
+                        Circle().fill(showSearch ? PasteTheme.accent.opacity(0.14) : .clear)
+                    )
             }
             .buttonStyle(.plain)
-            .help("搜索")
+            .help(showSearch ? "收起搜索" : "搜索")
 
-            if showSearch {
-                HStack(spacing: 6) {
-                    TextField("搜索剪贴板…", text: $appState.searchQuery)
-                        .textFieldStyle(.plain)
-                        .focused($searchFocused)
-                    if !appState.searchQuery.isEmpty {
-                        Text("\(filtered.count)")
-                            .font(.caption2.monospacedDigit())
-                            .foregroundStyle(.tertiary)
-                        Button {
-                            appState.searchQuery = ""
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.tertiary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(Color.primary.opacity(0.06), in: Capsule())
-                .frame(maxWidth: 220)
-                .transition(.opacity.combined(with: .move(edge: .leading)))
+            Button {
+                ScreenshotService.shared.capture(.region)
+            } label: {
+                Image(systemName: "camera.viewfinder")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 26, height: 26)
             }
+            .buttonStyle(.plain)
+            .help("截图（\(appState.screenshotHotkeyDisplay)）— 结果自动存入历史")
 
             boardTab(
                 title: "剪贴板",
@@ -180,6 +276,18 @@ struct MenuBarPanel: View {
                 appState.selectedAutoTag = nil
                 appState.selectedFilter = .all
                 appState.showOnlyPinned = false
+                appState.leaveFavorites()
+            }
+
+            boardTab(
+                title: "收藏夹",
+                systemImage: "star.fill",
+                selected: appState.panelViewMode == .favorites,
+                dot: Color(hex: "#F59E0B") ?? .orange,
+                badge: favorites.isEmpty ? nil : favorites.count
+            ) {
+                appState.panelViewMode = .favorites
+                appState.showFavorites(scope: .all)
             }
 
             boardTab(
@@ -189,6 +297,7 @@ struct MenuBarPanel: View {
                 dot: Color(hex: "#EF4444") ?? .red
             ) {
                 appState.panelViewMode = .timeline
+                appState.leaveFavorites()
             }
 
             // Auto-tag boards styled like Paste collections
@@ -203,6 +312,7 @@ struct MenuBarPanel: View {
                     appState.panelViewMode = .shelf
                     appState.selectedFilter = .all
                     appState.showOnlyPinned = false
+                    appState.leaveFavorites()
                     appState.selectedAutoTag = tag.rawValue
                 }
             }
@@ -216,13 +326,25 @@ struct MenuBarPanel: View {
                 Text(appState.isMonitoringEnabled ? "后台监听中" : "已暂停")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
                 Text(appState.hotkeyDisplay)
                     .font(.caption2.monospaced())
                     .foregroundStyle(.tertiary)
+                    .lineLimit(1)
             }
 
             Menu {
                 Button("粘贴选中项") { pasteSelected() }
+                Divider()
+                ForEach(ScreenshotMode.allCases) { mode in
+                    Button(mode.title) { ScreenshotService.shared.capture(mode) }
+                }
+                Menu("截图识字（只存文字）") {
+                    ForEach(ScreenshotMode.allCases) { mode in
+                        Button(mode.title) { ScreenshotService.shared.capture(mode, recognizeText: true) }
+                    }
+                }
+                Divider()
                 Button(appState.isMonitoringEnabled ? "暂停监听" : "恢复监听") {
                     appState.isMonitoringEnabled.toggle()
                     appState.savePreferences()
@@ -233,6 +355,9 @@ struct MenuBarPanel: View {
                     )
                 }
                 Divider()
+                Button("打开主窗口（\(appState.mainWindowHotkeyDisplay)）") {
+                    StatusItemController.shared.showMainWindow()
+                }
                 Button("打开设置…") {
                     StatusItemController.shared.openSettings()
                 }
@@ -240,7 +365,7 @@ struct MenuBarPanel: View {
                     StatusItemController.shared.hidePanel()
                 }
                 Divider()
-                Button("退出 ClipStack", role: .destructive) {
+                Button("退出 PasteNest", role: .destructive) {
                     NSApp.terminate(nil)
                 }
             } label: {
@@ -251,6 +376,7 @@ struct MenuBarPanel: View {
             }
             .menuStyle(.borderlessButton)
         }
+        .lineLimit(1)
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .background(
@@ -261,6 +387,105 @@ struct MenuBarPanel: View {
         .padding(.horizontal, 18)
         .padding(.top, 14)
         .padding(.bottom, 10)
+    }
+
+    /// Floats above the nav bar as its own pill so the bar keeps its single-line layout.
+    private var searchPill: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+            TextField("搜索剪贴板…", text: $draftQuery)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+                .background(SearchFieldAccessor(field: $searchField))
+                .onChange(of: draftQuery) { _, value in
+                    scheduleSearch(value)
+                }
+            if !draftQuery.isEmpty {
+                Text("\(filtered.count)")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.tertiary)
+            }
+            Button {
+                if draftQuery.isEmpty {
+                    closeSearch()
+                } else {
+                    clearSearch()
+                }
+            } label: {
+                Image(systemName: draftQuery.isEmpty ? "xmark" : "xmark.circle.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 16, height: 16)
+            }
+            .buttonStyle(.plain)
+            .help(draftQuery.isEmpty ? "收起搜索" : "清空")
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background {
+            Capsule(style: .continuous)
+                .fill(PasteTheme.panelFill.opacity(0.92))
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(.ultraThinMaterial)
+                )
+        }
+        .clipShape(Capsule(style: .continuous))
+        .shadow(color: .black.opacity(0.14), radius: 14, y: 5)
+        .frame(maxWidth: 420)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 18)
+        // Keeps the pill's shadow off the window edge.
+        .padding(.top, 6)
+        // Slides up out of the nav bar it belongs to.
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+        .onAppear {
+            // The panel rebuilds its hosting view on show / detail toggle; adopt the
+            // live query so the field never disagrees with the filtered results.
+            if draftQuery != appState.searchQuery {
+                draftQuery = appState.searchQuery
+            }
+            focusSearchField()
+        }
+    }
+
+    private func openSearch() {
+        withAnimation(.easeOut(duration: 0.18)) {
+            appState.isPanelSearchVisible = true
+        }
+        focusSearchField()
+    }
+
+    private func closeSearch() {
+        searchField?.window?.makeFirstResponder(nil)
+        withAnimation(.easeOut(duration: 0.18)) {
+            appState.isPanelSearchVisible = false
+        }
+        clearSearch()
+    }
+
+    private func scheduleSearch(_ value: String) {
+        searchDebounce?.cancel()
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            appState.searchQuery = ""
+            return
+        }
+        let work = DispatchWorkItem {
+            if appState.searchQuery != value {
+                appState.searchQuery = value
+            }
+        }
+        searchDebounce = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14, execute: work)
+    }
+
+    private func clearSearch() {
+        searchDebounce?.cancel()
+        draftQuery = ""
+        appState.searchQuery = ""
     }
 
     private var topTagCounts: [(AutoTag, Int)] {
@@ -300,6 +525,8 @@ struct MenuBarPanel: View {
                 }
                 Text(title)
                     .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                 if let badge {
                     Text("\(badge)")
                         .font(.caption2.monospacedDigit())
@@ -319,12 +546,13 @@ struct MenuBarPanel: View {
 
     private var shelf: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .bottom, spacing: 14) {
+            // Lazy: the panel opens with only the visible cards built.
+            LazyHStack(alignment: .bottom, spacing: 14) {
                 if shouldShowLaunchCard {
                     onboardingCard(
                         icon: "power",
                         title: "登录时打开",
-                        detail: "重启 Mac 后自动启动 ClipStack，保持常驻后台。",
+                        detail: "重启 Mac 后自动启动 PasteNest，保持常驻后台。",
                         actionTitle: "启用"
                     ) {
                         enableLaunchAtLogin()
@@ -357,8 +585,13 @@ struct MenuBarPanel: View {
                                 appState.shelfDetailItemID = item.id
                             },
                             onPaste: { paste(item) },
+                            onCopyText: { store?.copyText(item) },
                             onPin: { store?.togglePin(item) },
-                            onDelete: { store?.delete(item) }
+                            onDelete: { store?.delete(item) },
+                            onToggleFavorite: { store?.toggleFavorite(item) },
+                            availableTags: favorites.favoriteTagNames,
+                            onToggleTag: { tag in store?.toggleFavoriteTag(tag, for: item) },
+                            retentionDays: appState.keepUnfavoritedDays
                         )
                     }
                 }
@@ -381,7 +614,7 @@ struct MenuBarPanel: View {
                 .foregroundStyle(PasteTheme.accent)
             Text(searching ? "没有匹配「\(appState.searchQuery)」的内容" : "复制任意内容后会出现在这里")
                 .font(.callout.weight(.medium))
-            Text(searching ? "换个关键词试试" : "面板可随时关闭，App 继续在菜单栏后台运行")
+            Text(searching ? "换个关键词，或试试更口语的说法" : "面板可随时关闭，App 继续在菜单栏后台运行")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -473,11 +706,47 @@ struct MenuBarPanel: View {
     }
 }
 
+/// Hands the panel the actual NSTextField so it can be made first responder directly.
+/// The shelf lives in a non-activating NSPanel, where SwiftUI's @FocusState alone does
+/// not move the key window's first responder — the field looked focused but swallowed
+/// no keystrokes.
+private struct SearchFieldAccessor: NSViewRepresentable {
+    @Binding var field: NSTextField?
+
+    func makeNSView(context: Context) -> NSView {
+        NSView(frame: .zero)
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            var view = nsView.superview
+            while let current = view {
+                if let textField = current as? NSTextField {
+                    field = textField
+                    return
+                }
+                view = current.superview
+            }
+        }
+    }
+}
+
 struct ClipboardItemDetailOverlay: View {
     let item: ClipboardItem
+    var retentionDays: Int = RetentionPolicy.defaultDays
     let onClose: () -> Void
     let onCopy: () -> Void
+    let onCopyText: () -> Void
     let onPaste: () -> Void
+    var onToggleFavorite: (() -> Void)?
+
+    /// Text recognized inside a screenshot, shown under the picture.
+    private var recognizedText: String? {
+        guard item.contentType == .image,
+              let text = item.plainText,
+              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return text
+    }
 
     var body: some View {
         // Opaque full-panel surface — no shelf/timeline layer behind it.
@@ -522,14 +791,37 @@ struct ClipboardItemDetailOverlay: View {
                 Text(item.previewTitle)
                     .font(.headline)
                     .lineLimit(1)
-                if let source = item.sourceAppName {
-                    Text(source)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    if let source = item.sourceAppName {
+                        Text(source)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(item.favoriteTags, id: \.self) { tag in
+                        Text(tag)
+                            .font(.caption2.weight(.semibold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                (Color(hex: FavoriteTagCatalog.accentHex(for: tag)) ?? PasteTheme.accent).opacity(0.16),
+                                in: Capsule()
+                            )
+                            .foregroundStyle(Color(hex: FavoriteTagCatalog.accentHex(for: tag)) ?? PasteTheme.accent)
+                    }
                 }
             }
 
             Spacer()
+
+            if let onToggleFavorite {
+                Button(action: onToggleFavorite) {
+                    Image(systemName: item.isFavorite ? "star.fill" : "star")
+                        .font(.title3)
+                        .foregroundStyle(item.isFavorite ? Color(hex: "#F59E0B") ?? .yellow : .secondary)
+                }
+                .buttonStyle(.plain)
+                .help(item.isFavorite ? "从收藏夹移除" : "收藏，长期保存")
+            }
 
             Button(action: onClose) {
                 Image(systemName: "xmark.circle.fill")
@@ -548,16 +840,22 @@ struct ClipboardItemDetailOverlay: View {
     private var detailBody: some View {
         switch item.contentType {
         case .image:
-            if let data = item.imageData ?? item.thumbnailData, let image = NSImage(data: data) {
-                Image(nsImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: .infinity)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            } else {
-                Text("无法预览图片")
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 14) {
+                if let image = ImageCache.shared.image(for: item, preferThumbnail: false) {
+                    Image(nsImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                } else {
+                    Text("无法预览图片")
+                        .foregroundStyle(.secondary)
+                }
+                if let recognizedText {
+                    recognizedTextSection(recognizedText)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         case .color:
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color(hex: item.colorHex ?? "#888888") ?? .gray)
@@ -619,12 +917,52 @@ struct ClipboardItemDetailOverlay: View {
         }
     }
 
+    private func recognizedTextSection(_ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Label("识别到的文字", systemImage: "text.viewfinder")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text("\(TextRecognizer.characterCount(of: text)) 字")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.tertiary)
+                Spacer(minLength: 0)
+                Button(action: onCopyText) {
+                    Label("复制文字", systemImage: "doc.on.clipboard")
+                        .font(.caption)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+            Text(text)
+                .font(.system(size: 12.5))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+    }
+
     private var detailFooter: some View {
         HStack(spacing: 10) {
-            Text(item.updatedAt.formatted(date: .abbreviated, time: .shortened))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.updatedAt.formatted(date: .abbreviated, time: .shortened))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Label(
+                    item.retentionStatus(days: retentionDays),
+                    systemImage: item.isRetentionProtected ? "star.fill" : "clock"
+                )
+                .font(.caption2)
+                .foregroundStyle(item.isRetentionProtected ? Color(hex: "#F59E0B") ?? .orange : Color.secondary)
+            }
             Spacer()
+            if recognizedText != nil {
+                Button(action: onCopyText) {
+                    Label("复制文字", systemImage: "text.viewfinder")
+                }
+                .buttonStyle(.bordered)
+            }
             Button(action: onCopy) {
                 Label("复制", systemImage: "doc.on.doc")
             }
@@ -647,10 +985,29 @@ struct ClipboardShelfCard: View {
     let onSelect: () -> Void
     let onOpenDetail: () -> Void
     let onPaste: () -> Void
+    let onCopyText: () -> Void
     let onPin: () -> Void
     let onDelete: () -> Void
+    var onToggleFavorite: (() -> Void)?
+    /// Categories already in use across the folder, offered by the 分类 menu.
+    var availableTags: [String] = []
+    var onToggleTag: ((String) -> Void)?
+    var retentionDays: Int = RetentionPolicy.defaultDays
 
     @State private var isHovered = false
+
+    /// Only screenshots carry text on an image item.
+    private var hasRecognizedText: Bool {
+        item.contentType == .image && !(item.plainText ?? "").isEmpty
+    }
+
+    private var tagMenuOptions: [String] {
+        let known = availableTags + item.favoriteTags
+        return FavoriteTagCatalog.sanitizedMenuOptions(
+            known: known,
+            suggestions: FavoriteTagCatalog.unusedSuggestions(existing: known)
+        )
+    }
 
     private let cardWidth: CGFloat = 176
     private let cardHeight: CGFloat = 236
@@ -661,13 +1018,7 @@ struct ClipboardShelfCard: View {
     }
 
     private var imagePixelSize: String? {
-        guard item.contentType == .image,
-              let data = item.imageData ?? item.thumbnailData,
-              let image = NSImage(data: data) else { return nil }
-        let w = Int(image.size.width)
-        let h = Int(image.size.height)
-        guard w > 0, h > 0 else { return nil }
-        return "\(w) × \(h)"
+        ImageCache.shared.pixelSize(for: item)
     }
 
     private var footerMeta: String {
@@ -702,6 +1053,28 @@ struct ClipboardShelfCard: View {
         .contextMenu {
             Button("查看详情", action: onOpenDetail)
             Button("粘贴", action: onPaste)
+            if hasRecognizedText {
+                Button("复制识别的文字", action: onCopyText)
+            }
+            if let onToggleFavorite {
+                Button(item.isFavorite ? "从收藏夹移除" : "收藏（长期保存）", action: onToggleFavorite)
+            }
+            if let onToggleTag {
+                Menu("分类") {
+                    ForEach(tagMenuOptions, id: \.self) { tag in
+                        Button {
+                            onToggleTag(tag)
+                        } label: {
+                            Label(
+                                tag,
+                                systemImage: FavoriteTagCatalog.contains(tag, in: item.favoriteTags)
+                                ? "checkmark.circle.fill"
+                                : "circle"
+                            )
+                        }
+                    }
+                }
+            }
             Button(item.isPinned ? "取消置顶" : "置顶", action: onPin)
             Divider()
             Button("删除", role: .destructive, action: onDelete)
@@ -720,6 +1093,15 @@ struct ClipboardShelfCard: View {
                     .opacity(0.85)
             }
             Spacer(minLength: 4)
+            if let onToggleFavorite, isHovered || isSelected || item.isFavorite {
+                Button(action: onToggleFavorite) {
+                    Image(systemName: item.isFavorite ? "star.fill" : "star")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(item.isFavorite ? Color(hex: "#F59E0B") ?? .yellow : .white.opacity(0.85))
+                }
+                .buttonStyle(.plain)
+                .help(item.isFavorite ? "从收藏夹移除" : "收藏，长期保存")
+            }
             sourceAppIcon
                 .frame(width: 22, height: 22)
                 .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
@@ -732,14 +1114,51 @@ struct ClipboardShelfCard: View {
     }
 
     private var previewArea: some View {
-        ZStack {
+        ZStack(alignment: .topTrailing) {
             Color.white
             previewBody
                 .padding(10)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            if hasRecognizedText {
+                Label("文字", systemImage: "text.viewfinder")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .padding(6)
+            }
+            if !item.favoriteTags.isEmpty {
+                tagOverlay
+            }
         }
         .frame(height: previewHeight)
         .clipped()
+    }
+
+    /// The categories this favorite carries, so the folder reads at a glance.
+    private var tagOverlay: some View {
+        HStack(spacing: 4) {
+            ForEach(item.favoriteTags.prefix(2), id: \.self) { tag in
+                Text(tag)
+                    .font(.caption2.weight(.semibold))
+                    .lineLimit(1)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        (Color(hex: FavoriteTagCatalog.accentHex(for: tag)) ?? PasteTheme.accent).opacity(0.16),
+                        in: Capsule()
+                    )
+                    .foregroundStyle(Color(hex: FavoriteTagCatalog.accentHex(for: tag)) ?? PasteTheme.accent)
+            }
+            if item.favoriteTags.count > 2 {
+                Text("+\(item.favoriteTags.count - 2)")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
     }
 
     private var cardFooter: some View {
@@ -749,6 +1168,12 @@ struct ClipboardShelfCard: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             Spacer(minLength: 4)
+            if item.isExpiringSoon(days: retentionDays) {
+                Image(systemName: "clock.badge.exclamationmark")
+                    .font(.caption2)
+                    .foregroundStyle(Color(hex: "#EE6C4D") ?? .orange)
+                    .help("未收藏，不到 1 天后自动清理")
+            }
             if item.isPinned {
                 Image(systemName: "pin.fill")
                     .font(.caption2)
@@ -768,8 +1193,7 @@ struct ClipboardShelfCard: View {
 
     @ViewBuilder
     private var previewBody: some View {
-        if item.contentType == .image, let data = item.thumbnailData ?? item.imageData,
-           let nsImage = NSImage(data: data) {
+        if item.contentType == .image, let nsImage = ImageCache.shared.image(for: item) {
             // Fit inside the card — never overflow the panel/card bounds.
             Image(nsImage: nsImage)
                 .resizable()
@@ -805,9 +1229,8 @@ struct ClipboardShelfCard: View {
 
     @ViewBuilder
     private var sourceAppIcon: some View {
-        if let bundleID = item.sourceAppBundleID,
-           let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
-            Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+        if let icon = ImageCache.shared.sourceIcon(bundleID: item.sourceAppBundleID) {
+            Image(nsImage: icon)
                 .resizable()
                 .interpolation(.high)
                 .scaledToFit()

@@ -23,7 +23,7 @@ struct PasteApp: App {
         let _ = appDelegate.configure(container: sharedModelContainer, appState: appState)
 
         // Optional main window — closing it must NOT quit the agent app.
-        Window("ClipStack", id: "main") {
+        Window("PasteNest", id: "main") {
             ContentView()
                 .environmentObject(appState)
                 .modelContainer(sharedModelContainer)
@@ -42,8 +42,9 @@ struct PasteApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var clipboardStore: ClipboardStore?
     private var monitoringObserver: NSObjectProtocol?
-    private var hotKeyObserver: NSObjectProtocol?
+    private var retentionObserver: NSObjectProtocol?
     private var didInstallStatusItem = false
+    private var didPrepareSearchIndex = false
     private weak var appState: AppState?
 
     @MainActor
@@ -53,6 +54,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let store = ClipboardStore(modelContext: container.mainContext, appState: appState, ownsMonitor: true)
             clipboardStore = store
             store.startMonitoringIfNeeded()
+            // Items that expired while the app was closed go away on launch, so the
+            // history never shows records the policy already dropped.
+            store.enforceRetention()
+            // Screenshots bypass the pasteboard poll, so file them through the same
+            // store that owns monitoring — otherwise they land twice or not at all.
+            ScreenshotService.shared.onCaptured = { [weak self] payload in
+                self?.clipboardStore?.ingest(payload)
+            }
             monitoringObserver = NotificationCenter.default.addObserver(
                 forName: .pasteMonitoringPreferenceChanged,
                 object: nil,
@@ -68,6 +77,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     }
                 }
             }
+            retentionObserver = NotificationCenter.default.addObserver(
+                forName: .pasteRetentionSweepRequested,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                let delegate = self
+                Task { @MainActor in
+                    delegate?.clipboardStore?.enforceRetention()
+                }
+            }
         }
 
         if !didInstallStatusItem {
@@ -76,27 +95,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         AutoTagService.backfillIfNeeded(in: container.mainContext)
+        if !didPrepareSearchIndex {
+            didPrepareSearchIndex = true
+            EmbeddingIndex.shared.onDidUpdate = { [weak appState] in
+                guard let appState else { return }
+                appState.embeddingRevision += 1
+            }
+            EmbeddingIndex.shared.prepare()
+            let history = (try? container.mainContext.fetch(FetchDescriptor<ClipboardItem>())) ?? []
+            EmbeddingIndex.shared.backfill(history.map { ($0.id, $0.searchableText) })
+        }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Menu-bar agent: no Dock icon. Closing the shelf only hides UI.
         NSApp.setActivationPolicy(.accessory)
 
-        GlobalHotKeyManager.shared.onHotKey = {
-            StatusItemController.shared.togglePanel()
-        }
-        let shortcut = HotKeyShortcut.load()
-        GlobalHotKeyManager.shared.register(shortcut)
-        hotKeyObserver = NotificationCenter.default.addObserver(
-            forName: .hotKeyPreferenceChanged,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                if let shortcut = self?.appState?.hotkey {
-                    GlobalHotKeyManager.shared.register(shortcut)
-                }
+        GlobalHotKeyManager.shared.onHotKey = { action in
+            switch action {
+            case .panel:
+                StatusItemController.shared.togglePanel()
+            case .mainWindow:
+                StatusItemController.shared.toggleMainWindow()
+            case .screenshot:
+                ScreenshotService.shared.capture(.region)
+            case .screenshotOCR:
+                ScreenshotService.shared.capture(.region, recognizeText: true)
             }
+        }
+        // Bind right away so the hotkeys work even before the scene hands us AppState,
+        // then sync AppState (which reports a fallback if a combo was taken).
+        for action in HotKeyAction.allCases {
+            GlobalHotKeyManager.shared.apply(HotKeyShortcut.load(action), for: action)
+        }
+        Task { @MainActor [weak self] in
+            self?.appState?.registerStoredHotkeys()
         }
     }
 

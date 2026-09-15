@@ -68,6 +68,39 @@ enum AutoTag: String, CaseIterable, Identifiable, Codable {
 }
 
 enum AutoTagService {
+    /// `autoTags` is read for every row/card render; decoding the JSON each time is
+    /// wasted work, so the decoded list is memoized against the raw stored string.
+    private static let listCacheLock = NSLock()
+    private static var listCache: [UUID: (raw: String?, tags: [String])] = [:]
+
+    static func cachedTags(for item: ClipboardItem) -> [String] {
+        let raw = item.autoTagsJSON
+        listCacheLock.lock()
+        if let cached = listCache[item.id], cached.raw == raw {
+            listCacheLock.unlock()
+            return cached.tags
+        }
+        listCacheLock.unlock()
+
+        let decoded: [String]
+        if let raw,
+           let data = raw.data(using: .utf8),
+           let tags = try? JSONDecoder().decode([String].self, from: data),
+           !tags.isEmpty {
+            decoded = tags
+        } else {
+            decoded = tags(for: item.contentType, hasRichText: item.richTextData != nil)
+        }
+
+        listCacheLock.lock()
+        if listCache.count > 4000 {
+            listCache.removeAll(keepingCapacity: false)
+        }
+        listCache[item.id] = (raw, decoded)
+        listCacheLock.unlock()
+        return decoded
+    }
+
     static func tags(for contentType: ClipboardContentType, hasRichText: Bool) -> [String] {
         var type = contentType
         if hasRichText, contentType == .text || contentType == .snippet {
@@ -100,15 +133,7 @@ enum AutoTagService {
 
 extension ClipboardItem {
     var autoTags: [String] {
-        get {
-            guard let autoTagsJSON,
-                  let data = autoTagsJSON.data(using: .utf8),
-                  let tags = try? JSONDecoder().decode([String].self, from: data),
-                  !tags.isEmpty else {
-                return AutoTagService.tags(for: contentType, hasRichText: richTextData != nil)
-            }
-            return tags
-        }
+        get { AutoTagService.cachedTags(for: self) }
         set {
             autoTagsJSON = (try? String(data: JSONEncoder().encode(newValue), encoding: .utf8)) ?? "[]"
         }

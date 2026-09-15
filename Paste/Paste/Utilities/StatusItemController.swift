@@ -16,6 +16,9 @@ final class StatusItemController: NSObject, NSWindowDelegate {
 
     private var statusItem: NSStatusItem?
     private var panel: NSPanel?
+    /// The SwiftUI `Window` scene's window, handed over by `ContentView`. Held strongly so
+    /// the hotkey can bring it back after the user closes it.
+    private var mainWindow: NSWindow?
     private var modelContainer: ModelContainer?
     private var appState: AppState?
     private var localKeyMonitor: Any?
@@ -33,10 +36,10 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         if statusItem == nil {
             let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
             if let button = item.button {
-                let image = NSImage(systemSymbolName: "square.stack.3d.up.fill", accessibilityDescription: "ClipStack")
+                let image = NSImage(systemSymbolName: "square.stack.3d.up.fill", accessibilityDescription: "PasteNest")
                 image?.isTemplate = true
                 button.image = image
-                button.toolTip = "ClipStack — 常驻后台（\(appState.hotkeyDisplay) 唤出）"
+                button.toolTip = "PasteNest — 常驻后台（\(appState.hotkeyDisplay) 唤出）"
                 button.target = self
                 button.action = #selector(statusItemClicked(_:))
                 button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -47,6 +50,22 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         if panel == nil {
             panel = makePanel()
         }
+    }
+
+    /// Keeps the status-item tooltip in sync after the user changes the shortcut.
+    func refreshHotkeyHint(_ display: String) {
+        statusItem?.button?.toolTip = "PasteNest — 常驻后台（\(display) 唤出）"
+    }
+
+    /// `ScreenshotService` hides the shelf before a capture and restores it after.
+    var isPanelVisible: Bool {
+        panel?.isVisible == true
+    }
+
+    func registerMainWindow(_ window: NSWindow) {
+        guard mainWindow !== window else { return }
+        window.isReleasedWhenClosed = false
+        mainWindow = window
     }
 
     @objc private func statusItemClicked(_ sender: Any?) {
@@ -64,12 +83,22 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     private func showStatusMenu() {
         guard let statusItem else { return }
         let menu = NSMenu()
-        menu.addItem(withTitle: "显示剪贴板", action: #selector(menuShowPanel), keyEquivalent: "")
+        let panelHint = appState.map { "（\($0.hotkeyDisplay)）" } ?? ""
+        let windowHint = appState.map { "（\($0.mainWindowHotkeyDisplay)）" } ?? ""
+        menu.addItem(withTitle: "显示剪贴板面板\(panelHint)", action: #selector(menuShowPanel), keyEquivalent: "")
+        menu.addItem(withTitle: "显示主窗口\(windowHint)", action: #selector(menuShowMainWindow), keyEquivalent: "")
         menu.addItem(withTitle: "隐藏面板", action: #selector(menuHidePanel), keyEquivalent: "")
+        menu.addItem(NSMenuItem.separator())
+        let shotHint = appState.map { "（\($0.screenshotHotkeyDisplay)）" } ?? ""
+        let ocrHint = appState.map { "（\($0.screenshotOCRHotkeyDisplay)）" } ?? ""
+        menu.addItem(withTitle: "截取区域\(shotHint)", action: #selector(menuCaptureRegion), keyEquivalent: "")
+        menu.addItem(withTitle: "截取窗口", action: #selector(menuCaptureWindow), keyEquivalent: "")
+        menu.addItem(withTitle: "截取整屏", action: #selector(menuCaptureFullScreen), keyEquivalent: "")
+        menu.addItem(withTitle: "截取区域并识字\(ocrHint)", action: #selector(menuCaptureRegionOCR), keyEquivalent: "")
         menu.addItem(NSMenuItem.separator())
         menu.addItem(withTitle: "设置…", action: #selector(menuOpenSettings), keyEquivalent: ",")
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(withTitle: "退出 ClipStack", action: #selector(menuQuit), keyEquivalent: "q")
+        menu.addItem(withTitle: "退出 PasteNest", action: #selector(menuQuit), keyEquivalent: "q")
         for item in menu.items {
             item.target = self
         }
@@ -82,7 +111,12 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     }
 
     @objc private func menuShowPanel() { showPanel() }
+    @objc private func menuShowMainWindow() { showMainWindow() }
     @objc private func menuHidePanel() { hidePanel() }
+    @objc private func menuCaptureRegion() { ScreenshotService.shared.capture(.region) }
+    @objc private func menuCaptureWindow() { ScreenshotService.shared.capture(.window) }
+    @objc private func menuCaptureFullScreen() { ScreenshotService.shared.capture(.fullScreen) }
+    @objc private func menuCaptureRegionOCR() { ScreenshotService.shared.capture(.region, recognizeText: true) }
     @objc private func menuOpenSettings() {
         openSettings()
     }
@@ -105,7 +139,10 @@ final class StatusItemController: NSObject, NSWindowDelegate {
             // next runloop turn once it exists.
             DispatchQueue.main.async {
                 NSApp.activate(ignoringOtherApps: true)
-                for window in NSApp.windows where !(window is NSPanel) {
+                // Only bring forward the settings window itself. Ordering every plain
+                // window in also raised the main window's leftover blank surface.
+                for window in NSApp.windows where !(window is NSPanel) && window !== self.mainWindow {
+                    guard !window.title.isEmpty else { continue }
                     window.makeKeyAndOrderFront(nil)
                 }
             }
@@ -127,11 +164,50 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         }
     }
 
+    /// The shelf and the main window are mutually exclusive surfaces.
+    func toggleMainWindow() {
+        guard let window = resolveMainWindow() else { return }
+        if window.isVisible && NSApp.isActive {
+            hideMainWindow()
+        } else {
+            showMainWindow()
+        }
+    }
+
+    func showMainWindow() {
+        hidePanel()
+        guard let window = resolveMainWindow() else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+    }
+
+    func hideMainWindow() {
+        guard let window = resolveMainWindow(), window.isVisible else { return }
+        window.orderOut(nil)
+    }
+
+    /// `ContentView` registers the window once it exists; fall back to a lookup when the
+    /// scene hasn't rendered yet (the Settings window must never be mistaken for it).
+    private func resolveMainWindow() -> NSWindow? {
+        if let mainWindow { return mainWindow }
+        let found = NSApp.windows.first { window in
+            guard !(window is NSPanel), window.canBecomeMain else { return false }
+            if let identifier = window.identifier?.rawValue {
+                return !identifier.contains("Settings") && identifier.contains("main")
+            }
+            return window.title == "PasteNest"
+        }
+        mainWindow = found
+        return found
+    }
+
     func showPanel() {
         if panel == nil {
             panel = makePanel()
         }
         guard let panel else { return }
+        hideMainWindow()
 
         let expanded = appState?.shelfDetailItemID != nil
         isDetailExpanded = expanded
@@ -151,8 +227,17 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     func hidePanel() {
         removeDismissalMonitors()
         appState?.shelfDetailItemID = nil
+        closePanelSearch()
         isDetailExpanded = false
         panel?.orderOut(nil)
+    }
+
+    /// The shelf always reopens without the search field; the query would otherwise
+    /// keep filtering a panel whose search box is gone.
+    private func closePanelSearch() {
+        guard let appState, appState.isPanelSearchVisible else { return }
+        appState.isPanelSearchVisible = false
+        appState.searchQuery = ""
     }
 
     /// Grow the floating shelf so the detail overlay is fully visible.
@@ -241,6 +326,12 @@ final class StatusItemController: NSObject, NSWindowDelegate {
                 if self?.appState?.shelfDetailItemID != nil {
                     self?.appState?.shelfDetailItemID = nil
                     self?.setExpandedForDetail(false)
+                    return nil
+                }
+                // Escape backs out of search before it dismisses the whole shelf.
+                // The panel clears its draft text when the box closes.
+                if let appState = self?.appState, appState.isPanelSearchVisible {
+                    appState.isPanelSearchVisible = false
                     return nil
                 }
                 self?.hidePanel()

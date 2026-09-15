@@ -1,4 +1,4 @@
-# ClipStack — Mac App Store 上架材料
+# PasteNest — Mac App Store 上架材料
 
 本文档汇总上架所需的全部素材与配置。标记 ✅ 的已就绪，其余需你补充。
 
@@ -6,10 +6,10 @@
 
 | 项目 | 内容 |
 |------|------|
-| 应用名称 | **ClipStack** |
+| 应用名称 | **PasteNest** |
 | 副标题（30 字符内） | 剪贴板历史，随手可取 |
-| Bundle ID | `com.mypaste.ClipStack` |
-| SKU | `clipstack-macos` |
+| Bundle ID | `com.mypaste.PasteNest` |
+| SKU | `pastenest-macos` |
 | 主要类别 | 效率（Productivity） |
 | 次要类别 | 工具（Utilities） |
 | 内容分级 | 4+（无受限内容） |
@@ -19,12 +19,12 @@
 
 ### 宣传文本（170 字符内，可随时更新）
 
-> 复制过的，都是你的。ClipStack 静静躺在菜单栏，记下你复制的文字、链接、图片和文件，自动分类打标。按一下快捷键，它们就排着队等你再次使用。
+> 复制过的，都是你的。PasteNest 静静躺在菜单栏，记下你复制的文字、链接、图片和文件，自动分类打标。按一下快捷键，它们就排着队等你再次使用。
 
 ### 描述（4000 字符内）
 
 ```
-ClipStack 是一款常驻菜单栏的剪贴板历史管理工具。你复制的一切——文本、链接、图片、文件、代码——都会自动保存，随时一键找回。
+PasteNest 是一款常驻菜单栏的剪贴板历史管理工具。你复制的一切——文本、链接、图片、文件、代码——都会自动保存，随时一键找回。
 
 【底部货架，一呼即出】
 按自定义快捷键（默认 ⇧⌘V），屏幕底部滑出一排卡片货架，最近复制的内容一目了然。双击卡片查看完整内容，回车直接粘贴到当前应用。
@@ -40,7 +40,7 @@ ClipStack 是一款常驻菜单栏的剪贴板历史管理工具。你复制的�
 
 【为 Mac 而生】
 · 常驻菜单栏，关闭面板不退出
-· 自定义全局快捷键
+· 底部货架与主窗口各有独立的自定义全局快捷键
 · 登录时自动启动
 · 深色模式、原生 SwiftUI 界面
 · 支持 Apple Silicon 与 Intel
@@ -92,11 +92,13 @@ ClipStack 是一款常驻菜单栏的剪贴板历史管理工具。你复制的�
 | Apple Developer Program 会员 | ⬜ | $99/年，需邓白氏码（个人账号不需要） |
 | App Store Connect 创建 App | ⬜ | 用上面的名称/Bundle ID/SKU |
 | 签名证书 + Team ID | ⬜ | Xcode → Settings → Accounts 登录后自动管理 |
-| iCloud 容器 | ⬜ | 在开发者后台为 `iCloud.com.mypaste.ClipStack` 注册容器并开启 CloudKit |
+| iCloud 容器 | ⬜ | 在开发者后台为 `iCloud.com.mypaste.PasteNest` 注册容器并开启 CloudKit |
 | 沙盒构建 | ✅ | `Paste.entitlements` 已开启 App Sandbox + iCloud |
 | 辅助功能权限说明 | ✅ | Info.plist 已含用途描述字符串 |
 
 **注意：** 上架版本使用 `Paste.entitlements`（沙盒 + iCloud），与 CI 直装包（`Paste-CI.entitlements`，关沙盒）不同。沙盒下「一键粘贴到其他 App」需要用户授予辅助功能权限，应用内已有引导。
+
+**截图功能与沙盒：** 截图通过调用系统 `/usr/sbin/screencapture` 实现，沙盒进程无法启动该子进程，因此该功能只在非沙盒的直装包中可用。若要上架 App Store，需改用 ScreenCaptureKit 自绘选区，或在上架版本中隐藏截图入口。
 
 ## 6. 构建与上传
 
@@ -118,8 +120,8 @@ ClipStack 是一款常驻菜单栏的剪贴板历史管理工具。你复制的�
 ## 7. 审核备注（给审核员）
 
 ```
-ClipStack 是菜单栏常驻应用（无 Dock 图标）。
-- 启动后图标出现在屏幕右上角菜单栏，点击或按 ⇧⌘V 唤出底部面板。
+PasteNest 是菜单栏常驻应用（无 Dock 图标）。
+- 启动后图标出现在屏幕右上角菜单栏，点击或按 ⇧⌘V 唤出底部面板，按 ⌥⌘V 唤出主窗口（两者互斥显示）。
 - 「一键粘贴」功能需要辅助功能权限：设置 → 权限 → 按引导授权。不授权时其余功能（记录、搜索、查看）完全可用。
 - iCloud 同步为可选功能，未登录 iCloud 时应用全部本地功能正常。
 ```

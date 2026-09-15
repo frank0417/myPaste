@@ -2,10 +2,22 @@ import Foundation
 
 @MainActor
 enum ClipboardItemFilter {
-    static func matches(_ item: ClipboardItem, appState: AppState) -> Bool {
+    static func matchesHard(_ item: ClipboardItem, appState: AppState) -> Bool {
+        if appState.favoritesOnly {
+            guard item.isFavorite else { return false }
+            switch appState.favoriteScope {
+            case .all:
+                break
+            case .untagged:
+                guard item.favoriteTags.isEmpty else { return false }
+            case .tag(let name):
+                guard FavoriteTagCatalog.contains(name, in: item.favoriteTags) else { return false }
+            }
+        }
+
         if appState.selectedFilter == .pinned || appState.showOnlyPinned {
             guard item.isPinned else { return false }
-        } else if appState.selectedFilter != .all {
+        } else if appState.selectedFilter != .all, appState.selectedFilter != .favorite {
             switch appState.selectedFilter {
             case .text:
                 guard [.text, .richText, .snippet].contains(item.contentType) else { return false }
@@ -23,7 +35,7 @@ enum ClipboardItemFilter {
                 guard item.contentType == .color else { return false }
             case .snippet:
                 guard item.contentType == .snippet else { return false }
-            case .all, .pinned:
+            case .all, .pinned, .favorite:
                 break
             }
         }
@@ -31,23 +43,17 @@ enum ClipboardItemFilter {
         if let tag = appState.selectedAutoTag {
             guard item.autoTags.contains(tag) else { return false }
         }
+        return true
+    }
 
-        let q = appState.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !q.isEmpty else { return true }
-
-        let haystack = [
-            item.previewTitle,
-            item.previewSubtitle,
-            item.plainText,
-            item.sourceAppName,
-            item.primaryAutoTag?.displayName
-        ]
-        .compactMap { $0?.lowercased() }
-        .joined(separator: " ")
-        return haystack.contains(q)
+    static func matches(_ item: ClipboardItem, appState: AppState) -> Bool {
+        guard matchesHard(item, appState: appState) else { return false }
+        let query = appState.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return true }
+        return KeywordScorer.score(query: query, item: item) > 0
     }
 
     static func filter(_ items: [ClipboardItem], appState: AppState) -> [ClipboardItem] {
-        items.filter { matches($0, appState: appState) }
+        HybridSearch.rank(items, appState: appState)
     }
 }

@@ -11,6 +11,10 @@ final class ClipboardStore: ObservableObject {
     /// Only one store should own the monitor callback. UI panels must pass false or they
     /// overwrite the launch-time handler and then deallocate when the menu closes — breaking capture.
     private let ownsMonitor: Bool
+    /// Sweeping on every copy would refetch the whole history; once in a while is enough
+    /// for a policy measured in days.
+    private static let retentionSweepInterval: TimeInterval = 15 * 60
+    private var lastRetentionSweep: Date?
 
     init(modelContext: ModelContext, appState: AppState, ownsMonitor: Bool = false) {
         self.modelContext = modelContext
@@ -48,6 +52,7 @@ final class ClipboardStore: ObservableObject {
         if let existing = try? modelContext.fetch(descriptor).first {
             existing.updatedAt = .now
             try? modelContext.save()
+            EmbeddingIndex.shared.upsert(id: existing.id, text: existing.searchableText)
             return
         }
 
@@ -68,25 +73,42 @@ final class ClipboardStore: ObservableObject {
         modelContext.insert(item)
         AutoTagService.apply(to: item)
         try? modelContext.save()
+        EmbeddingIndex.shared.upsert(id: item.id, text: item.searchableText)
+        enforceRetentionIfNeeded()
         enforceHistoryLimit()
     }
 
     func paste(_ item: ClipboardItem) {
-        writeToPasteboard(item)
-        item.pasteCount += 1
-        item.updatedAt = .now
-        try? modelContext.save()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-            // Accessibility is only required to synthesize ⌘V. Content is already on the pasteboard.
-            if !AccessibilityPermission.isTrusted {
-                AccessibilityPermission.requestIfNeeded(prompt: true)
+        writeToPasteboard(item) { [weak self] in
+            guard let self else { return }
+            item.pasteCount += 1
+            item.updatedAt = .now
+            try? self.modelContext.save()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                // Accessibility is only required to synthesize ⌘V. Content is already on the pasteboard.
+                if !AccessibilityPermission.isTrusted {
+                    AccessibilityPermission.requestIfNeeded(prompt: true)
+                }
+                Self.simulatePasteKeystroke()
             }
-            Self.simulatePasteKeystroke()
         }
     }
 
     func copyOnly(_ item: ClipboardItem) {
-        writeToPasteboard(item)
+        writeToPasteboard(item) { [weak self] in
+            item.updatedAt = .now
+            try? self?.modelContext.save()
+        }
+    }
+
+    /// Copies only the text an item carries — for a screenshot, the recognized text
+    /// without the picture tagging along.
+    func copyText(_ item: ClipboardItem) {
+        guard let text = item.plainText, !text.isEmpty else { return }
+        monitor.ignoreNextPasteboardChange()
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(text, forType: .string)
         item.updatedAt = .now
         try? modelContext.save()
     }
@@ -97,22 +119,74 @@ final class ClipboardStore: ObservableObject {
     }
 
     func toggleFavorite(_ item: ClipboardItem) {
-        item.isFavorite.toggle()
+        setFavorite(!item.isFavorite, for: item)
+    }
+
+    func setFavorite(_ favorite: Bool, for item: ClipboardItem) {
+        guard item.isFavorite != favorite else { return }
+        item.isFavorite = favorite
+        if favorite {
+            item.favoritedAt = .now
+        } else {
+            item.favoritedAt = nil
+            // Taking something out of the folder restarts its retention window — it must
+            // not disappear on the next sweep just because it was copied days ago.
+            item.updatedAt = .now
+        }
+        try? modelContext.save()
+    }
+
+    /// Tagging files the item into the folder as well: a category on something the user
+    /// never kept would vanish with the item.
+    func addFavoriteTag(_ raw: String, to item: ClipboardItem) {
+        guard let tag = FavoriteTagCatalog.normalize(raw) else { return }
+        setFavorite(true, for: item)
+        item.favoriteTags = FavoriteTagCatalog.adding(tag, to: item.favoriteTags)
+        try? modelContext.save()
+    }
+
+    func removeFavoriteTag(_ tag: String, from item: ClipboardItem) {
+        item.favoriteTags = FavoriteTagCatalog.removing(tag, from: item.favoriteTags)
+        try? modelContext.save()
+    }
+
+    func toggleFavoriteTag(_ tag: String, for item: ClipboardItem) {
+        if FavoriteTagCatalog.contains(tag, in: item.favoriteTags) {
+            removeFavoriteTag(tag, from: item)
+        } else {
+            addFavoriteTag(tag, to: item)
+        }
+    }
+
+    /// Drops a category everywhere; the favorites themselves stay in the folder.
+    func deleteFavoriteTag(_ tag: String) {
+        let descriptor = FetchDescriptor<ClipboardItem>(predicate: #Predicate { $0.isFavorite })
+        guard let favorites = try? modelContext.fetch(descriptor) else { return }
+        for item in favorites where FavoriteTagCatalog.contains(tag, in: item.favoriteTags) {
+            item.favoriteTags = FavoriteTagCatalog.removing(tag, from: item.favoriteTags)
+        }
         try? modelContext.save()
     }
 
     func delete(_ item: ClipboardItem) {
+        let id = item.id
         modelContext.delete(item)
         try? modelContext.save()
+        EmbeddingIndex.shared.remove(ids: [id])
+        ImageCache.shared.remove(id: id)
     }
 
     func clearHistory(keepPinned: Bool = true) {
         let descriptor = FetchDescriptor<ClipboardItem>()
         guard let items = try? modelContext.fetch(descriptor) else { return }
+        var removed: [UUID] = []
         for item in items where !(keepPinned && item.isPinned) {
+            removed.append(item.id)
             modelContext.delete(item)
         }
         try? modelContext.save()
+        EmbeddingIndex.shared.remove(ids: removed)
+        removed.forEach { ImageCache.shared.remove(id: $0) }
     }
 
     func assign(item: ClipboardItem, to board: ClipboardBoard?) {
@@ -129,6 +203,7 @@ final class ClipboardStore: ObservableObject {
                 "contentType": item.contentTypeRaw,
                 "previewTitle": item.previewTitle,
                 "isPinned": item.isPinned,
+                "isFavorite": item.isFavorite,
                 "createdAt": ISO8601DateFormatter().string(from: item.createdAt),
                 "updatedAt": ISO8601DateFormatter().string(from: item.updatedAt),
                 "pasteCount": item.pasteCount
@@ -138,6 +213,10 @@ final class ClipboardStore: ObservableObject {
             if let hex = item.colorHex { row["colorHex"] = hex }
             if let app = item.sourceAppName { row["sourceAppName"] = app }
             if let board = item.board?.name { row["board"] = board }
+            if let favoritedAt = item.favoritedAt {
+                row["favoritedAt"] = ISO8601DateFormatter().string(from: favoritedAt)
+            }
+            if !item.favoriteTags.isEmpty { row["favoriteTags"] = item.favoriteTags }
             if !item.autoTags.isEmpty { row["autoTags"] = item.autoTags }
             if let thumb = item.thumbnailData ?? item.imageData {
                 row["thumbnailBase64"] = thumb.base64EncodedString()
@@ -147,42 +226,121 @@ final class ClipboardStore: ObservableObject {
         return try? JSONSerialization.data(withJSONObject: rows, options: [.prettyPrinted, .sortedKeys])
     }
 
-    private func writeToPasteboard(_ item: ClipboardItem) {
+    /// The completion runs on the main thread once the pasteboard holds the content.
+    /// Image encodings are prepared off-main (and cached per item), so pasting a
+    /// screenshot no longer stalls the UI.
+    private func writeToPasteboard(_ item: ClipboardItem, completion: @escaping () -> Void = {}) {
         monitor.ignoreNextPasteboardChange()
-        let pb = NSPasteboard.general
-        pb.clearContents()
         switch item.contentType {
         case .image:
-            if let data = item.imageData, let image = NSImage(data: data) {
-                pb.writeObjects([image])
+            // Screenshots carry their recognized text in plainText; pasting one offers
+            // both, exactly like the capture did.
+            let itemID = item.id
+            guard let data = item.imageData else {
+                completion()
+                return
+            }
+            let text = item.plainText
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                var pasteboardItem: NSPasteboardItem?
+                if let encodings = ImageCache.shared.pasteEncodings(id: itemID, imageData: data) {
+                    let pbItem = NSPasteboardItem()
+                    pbItem.setData(encodings.tiff, forType: .tiff)
+                    if let png = encodings.png {
+                        pbItem.setData(png, forType: .png)
+                    }
+                    if let text, !text.isEmpty {
+                        pbItem.setString(text, forType: .string)
+                    }
+                    pasteboardItem = pbItem
+                }
+                DispatchQueue.main.async {
+                    self?.monitor.ignoreNextPasteboardChange()
+                    let pb = NSPasteboard.general
+                    pb.clearContents()
+                    if let pasteboardItem {
+                        pb.writeObjects([pasteboardItem])
+                    }
+                    completion()
+                }
             }
         case .file:
+            let pb = NSPasteboard.general
+            pb.clearContents()
             pb.writeObjects(item.fileURLs as [NSURL])
+            completion()
         case .color:
+            let pb = NSPasteboard.general
+            pb.clearContents()
             if let hex = item.colorHex ?? item.plainText {
                 pb.setString(hex, forType: .string)
             }
+            completion()
         default:
+            let pb = NSPasteboard.general
+            pb.clearContents()
             if let rtf = item.richTextData {
                 pb.setData(rtf, forType: .rtf)
             }
             if let text = item.plainText {
                 pb.setString(text, forType: .string)
             }
+            completion()
         }
+    }
+
+    /// Favorites (and pinned items) are the long-term library; everything else only
+    /// lives for the configured number of days.
+    @discardableResult
+    func enforceRetention() -> Int {
+        lastRetentionSweep = .now
+        let days = RetentionPolicy.clampDays(appState?.keepUnfavoritedDays ?? RetentionPolicy.defaultDays)
+        let cutoff = RetentionPolicy.cutoff(days: days, now: .now)
+        let descriptor = FetchDescriptor<ClipboardItem>(
+            predicate: #Predicate { !$0.isFavorite && !$0.isPinned && $0.updatedAt < cutoff }
+        )
+        guard let stale = try? modelContext.fetch(descriptor), !stale.isEmpty else { return 0 }
+        let removed = stale.map(\.id)
+        for item in stale {
+            modelContext.delete(item)
+        }
+        try? modelContext.save()
+        EmbeddingIndex.shared.remove(ids: removed)
+        removed.forEach { ImageCache.shared.remove(id: $0) }
+        return removed.count
+    }
+
+    private func enforceRetentionIfNeeded() {
+        if let lastRetentionSweep,
+           Date.now.timeIntervalSince(lastRetentionSweep) < Self.retentionSweepInterval {
+            return
+        }
+        enforceRetention()
     }
 
     private func enforceHistoryLimit() {
         let limit = appState?.maxHistoryCount ?? 500
-        let descriptor = FetchDescriptor<ClipboardItem>(
-            predicate: #Predicate { !$0.isPinned },
-            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
+        // Favorites are kept on purpose, so they must not count against the cap
+        // or be trimmed by it.
+        let counting = #Predicate<ClipboardItem> { !$0.isPinned && !$0.isFavorite }
+        let count = (try? modelContext.fetchCount(FetchDescriptor<ClipboardItem>(predicate: counting))) ?? 0
+        let excess = count - limit
+        guard excess > 0 else { return }
+
+        // Fetch only the records that will actually be deleted, oldest first —
+        // materializing the whole history on every copy was measurable on main.
+        var descriptor = FetchDescriptor<ClipboardItem>(
+            predicate: counting,
+            sortBy: [SortDescriptor(\.updatedAt, order: .forward)]
         )
-        guard let items = try? modelContext.fetch(descriptor), items.count > limit else { return }
-        for item in items.suffix(from: limit) {
+        descriptor.fetchLimit = excess
+        guard let stale = try? modelContext.fetch(descriptor), !stale.isEmpty else { return }
+        let removed = stale.map(\.id)
+        for item in stale {
             modelContext.delete(item)
         }
         try? modelContext.save()
+        EmbeddingIndex.shared.remove(ids: removed)
     }
 
     private static func simulatePasteKeystroke() {

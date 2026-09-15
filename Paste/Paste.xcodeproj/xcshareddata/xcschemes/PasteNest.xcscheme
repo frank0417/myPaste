@@ -15,8 +15,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "D3AA28C6E22440C993BC3E84"
-               BuildableName = "ClipStack.app"
-               BlueprintName = "ClipStack"
+               BuildableName = "PasteNest.app"
+               BlueprintName = "PasteNest"
                ReferencedContainer = "container:Paste.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -44,8 +44,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D3AA28C6E22440C993BC3E84"
-            BuildableName = "ClipStack.app"
-            BlueprintName = "ClipStack"
+            BuildableName = "PasteNest.app"
+            BlueprintName = "PasteNest"
             ReferencedContainer = "container:Paste.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -61,8 +61,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "D3AA28C6E22440C993BC3E84"
-            BuildableName = "ClipStack.app"
-            BlueprintName = "ClipStack"
+            BuildableName = "PasteNest.app"
+            BlueprintName = "PasteNest"
             ReferencedContainer = "container:Paste.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

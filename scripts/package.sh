@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build ClipStack.app and package into a distributable .dmg (and optional .pkg).
+# Build PasteNest.app and package into a distributable .dmg (and optional .pkg).
 # Must run on macOS with Xcode Command Line Tools installed.
 #
 # Usage:
@@ -13,15 +13,15 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROJECT="$ROOT/Paste/Paste.xcodeproj"
-SCHEME="ClipStack"
+SCHEME="PasteNest"
 CONFIG="Release"
 VERSION="${MARKETING_VERSION:-1.0.0}"
 BUILD_NUMBER="${CURRENT_PROJECT_VERSION:-1}"
-BUNDLE_ID="${PRODUCT_BUNDLE_IDENTIFIER:-com.mypaste.ClipStack}"
-APP_NAME="ClipStack"
+BUNDLE_ID="${PRODUCT_BUNDLE_IDENTIFIER:-com.mypaste.PasteNest}"
+APP_NAME="PasteNest"
 DIST="$ROOT/dist"
 DERIVED="$ROOT/build/DerivedData"
-ARCHIVE_PATH="$ROOT/build/ClipStack.xcarchive"
+ARCHIVE_PATH="$ROOT/build/PasteNest.xcarchive"
 
 SIGN=0
 MAKE_PKG=0
@@ -29,11 +29,11 @@ NOTARIZE=0
 APP_STORE=0
 IDENTITY="${CODE_SIGN_IDENTITY:-}"
 TEAM_ID="${DEVELOPMENT_TEAM:-}"
-NOTARY_PROFILE="${NOTARY_PROFILE:-ClipStackNotary}"
+NOTARY_PROFILE="${NOTARY_PROFILE:-PasteNestNotary}"
 
 usage() {
   cat <<'EOF'
-Build ClipStack.app and package into .dmg / optional .pkg (macOS + Xcode required).
+Build PasteNest.app and package into .dmg / optional .pkg (macOS + Xcode required).
 
 Usage:
   ./scripts/package.sh                  # ad-hoc Release .app + .dmg
@@ -272,5 +272,5 @@ fi
 echo
 echo "安装方式："
 echo "  1. 打开 $DMG_NAME"
-echo "  2. 将 ClipStack 拖到 Applications"
+echo "  2. 将 PasteNest 拖到 Applications"
 echo "  3. 未公证时：系统设置 → 隐私与安全性 → 仍要打开"
