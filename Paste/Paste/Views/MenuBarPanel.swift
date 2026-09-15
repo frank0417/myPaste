@@ -8,7 +8,9 @@ struct MenuBarPanel: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ClipboardItem.updatedAt, order: .reverse) private var items: [ClipboardItem]
     @State private var store: ClipboardStore?
-    @FocusState private var searchFocused: Bool
+    /// The field owns its focus directly; the panel's NSPanel is non-activating, and
+    /// routing focus through the view tree's @FocusState is unreliable there.
+    @State private var searchField: NSTextField?
     @State private var draftQuery = ""
     @State private var searchDebounce: DispatchWorkItem?
     @State private var dismissLaunchCard = UserDefaults.standard.bool(forKey: "dismissedLaunchAtLoginCard")
@@ -92,12 +94,12 @@ struct MenuBarPanel: View {
         }
         .focusable()
         .onKeyPress(.leftArrow) {
-            guard !searchFocused else { return .ignored }
+            guard !isSearchFieldEditing else { return .ignored }
             moveSelection(by: -1)
             return .handled
         }
         .onKeyPress(.rightArrow) {
-            guard !searchFocused else { return .ignored }
+            guard !isSearchFieldEditing else { return .ignored }
             moveSelection(by: 1)
             return .handled
         }
@@ -122,10 +124,28 @@ struct MenuBarPanel: View {
         .onChange(of: appState.isPanelSearchVisible) { _, visible in
             // The panel controller can close the box from its Escape monitor.
             if visible {
-                searchFocused = true
+                focusSearchField()
             } else if !draftQuery.isEmpty {
                 clearSearch()
             }
+        }
+    }
+
+    /// Whether the search field's editor currently owns key events.
+    private var isSearchFieldEditing: Bool {
+        guard let window = searchField?.window else { return false }
+        return window.firstResponder === searchField?.currentEditor()
+    }
+
+    /// The panel is a non-activating NSPanel: it must become key and the field must be
+    /// made first responder, or every keystroke falls through to the app behind it.
+    private func focusSearchField() {
+        DispatchQueue.main.async {
+            guard let searchField, let window = searchField.window else { return }
+            if !window.isKeyWindow {
+                window.makeKey()
+            }
+            window.makeFirstResponder(searchField)
         }
     }
 
@@ -333,7 +353,7 @@ struct MenuBarPanel: View {
             TextField("搜索剪贴板…", text: $draftQuery)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
-                .focused($searchFocused)
+                .background(SearchFieldAccessor(field: $searchField))
                 .onChange(of: draftQuery) { _, value in
                     scheduleSearch(value)
                 }
@@ -382,7 +402,7 @@ struct MenuBarPanel: View {
             if draftQuery != appState.searchQuery {
                 draftQuery = appState.searchQuery
             }
-            searchFocused = true
+            focusSearchField()
         }
     }
 
@@ -390,12 +410,11 @@ struct MenuBarPanel: View {
         withAnimation(.easeOut(duration: 0.18)) {
             appState.isPanelSearchVisible = true
         }
-        // Focus only lands reliably once the field is in the hierarchy.
-        DispatchQueue.main.async { searchFocused = true }
+        focusSearchField()
     }
 
     private func closeSearch() {
-        searchFocused = false
+        searchField?.window?.makeFirstResponder(nil)
         withAnimation(.easeOut(duration: 0.18)) {
             appState.isPanelSearchVisible = false
         }
@@ -638,6 +657,31 @@ struct MenuBarPanel: View {
         store?.paste(item)
         appState.shelfDetailItemID = nil
         StatusItemController.shared.hidePanel()
+    }
+}
+
+/// Hands the panel the actual NSTextField so it can be made first responder directly.
+/// The shelf lives in a non-activating NSPanel, where SwiftUI's @FocusState alone does
+/// not move the key window's first responder — the field looked focused but swallowed
+/// no keystrokes.
+private struct SearchFieldAccessor: NSViewRepresentable {
+    @Binding var field: NSTextField?
+
+    func makeNSView(context: Context) -> NSView {
+        NSView(frame: .zero)
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            var view = nsView.superview
+            while let current = view {
+                if let textField = current as? NSTextField {
+                    field = textField
+                    return
+                }
+                view = current.superview
+            }
+        }
     }
 }
 
