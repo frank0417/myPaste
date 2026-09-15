@@ -93,11 +93,13 @@ final class ScreenshotService: ObservableObject {
         // Give the shelf time to animate away before the pixels are read.
         let delay: TimeInterval = restorePanel ? 0.3 : 0
 
-        queue.asyncAfter(deadline: .now() + delay) { [weak self] in
+        // Captured strongly: this is a singleton, and a weak capture cannot be read
+        // from the nested task that hands the result back to the main actor.
+        queue.asyncAfter(deadline: .now() + delay) { [self] in
             let status = Self.runScreenCapture(arguments)
             let data = Self.readPNG(at: output)
             Task { @MainActor in
-                self?.finish(mode: mode, data: data, status: status, restorePanel: restorePanel)
+                self.finish(mode: mode, data: data, status: status, restorePanel: restorePanel)
             }
         }
     }
