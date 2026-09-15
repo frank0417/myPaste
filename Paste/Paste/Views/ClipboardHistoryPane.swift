@@ -23,7 +23,10 @@ struct ClipboardHistoryPane: View {
                     items: filtered,
                     favorites: favorites,
                     layout: .grid,
-                    store: store
+                    store: store,
+                    // The preview pane is always on screen here, so a double click
+                    // pastes like it does on the list rows.
+                    onOpenDetail: { store?.paste($0) }
                 )
             } else {
                 AutoTagFilterBar(items: items)
