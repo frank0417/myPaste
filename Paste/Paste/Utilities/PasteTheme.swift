@@ -11,6 +11,34 @@ enum PasteTheme {
     static let coral = Color(hex: "#E07A5F") ?? .orange
     static let panelFill = Color(hex: "#F4F6F8") ?? Color(nsColor: .windowBackgroundColor)
 
+    /// One corner language for the whole shelf: the window surface, the cards inside
+    /// it, and the smaller controls step down together so nothing reads as a box.
+    static let panelCornerRadius: CGFloat = 28
+    static let cardCornerRadius: CGFloat = 18
+    static let controlCornerRadius: CGFloat = 12
+
+    static var panelShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
+    }
+
+    static var cardShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: cardCornerRadius, style: .continuous)
+    }
+
+    static var controlShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: controlCornerRadius, style: .continuous)
+    }
+
+    /// The bright shelf-card header, eased into a gradient so the block does not
+    /// end in a flat wall of colour against the white preview.
+    static var cardHeaderGradient: LinearGradient {
+        LinearGradient(
+            colors: [cardHeader, cardHeader.opacity(0.82)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
     static var backgroundGradient: some View {
         LinearGradient(
             colors: [
@@ -50,6 +78,47 @@ extension Color {
 }
 
 extension View {
+    /// The floating shelf's surface. Frosted material under a soft tint, edged by a
+    /// hairline shade outside and a hairline highlight just inside it, so the rounded
+    /// corners fade into whatever is behind the window instead of ending in a hard cut.
+    /// The window itself is transparent and draws no shadow: anything the window
+    /// bounds would clip shows up as a frame around the panel.
+    func panelSurface() -> some View {
+        self
+            .background {
+                PasteTheme.panelShape
+                    .fill(.ultraThinMaterial)
+                    .overlay(PasteTheme.panelShape.fill(PasteTheme.panelFill.opacity(0.86)))
+            }
+            .clipShape(PasteTheme.panelShape)
+            .overlay {
+                PasteTheme.panelShape
+                    .inset(by: 1)
+                    .strokeBorder(Color.white.opacity(0.7), lineWidth: 1)
+                    .allowsHitTesting(false)
+            }
+            .overlay {
+                PasteTheme.panelShape
+                    .strokeBorder(Color.black.opacity(0.09), lineWidth: 1)
+                    .allowsHitTesting(false)
+            }
+    }
+
+    /// A control pill inside the shelf: a soft white capsule with a hairline edge in
+    /// place of a drop shadow, so it sits in the surface rather than on top of it.
+    func shelfPill(tint: Color = .clear) -> some View {
+        self
+            .background(
+                Capsule(style: .continuous)
+                    .fill(Color(nsColor: .windowBackgroundColor).opacity(0.9))
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(tint == .clear ? Color.primary.opacity(0.06) : tint, lineWidth: 1)
+                    .allowsHitTesting(false)
+            )
+    }
+
     func pasteCard() -> some View {
         self
             .padding(12)
