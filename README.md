@@ -65,7 +65,7 @@ Paste/
 - [x] CloudKit / iCloud 容器 entitlement
 - [x] Privacy Manifest（`PrivacyInfo.xcprivacy`）
 - [x] 辅助功能用途说明文案
-- [ ] 替换 App Icon 资源（`Assets.xcassets/AppIcon.appiconset`）
+- [x] 替换 App Icon 资源（`Assets.xcassets/AppIcon.appiconset`）
 - [ ] 配置真实 Team ID / Bundle ID / iCloud 容器
 - [ ] App Store Connect 截图与审核说明（需说明剪贴板与辅助功能用途）
 - [ ] 可选：接入 `KeyboardShortcuts` 等库做可自定义全局热键
