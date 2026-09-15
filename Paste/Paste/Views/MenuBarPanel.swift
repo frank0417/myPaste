@@ -81,10 +81,6 @@ struct MenuBarPanel: View {
                 // remaining point: a centered, shorter VStack leaves transparent bands
                 // that read as detached capsules and broken corners.
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                // Room for the card's shadow; an edge-to-edge card gets its shadow
-                // clipped hard by the window bounds, which reads as dirty corners.
-                .padding(.horizontal, 8)
-                .padding(.bottom, 10)
                 .animation(.easeOut(duration: 0.18), value: showSearch)
             }
 
@@ -229,7 +225,9 @@ struct MenuBarPanel: View {
             }
         }
         // Fill the window so the rounded background *is* the panel: no dead band
-        // below the shelf and no capsule floating outside the card.
+        // below the shelf and no capsule floating outside the card. The card runs
+        // edge to edge with no shadow: a shadow cut off by the window bounds shows
+        // up as a translucent frame around the panel.
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
@@ -240,7 +238,6 @@ struct MenuBarPanel: View {
                 )
         }
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .shadow(color: .black.opacity(0.16), radius: 24, y: 10)
     }
 
     private var topBar: some View {
@@ -410,7 +407,10 @@ struct MenuBarPanel: View {
                 field: $searchField,
                 onSubmit: pasteSelected
             )
-            .frame(maxWidth: .infinity, minHeight: 18)
+            // The AppKit field has no natural size; without a fixed height it takes
+            // every point the VStack offers and balloons into a giant capsule.
+            .frame(maxWidth: .infinity)
+            .frame(height: PanelSearchField.fieldHeight)
             .onChange(of: draftQuery) { _, value in
                 scheduleSearch(value)
             }
@@ -435,7 +435,9 @@ struct MenuBarPanel: View {
             .help(draftQuery.isEmpty ? "收起搜索" : "清空")
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.vertical, 7)
+        // One text line tall, whatever the window offers.
+        .fixedSize(horizontal: false, vertical: true)
         .background {
             Capsule(style: .continuous)
                 .fill(PasteTheme.panelFill.opacity(0.92))
@@ -445,12 +447,12 @@ struct MenuBarPanel: View {
                 )
         }
         .clipShape(Capsule(style: .continuous))
-        .shadow(color: .black.opacity(0.14), radius: 14, y: 5)
-        .frame(maxWidth: 420)
+        .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
+        .frame(maxWidth: 320)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 18)
         // Keeps the pill's shadow off the window edge.
-        .padding(.top, 6)
+        .padding(.top, 8)
         // Fade only: a move transition can rest at its offset when the hosting view
         // is replaced mid-animation, which misplaced the pill.
         .transition(.opacity)
@@ -729,6 +731,9 @@ struct MenuBarPanel: View {
 /// background accessor, not above it). A representable `NSTextField` is the
 /// field, so it can be made first responder and Chinese IME composes correctly.
 private struct PanelSearchField: NSViewRepresentable {
+    /// One line of 13pt system text plus the editor's insets.
+    static let fieldHeight: CGFloat = 20
+
     @Binding var text: String
     var placeholder: String
     var shouldFocus: Bool
@@ -737,6 +742,12 @@ private struct PanelSearchField: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
+    }
+
+    /// Flexible in width, one line tall — never let SwiftUI hand the field the
+    /// whole remaining height of the panel.
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: PanelSearchFieldHost, context: Context) -> CGSize? {
+        CGSize(width: proposal.width ?? 200, height: Self.fieldHeight)
     }
 
     func makeNSView(context: Context) -> PanelSearchFieldHost {
@@ -868,6 +879,10 @@ private final class PanelSearchFieldHost: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { nil }
 
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: NSView.noIntrinsicMetric, height: PanelSearchField.fieldHeight)
+    }
+
     override var mouseDownCanMoveWindow: Bool { false }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
@@ -884,7 +899,7 @@ private final class PanelSearchFieldHost: NSView {
 
 private final class PanelSearchTextField: NSTextField {
     override var intrinsicContentSize: NSSize {
-        NSSize(width: NSView.noIntrinsicMetric, height: 18)
+        NSSize(width: NSView.noIntrinsicMetric, height: PanelSearchField.fieldHeight)
     }
 
     override var acceptsFirstResponder: Bool { true }
