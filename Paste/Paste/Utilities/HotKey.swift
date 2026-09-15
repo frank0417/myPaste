@@ -1,25 +1,93 @@
 import AppKit
 import Carbon.HIToolbox
 
+/// The two UI surfaces a global shortcut can reveal. They are mutually exclusive:
+/// showing one always hides the other.
+enum HotKeyAction: String, CaseIterable, Identifiable {
+    case panel
+    case mainWindow
+
+    var id: String { rawValue }
+
+    /// Settings row label.
+    var title: String {
+        switch self {
+        case .panel: return "唤出剪贴板面板"
+        case .mainWindow: return "唤出主窗口"
+        }
+    }
+
+    /// Used inside conflict messages.
+    var shortTitle: String {
+        switch self {
+        case .panel: return "剪贴板面板"
+        case .mainWindow: return "主窗口"
+        }
+    }
+
+    var storageKey: String {
+        switch self {
+        // Unchanged so shortcuts saved by earlier versions keep working.
+        case .panel: return "globalHotKeyShortcut"
+        case .mainWindow: return "mainWindowHotKeyShortcut"
+        }
+    }
+
+    var defaultShortcut: HotKeyShortcut {
+        switch self {
+        case .panel:
+            return HotKeyShortcut(keyCode: UInt32(kVK_ANSI_V), carbonModifiers: UInt32(cmdKey | shiftKey))
+        case .mainWindow:
+            return HotKeyShortcut(keyCode: UInt32(kVK_ANSI_V), carbonModifiers: UInt32(cmdKey | optionKey))
+        }
+    }
+
+    fileprivate var hotKeyID: UInt32 {
+        switch self {
+        case .panel: return 1
+        case .mainWindow: return 2
+        }
+    }
+}
+
 /// A user-configurable global keyboard shortcut (key code + Carbon modifiers).
 struct HotKeyShortcut: Codable, Equatable {
     var keyCode: UInt32
     var carbonModifiers: UInt32
 
-    static let `default` = HotKeyShortcut(
-        keyCode: UInt32(kVK_ANSI_V),
-        carbonModifiers: UInt32(cmdKey | shiftKey)
-    )
-
-    static let storageKey = "globalHotKeyShortcut"
-
-    static func load() -> HotKeyShortcut {
-        guard let data = UserDefaults.standard.data(forKey: storageKey),
+    static func load(_ action: HotKeyAction) -> HotKeyShortcut {
+        guard let data = UserDefaults.standard.data(forKey: action.storageKey),
               let shortcut = try? JSONDecoder().decode(HotKeyShortcut.self, from: data),
               shortcut.rejectionReason == nil else {
-            return .default
+            return action.defaultShortcut
         }
         return shortcut
+    }
+
+    func save(for action: HotKeyAction) {
+        if let data = try? JSONEncoder().encode(self) {
+            UserDefaults.standard.set(data, forKey: action.storageKey)
+        }
+    }
+
+    /// Cocoa event modifiers equivalent to the stored Carbon modifiers.
+    var cocoaModifiers: NSEvent.ModifierFlags {
+        var flags: NSEvent.ModifierFlags = []
+        if carbonModifiers & UInt32(cmdKey) != 0 { flags.insert(.command) }
+        if carbonModifiers & UInt32(shiftKey) != 0 { flags.insert(.shift) }
+        if carbonModifiers & UInt32(optionKey) != 0 { flags.insert(.option) }
+        if carbonModifiers & UInt32(controlKey) != 0 { flags.insert(.control) }
+        return flags
+    }
+
+    var display: String {
+        var s = ""
+        if carbonModifiers & UInt32(controlKey) != 0 { s += "⌃" }
+        if carbonModifiers & UInt32(optionKey) != 0 { s += "⌥" }
+        if carbonModifiers & UInt32(shiftKey) != 0 { s += "⇧" }
+        if carbonModifiers & UInt32(cmdKey) != 0 { s += "⌘" }
+        s += Self.keyName(for: keyCode)
+        return s
     }
 
     /// Modifier-only presses can't be a shortcut on their own.
@@ -60,32 +128,6 @@ struct HotKeyShortcut: Codable, Equatable {
             return "\(match.name) 已被系统占用，请换一个组合"
         }
         return nil
-    }
-
-    func save() {
-        if let data = try? JSONEncoder().encode(self) {
-            UserDefaults.standard.set(data, forKey: Self.storageKey)
-        }
-    }
-
-    /// Cocoa event modifiers equivalent to the stored Carbon modifiers.
-    var cocoaModifiers: NSEvent.ModifierFlags {
-        var flags: NSEvent.ModifierFlags = []
-        if carbonModifiers & UInt32(cmdKey) != 0 { flags.insert(.command) }
-        if carbonModifiers & UInt32(shiftKey) != 0 { flags.insert(.shift) }
-        if carbonModifiers & UInt32(optionKey) != 0 { flags.insert(.option) }
-        if carbonModifiers & UInt32(controlKey) != 0 { flags.insert(.control) }
-        return flags
-    }
-
-    var display: String {
-        var s = ""
-        if carbonModifiers & UInt32(controlKey) != 0 { s += "⌃" }
-        if carbonModifiers & UInt32(optionKey) != 0 { s += "⌥" }
-        if carbonModifiers & UInt32(shiftKey) != 0 { s += "⇧" }
-        if carbonModifiers & UInt32(cmdKey) != 0 { s += "⌘" }
-        s += Self.keyName(for: keyCode)
-        return s
     }
 
     static func keyName(for keyCode: UInt32) -> String {
@@ -153,69 +195,91 @@ enum HotKeyApplyResult: Equatable {
     case rejected(String)
 }
 
-/// Registers a global hotkey to reveal the ClipStack menu-bar panel / main window.
+/// Registers the global hotkeys that reveal the ClipStack shelf and main window.
 @MainActor
 final class GlobalHotKeyManager {
     static let shared = GlobalHotKeyManager()
 
-    private var hotKeyRef: EventHotKeyRef?
+    private struct Binding {
+        let ref: EventHotKeyRef
+        let shortcut: HotKeyShortcut
+    }
+
+    private var bindings: [HotKeyAction: Binding] = [:]
+    private var suspended: [HotKeyAction: HotKeyShortcut] = [:]
     private var handlerRef: EventHandlerRef?
-    private var suspendedShortcut: HotKeyShortcut?
-    var onHotKey: (() -> Void)?
-    private(set) var current: HotKeyShortcut?
+    var onHotKey: ((HotKeyAction) -> Void)?
 
     private init() {}
 
+    /// The combo currently live with the system, or `nil` when the action has no binding.
+    func shortcut(for action: HotKeyAction) -> HotKeyShortcut? {
+        bindings[action]?.shortcut
+    }
+
     /// Validates, registers, and keeps the previous binding when the new combo is unusable.
     @discardableResult
-    func apply(_ shortcut: HotKeyShortcut) -> HotKeyApplyResult {
+    func apply(_ shortcut: HotKeyShortcut, for action: HotKeyAction) -> HotKeyApplyResult {
         if let reason = shortcut.rejectionReason {
             return .rejected(reason)
+        }
+        if let clash = bindings.first(where: { $0.key != action && $0.value.shortcut == shortcut }) {
+            return .rejected("与「\(clash.key.shortTitle)」快捷键相同，请换一个")
         }
         guard installHandlerIfNeeded() else {
             return .rejected("无法注册全局快捷键，请重启 ClipStack 后重试")
         }
 
-        let previous = current
-        unregisterHotKey()
-        if bind(shortcut) {
-            current = shortcut
+        let previous = bindings[action]?.shortcut
+        unbind(action)
+        if bind(shortcut, for: action) {
             return .applied
         }
 
-        // A failed registration must not leave the app without any hotkey.
-        if let previous, bind(previous) {
-            current = previous
+        // A failed registration must not leave the action without any hotkey.
+        if let previous {
+            _ = bind(previous, for: action)
         }
         return .rejected("该组合已被其他 App 占用，请换一个")
     }
 
-    /// Stops the live hotkey from swallowing keystrokes while the user records a new one.
+    /// Stops the live hotkeys from swallowing keystrokes while the user records a new one.
     func suspend() {
-        guard suspendedShortcut == nil, let current else { return }
-        suspendedShortcut = current
-        unregisterHotKey()
+        guard suspended.isEmpty else { return }
+        for (action, binding) in bindings {
+            suspended[action] = binding.shortcut
+        }
+        for action in suspended.keys {
+            unbind(action)
+        }
     }
 
     func resume() {
-        guard let shortcut = suspendedShortcut else { return }
-        suspendedShortcut = nil
-        if hotKeyRef == nil, bind(shortcut) {
-            current = shortcut
+        let pending = suspended
+        suspended = [:]
+        for (action, shortcut) in pending where bindings[action] == nil {
+            _ = bind(shortcut, for: action)
         }
     }
 
     func unregister() {
-        unregisterHotKey()
-        suspendedShortcut = nil
+        for action in Array(bindings.keys) {
+            unbind(action)
+        }
+        suspended = [:]
         if let handlerRef {
             RemoveEventHandler(handlerRef)
             self.handlerRef = nil
         }
     }
 
-    private func bind(_ shortcut: HotKeyShortcut) -> Bool {
-        let hotKeyID = EventHotKeyID(signature: OSType(0x4353544B), id: 1) // 'CSTK'
+    fileprivate func dispatch(_ hotKeyID: UInt32) {
+        guard let action = HotKeyAction.allCases.first(where: { $0.hotKeyID == hotKeyID }) else { return }
+        onHotKey?(action)
+    }
+
+    private func bind(_ shortcut: HotKeyShortcut, for action: HotKeyAction) -> Bool {
+        let hotKeyID = EventHotKeyID(signature: OSType(0x4353544B), id: action.hotKeyID) // 'CSTK'
         var ref: EventHotKeyRef?
         let status = RegisterEventHotKey(
             shortcut.keyCode,
@@ -226,14 +290,13 @@ final class GlobalHotKeyManager {
             &ref
         )
         guard status == noErr, let ref else { return false }
-        hotKeyRef = ref
+        bindings[action] = Binding(ref: ref, shortcut: shortcut)
         return true
     }
 
-    private func unregisterHotKey() {
-        guard let hotKeyRef else { return }
-        UnregisterEventHotKey(hotKeyRef)
-        self.hotKeyRef = nil
+    private func unbind(_ action: HotKeyAction) {
+        guard let binding = bindings.removeValue(forKey: action) else { return }
+        UnregisterEventHotKey(binding.ref)
     }
 
     /// The Carbon handler outlives individual bindings, so install it only once.
@@ -244,11 +307,23 @@ final class GlobalHotKeyManager {
         let userData = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
         let status = InstallEventHandler(
             GetApplicationEventTarget(),
-            { (_, _, userData) -> OSStatus in
-                guard let userData else { return noErr }
+            { (_, event, userData) -> OSStatus in
+                guard let event, let userData else { return noErr }
+                var pressed = EventHotKeyID()
+                let status = GetEventParameter(
+                    event,
+                    EventParamName(kEventParamDirectObject),
+                    EventParamType(typeEventHotKeyID),
+                    nil,
+                    .init(MemoryLayout<EventHotKeyID>.size),
+                    nil,
+                    &pressed
+                )
+                guard status == noErr else { return noErr }
                 let manager = Unmanaged<GlobalHotKeyManager>.fromOpaque(userData).takeUnretainedValue()
+                let id = pressed.id
                 Task { @MainActor in
-                    manager.onHotKey?()
+                    manager.dispatch(id)
                 }
                 return noErr
             },

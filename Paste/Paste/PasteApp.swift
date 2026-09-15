@@ -81,14 +81,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Menu-bar agent: no Dock icon. Closing the shelf only hides UI.
         NSApp.setActivationPolicy(.accessory)
 
-        GlobalHotKeyManager.shared.onHotKey = {
-            StatusItemController.shared.togglePanel()
+        GlobalHotKeyManager.shared.onHotKey = { action in
+            switch action {
+            case .panel:
+                StatusItemController.shared.togglePanel()
+            case .mainWindow:
+                StatusItemController.shared.toggleMainWindow()
+            }
         }
-        // Bind right away so the hotkey works even before the scene hands us AppState,
-        // then sync AppState (which reports a fallback if the combo was taken).
-        GlobalHotKeyManager.shared.apply(HotKeyShortcut.load())
+        // Bind right away so the hotkeys work even before the scene hands us AppState,
+        // then sync AppState (which reports a fallback if a combo was taken).
+        for action in HotKeyAction.allCases {
+            GlobalHotKeyManager.shared.apply(HotKeyShortcut.load(action), for: action)
+        }
         Task { @MainActor [weak self] in
-            self?.appState?.registerStoredHotkey()
+            self?.appState?.registerStoredHotkeys()
         }
     }
 

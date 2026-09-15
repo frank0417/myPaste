@@ -16,7 +16,7 @@ struct SettingsView: View {
             aboutTab
                 .tabItem { Label("关于", systemImage: "info.circle") }
         }
-        .frame(width: 480, height: 320)
+        .frame(width: 520, height: 380)
         .onAppear { syncService.startStatusHeartbeat() }
     }
 
@@ -39,22 +39,14 @@ struct SettingsView: View {
                     appState.savePreferences()
                     updateLaunchAtLogin(enabled)
                 }
-            LabeledContent("唤出面板快捷键") {
-                HotKeyRecorderView(shortcut: $appState.hotkey) { newShortcut in
-                    appState.updateHotkey(newShortcut)
+            Section("快捷键") {
+                ForEach(HotKeyAction.allCases) { action in
+                    hotkeyRow(action)
                 }
-            }
-            Text("点击按钮后按下新的组合键（需包含 ⌘ / ⌃ / ⌥ 中至少一个），按 Esc 取消。")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if let feedback = appState.hotkeyFeedback {
-                Label(feedback.message, systemImage: feedback.isError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                Text("点击按钮后按下新的组合键（需包含 ⌘ / ⌃ / ⌥ 中至少一个），按 Esc 取消。两个窗口不会同时出现：唤出其中一个会自动收起另一个。")
                     .font(.caption)
-                    .foregroundStyle(feedback.isError ? Color.orange : Color.secondary)
+                    .foregroundStyle(.secondary)
             }
-            Text("ClipStack 常驻菜单栏后台：关掉底部面板不会退出。入口是右上角层叠图标，或按 \(appState.hotkeyDisplay)。右键图标可选退出。")
-                .font(.caption)
-                .foregroundStyle(.secondary)
 
             Section("权限") {
                 LabeledContent("辅助功能") {
@@ -70,7 +62,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Text("请点击屏幕右上角剪贴板图标，或按 \(appState.hotkeyDisplay) 打开面板。复制（⌘C）后稍等半秒，再点图标或按 \(appState.hotkeyDisplay) 查看历史。")
+            Text("ClipStack 常驻菜单栏后台，关掉窗口不会退出：按 \(appState.hotkeyDisplay) 唤出底部面板，按 \(appState.mainWindowHotkeyDisplay) 唤出主窗口，也可点击右上角层叠图标。右键图标可退出。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -132,6 +124,31 @@ struct SettingsView: View {
         }
         .padding(28)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func hotkeyRow(_ action: HotKeyAction) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            LabeledContent(action.title) {
+                HotKeyRecorderView(action: action, shortcut: shortcutBinding(action)) { newShortcut in
+                    appState.updateHotkey(newShortcut, for: action)
+                }
+            }
+            if let feedback = appState.hotkeyFeedback[action] {
+                Label(
+                    feedback.message,
+                    systemImage: feedback.isError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(feedback.isError ? Color.orange : Color.secondary)
+            }
+        }
+    }
+
+    private func shortcutBinding(_ action: HotKeyAction) -> Binding<HotKeyShortcut> {
+        switch action {
+        case .panel: return $appState.hotkey
+        case .mainWindow: return $appState.mainWindowHotkey
+        }
     }
 
     private static var appVersion: String {

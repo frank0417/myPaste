@@ -37,7 +37,18 @@ const RESERVED = [
   { keyCode: KEY.five, carbon: cmdKey | shiftKey, name: "⇧⌘5（截屏）" }
 ];
 
-const DEFAULT = { keyCode: KEY.v, carbonModifiers: cmdKey | shiftKey };
+// HotKeyAction: the two mutually exclusive surfaces, each with its own binding.
+const ACTION = {
+  panel: { id: 1, shortTitle: "剪贴板面板", storageKey: "globalHotKeyShortcut" },
+  mainWindow: { id: 2, shortTitle: "主窗口", storageKey: "mainWindowHotKeyShortcut" }
+};
+
+const DEFAULTS = {
+  panel: { keyCode: KEY.v, carbonModifiers: cmdKey | shiftKey },
+  mainWindow: { keyCode: KEY.v, carbonModifiers: cmdKey | optionKey }
+};
+
+const DEFAULT = DEFAULTS.panel;
 
 function isComplete({ keyCode, carbonModifiers }) {
   if (MODIFIER_KEY_CODES.has(keyCode)) return false;
@@ -76,14 +87,33 @@ function carbonModifiers({ command, shift, option, control }) {
   return carbon;
 }
 
-// Mirrors GlobalHotKeyManager.apply: a failed registration keeps the previous binding.
-function apply(state, shortcut, { registrationSucceeds = true } = {}) {
+const sameShortcut = (a, b) =>
+  Boolean(a) && Boolean(b) && a.keyCode === b.keyCode && a.carbonModifiers === b.carbonModifiers;
+
+// Mirrors GlobalHotKeyManager.apply: validate, reject a combo the other action already
+// owns, and keep the previous binding when the system refuses the registration.
+function apply(bindings, action, shortcut, { registrationSucceeds = true } = {}) {
   const reason = rejectionReason(shortcut);
-  if (reason) return { result: { rejected: reason }, state };
-  if (!registrationSucceeds) {
-    return { result: { rejected: "该组合已被其他 App 占用，请换一个" }, state };
+  if (reason) return { result: { rejected: reason }, bindings };
+
+  const clash = Object.keys(bindings).find(
+    (other) => other !== action && sameShortcut(bindings[other], shortcut)
+  );
+  if (clash) {
+    return {
+      result: { rejected: `与「${ACTION[clash].shortTitle}」快捷键相同，请换一个` },
+      bindings
+    };
   }
-  return { result: { applied: true }, state: { current: shortcut } };
+  if (!registrationSucceeds) {
+    return { result: { rejected: "该组合已被其他 App 占用，请换一个" }, bindings };
+  }
+  return { result: { applied: true }, bindings: { ...bindings, [action]: shortcut } };
+}
+
+// Mirrors GlobalHotKeyManager.dispatch: the Carbon hot key id selects the action.
+function actionForHotKeyID(id) {
+  return Object.keys(ACTION).find((name) => ACTION[name].id === id) ?? null;
 }
 
 let failed = 0;
@@ -145,19 +175,50 @@ assertEqual(
   "cocoa flags map to carbon"
 );
 
+// Per-action defaults must differ, or the two surfaces would fight over one combo.
+assertEqual(rejectionReason(DEFAULTS.mainWindow), null, "main window default is valid");
+assertEqual(display(DEFAULTS.mainWindow, "V"), "⌥⌘V", "main window default renders as opt-cmd-V");
+assertTrue(
+  !sameShortcut(DEFAULTS.panel, DEFAULTS.mainWindow),
+  "panel and main window defaults differ"
+);
+assertEqual(ACTION.panel.storageKey, "globalHotKeyShortcut", "panel keeps the legacy storage key");
+
 // A rejected combo must not clear the working shortcut.
-let state = { current: DEFAULT };
-let out = apply(state, { keyCode: KEY.q, carbonModifiers: cmdKey });
+const bindings = { panel: DEFAULTS.panel, mainWindow: DEFAULTS.mainWindow };
+let out = apply(bindings, "panel", { keyCode: KEY.q, carbonModifiers: cmdKey });
 assertTrue("rejected" in out.result, "reserved combo reports rejection");
-assertEqual(out.state.current, DEFAULT, "reserved combo keeps previous hotkey");
+assertEqual(out.bindings.panel, DEFAULTS.panel, "reserved combo keeps previous hotkey");
 
-out = apply(state, { keyCode: KEY.v, carbonModifiers: cmdKey | optionKey }, { registrationSucceeds: false });
+out = apply(bindings, "panel", { keyCode: KEY.f1, carbonModifiers: cmdKey }, { registrationSucceeds: false });
 assertTrue("rejected" in out.result, "taken combo reports rejection");
-assertEqual(out.state.current, DEFAULT, "taken combo keeps previous hotkey");
+assertEqual(out.bindings.panel, DEFAULTS.panel, "taken combo keeps previous hotkey");
 
-out = apply(state, { keyCode: KEY.v, carbonModifiers: cmdKey | optionKey });
+// Assigning the other surface's combo is reported instead of silently stealing it.
+out = apply(bindings, "panel", DEFAULTS.mainWindow);
+assertEqual(
+  out.result.rejected,
+  "与「主窗口」快捷键相同，请换一个",
+  "duplicate across actions rejected"
+);
+assertEqual(out.bindings.panel, DEFAULTS.panel, "duplicate keeps previous hotkey");
+
+// Re-applying an action's own combo is not a duplicate.
+out = apply(bindings, "panel", DEFAULTS.panel);
+assertTrue("applied" in out.result, "re-applying own combo is fine");
+
+out = apply(bindings, "mainWindow", { keyCode: KEY.f1, carbonModifiers: controlKey | optionKey });
 assertTrue("applied" in out.result, "valid combo applies");
-assertEqual(out.state.current.carbonModifiers, cmdKey | optionKey, "valid combo becomes current");
+assertEqual(
+  out.bindings.mainWindow.carbonModifiers,
+  controlKey | optionKey,
+  "valid combo becomes current"
+);
+assertEqual(out.bindings.panel, DEFAULTS.panel, "applying one action leaves the other alone");
+
+assertEqual(actionForHotKeyID(1), "panel", "hot key id 1 is the shelf panel");
+assertEqual(actionForHotKeyID(2), "mainWindow", "hot key id 2 is the main window");
+assertEqual(actionForHotKeyID(3), null, "unknown hot key id is ignored");
 
 if (failed > 0) {
   console.error(`\n${failed} test(s) failed`);

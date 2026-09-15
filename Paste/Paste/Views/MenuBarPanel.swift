@@ -233,6 +233,9 @@ struct MenuBarPanel: View {
                     )
                 }
                 Divider()
+                Button("打开主窗口（\(appState.mainWindowHotkeyDisplay)）") {
+                    StatusItemController.shared.showMainWindow()
+                }
                 Button("打开设置…") {
                     StatusItemController.shared.openSettings()
                 }
