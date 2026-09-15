@@ -53,29 +53,40 @@ struct HotKeyRecorderView: View {
         }
     }
 
+    @MainActor
     private func startRecording() {
         guard !isRecording else { return }
         isRecording = true
         HotKeyRecordingSession.shared.begin(action) { stopRecording() }
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { event in
-            guard !event.isARepeat else { return nil }
-            // Esc cancels without changing the shortcut.
-            if event.keyCode == UInt16(kVK_Escape) {
+            let keyCode = event.keyCode
+            let flags = event.modifierFlags
+            let repeated = event.isARepeat
+            // Local monitors always fire on the main thread.
+            MainActor.assumeIsolated {
+                guard !repeated else { return }
+                // Esc cancels without changing the shortcut.
+                if keyCode == UInt16(kVK_Escape) {
+                    stopRecording()
+                    return
+                }
+                let candidate = HotKeyShortcut(
+                    keyCode: UInt32(keyCode),
+                    carbonModifiers: Self.carbonModifiers(from: flags)
+                )
+                // Keep listening while only modifiers are down so the user can finish the combo.
+                guard candidate.isComplete else { return }
+                // Restores the other shortcut first, so duplicates are detected on apply.
                 stopRecording()
-                return nil
+                // Reserved, duplicate, or already-taken combos are reported by the caller.
+                onChange(candidate)
             }
-            let carbon = Self.carbonModifiers(from: event.modifierFlags)
-            let candidate = HotKeyShortcut(keyCode: UInt32(event.keyCode), carbonModifiers: carbon)
-            // Keep listening while only modifiers are down so the user can finish the combo.
-            guard candidate.isComplete else { return nil }
-            // Restores the other shortcut first, so duplicates are detected on apply.
-            stopRecording()
-            // Reserved, duplicate, or already-taken combos are reported by the caller.
-            onChange(candidate)
+            // Swallow every keystroke while recording so nothing else reacts to it.
             return nil
         }
     }
 
+    @MainActor
     private func stopRecording() {
         isRecording = false
         if let monitor {
