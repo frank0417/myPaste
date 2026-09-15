@@ -1,0 +1,76 @@
+name: Build check
+
+# Compiles the app on every branch push so Swift errors surface before a release
+# tag is cut. Packaging and publishing stay in package-macos.yml.
+on:
+  push:
+    branches-ignore:
+      - "gh-pages"
+    tags-ignore:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  logic-tests:
+    name: Logic mirror tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Run mirror tests
+        run: |
+          for test in Paste/PasteTests/*.test.mjs; do
+            echo "== $test =="
+            node "$test"
+          done
+
+  compile:
+    name: Compile (macOS)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          for candidate in \
+            /Applications/Xcode_15.4.app/Contents/Developer \
+            /Applications/Xcode_15.3.app/Contents/Developer \
+            /Applications/Xcode.app/Contents/Developer; do
+            if [[ -d "$candidate" ]]; then
+              sudo xcode-select -s "$candidate"
+              break
+            fi
+          done
+          xcode-select -p
+
+      - name: Build Debug (no signing)
+        run: |
+          set -o pipefail
+          mkdir -p build
+          xcodebuild build \
+            -project Paste/Paste.xcodeproj \
+            -scheme ClipStack \
+            -configuration Debug \
+            -destination "platform=macOS" \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            ENABLE_HARDENED_RUNTIME=NO \
+            2>&1 | tee build/xcodebuild-check.log | grep -E "error:|warning:|BUILD" || true
+          if ! grep -q "BUILD SUCCEEDED" build/xcodebuild-check.log; then
+            echo "::error::Build failed — see the log tail below"
+            tail -80 build/xcodebuild-check.log
+            exit 1
+          fi
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-check-log
+          path: build/xcodebuild-check.log
+          if-no-files-found: ignore
