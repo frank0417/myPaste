@@ -37,15 +37,18 @@ const RESERVED = [
   { keyCode: KEY.five, carbon: cmdKey | shiftKey, name: "⇧⌘5（截屏）" }
 ];
 
-// HotKeyAction: the two mutually exclusive surfaces, each with its own binding.
+// HotKeyAction: the two mutually exclusive surfaces plus the screenshot trigger,
+// each with its own binding.
 const ACTION = {
   panel: { id: 1, shortTitle: "剪贴板面板", storageKey: "globalHotKeyShortcut" },
-  mainWindow: { id: 2, shortTitle: "主窗口", storageKey: "mainWindowHotKeyShortcut" }
+  mainWindow: { id: 2, shortTitle: "主窗口", storageKey: "mainWindowHotKeyShortcut" },
+  screenshot: { id: 3, shortTitle: "截图", storageKey: "screenshotHotKeyShortcut" }
 };
 
 const DEFAULTS = {
   panel: { keyCode: KEY.v, carbonModifiers: cmdKey | shiftKey },
-  mainWindow: { keyCode: KEY.v, carbonModifiers: cmdKey | optionKey }
+  mainWindow: { keyCode: KEY.v, carbonModifiers: cmdKey | optionKey },
+  screenshot: { keyCode: KEY.four, carbonModifiers: cmdKey | shiftKey | controlKey }
 };
 
 const DEFAULT = DEFAULTS.panel;
@@ -184,8 +187,25 @@ assertTrue(
 );
 assertEqual(ACTION.panel.storageKey, "globalHotKeyShortcut", "panel keeps the legacy storage key");
 
+// The screenshot default must clear the system ⇧⌘4 it deliberately echoes.
+assertEqual(rejectionReason(DEFAULTS.screenshot), null, "screenshot default is valid");
+assertEqual(display(DEFAULTS.screenshot, "4"), "⌃⇧⌘4", "screenshot default renders as ctrl-shift-cmd-4");
+assertEqual(
+  rejectionReason({ keyCode: KEY.four, carbonModifiers: cmdKey | shiftKey }),
+  "⇧⌘4（截屏） 已被系统占用，请换一个组合",
+  "system screenshot combo stays rejected"
+);
+assertTrue(
+  !sameShortcut(DEFAULTS.screenshot, DEFAULTS.panel) && !sameShortcut(DEFAULTS.screenshot, DEFAULTS.mainWindow),
+  "screenshot default differs from both window defaults"
+);
+
 // A rejected combo must not clear the working shortcut.
-const bindings = { panel: DEFAULTS.panel, mainWindow: DEFAULTS.mainWindow };
+const bindings = {
+  panel: DEFAULTS.panel,
+  mainWindow: DEFAULTS.mainWindow,
+  screenshot: DEFAULTS.screenshot
+};
 let out = apply(bindings, "panel", { keyCode: KEY.q, carbonModifiers: cmdKey });
 assertTrue("rejected" in out.result, "reserved combo reports rejection");
 assertEqual(out.bindings.panel, DEFAULTS.panel, "reserved combo keeps previous hotkey");
@@ -216,9 +236,17 @@ assertEqual(
 );
 assertEqual(out.bindings.panel, DEFAULTS.panel, "applying one action leaves the other alone");
 
+out = apply(bindings, "mainWindow", DEFAULTS.screenshot);
+assertEqual(
+  out.result.rejected,
+  "与「截图」快捷键相同，请换一个",
+  "stealing the screenshot combo is rejected"
+);
+
 assertEqual(actionForHotKeyID(1), "panel", "hot key id 1 is the shelf panel");
 assertEqual(actionForHotKeyID(2), "mainWindow", "hot key id 2 is the main window");
-assertEqual(actionForHotKeyID(3), null, "unknown hot key id is ignored");
+assertEqual(actionForHotKeyID(3), "screenshot", "hot key id 3 is the screenshot");
+assertEqual(actionForHotKeyID(4), null, "unknown hot key id is ignored");
 
 if (failed > 0) {
   console.error(`\n${failed} test(s) failed`);

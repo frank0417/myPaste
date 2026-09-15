@@ -6,6 +6,7 @@ These Node tests mirror Swift rules so CI / Linux agents can validate logic with
 node Paste/PasteTests/content_type_detector.test.mjs
 node Paste/PasteTests/hybrid_search.test.mjs
 node Paste/PasteTests/hotkey_shortcut.test.mjs
+node Paste/PasteTests/screenshot_service.test.mjs
 ```
 
 | Test | Mirrors |
@@ -13,3 +14,4 @@ node Paste/PasteTests/hotkey_shortcut.test.mjs
 | `content_type_detector.test.mjs` | `ContentTypeDetector` classification and preview titles |
 | `hybrid_search.test.mjs` | `KeywordScorer` tokenizing/scoring and `HybridSearch.fuse` ranking |
 | `hotkey_shortcut.test.mjs` | `HotKeyShortcut` validation/display and `GlobalHotKeyManager.apply` fallback |
+| `screenshot_service.test.mjs` | `ScreenshotMode` screencapture flags and `ScreenshotService` outcome/payload rules |

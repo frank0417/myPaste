@@ -98,6 +98,8 @@ ClipStack 是一款常驻菜单栏的剪贴板历史管理工具。你复制的�
 
 **注意：** 上架版本使用 `Paste.entitlements`（沙盒 + iCloud），与 CI 直装包（`Paste-CI.entitlements`，关沙盒）不同。沙盒下「一键粘贴到其他 App」需要用户授予辅助功能权限，应用内已有引导。
 
+**截图功能与沙盒：** 截图通过调用系统 `/usr/sbin/screencapture` 实现，沙盒进程无法启动该子进程，因此该功能只在非沙盒的直装包中可用。若要上架 App Store，需改用 ScreenCaptureKit 自绘选区，或在上架版本中隐藏截图入口。
+
 ## 6. 构建与上传
 
 在已登录开发者账号的 Mac 上：
