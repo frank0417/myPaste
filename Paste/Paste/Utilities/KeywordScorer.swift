@@ -106,13 +106,9 @@ enum KeywordScorer {
     }
 
     static func score(query: String, item: ClipboardItem) -> Double {
-        score(query: query, fields: Self.fields(for: item))
-    }
-
-    static func score(query: String, document: KeywordDocument) -> Double {
         let foldedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !foldedQuery.isEmpty else { return 0 }
-        return score(tokens: tokens(in: foldedQuery), foldedQuery: foldedQuery, fields: KeywordFields(document))
+        return score(tokens: tokens(in: foldedQuery), foldedQuery: foldedQuery, fields: Self.fields(for: item))
     }
 
     static func haystack(item: ClipboardItem) -> String {

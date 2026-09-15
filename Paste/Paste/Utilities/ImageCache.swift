@@ -32,7 +32,7 @@ final class ImageCache {
     /// `preferThumbnail` for small surfaces (cards, row badges), full data for detail views.
     func image(for item: ClipboardItem, preferThumbnail: Bool = true) -> NSImage? {
         let kind: Kind = preferThumbnail ? .thumbnail : .full
-        let key = Self.key(item.id, kind)
+        let key = Self.key(item.id, kind) as NSString
         if let cached = images.object(forKey: key) { return cached }
 
         let data = preferThumbnail
@@ -46,7 +46,7 @@ final class ImageCache {
     /// "1920 × 1080" for image items, decoded once per item.
     func pixelSize(for item: ClipboardItem) -> String? {
         guard item.contentType == .image else { return nil }
-        let key = Self.key(item.id, .full) + "#size"
+        let key = (Self.key(item.id, .full) + "#size") as NSString
         if let cached = pixelSizes.object(forKey: key) { return cached as String }
         guard let data = item.imageData ?? item.thumbnailData,
               let image = NSImage(data: data) else { return nil }
@@ -84,7 +84,7 @@ final class ImageCache {
     /// Takes raw data (not the model) so it can run off the main thread — SwiftData
     /// models are not safe to touch from a background queue. NSCache is thread-safe.
     func pasteEncodings(id: UUID, imageData: Data) -> (tiff: Data, png: Data?)? {
-        let key = Self.key(id, .full) + "#paste"
+        let key = (Self.key(id, .full) + "#paste") as NSString
         if let cached = pasteboardData.object(forKey: key) {
             return (cached.tiff, cached.png)
         }
@@ -99,14 +99,14 @@ final class ImageCache {
     func remove(id: UUID) {
         for kind in [Kind.thumbnail, .full] {
             let key = Self.key(id, kind)
-            images.removeObject(forKey: key)
-            pixelSizes.removeObject(forKey: key + "#size")
-            pasteboardData.removeObject(forKey: key + "#paste")
+            images.removeObject(forKey: key as NSString)
+            pixelSizes.removeObject(forKey: (key + "#size") as NSString)
+            pasteboardData.removeObject(forKey: (key + "#paste") as NSString)
         }
     }
 
-    private static func key(_ id: UUID, _ kind: Kind) -> NSString {
-        "\(id.uuidString)-\(kind.rawValue)" as NSString
+    private static func key(_ id: UUID, _ kind: Kind) -> String {
+        "\(id.uuidString)-\(kind.rawValue)"
     }
 }
 
