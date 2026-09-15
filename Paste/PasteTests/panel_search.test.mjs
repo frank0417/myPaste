@@ -83,25 +83,53 @@ assertTrue(
   /\.fixedSize\(horizontal: false, vertical: true\)/.test(panel),
   "search pill hugs its content vertically"
 );
-const pillWidth = panel.match(/\.frame\(maxWidth: (\d+)\)\s*\n\s*\.frame\(maxWidth: \.infinity, alignment: \.leading\)/);
+const pillWidth = panel.match(/\.shelfPill\(tint: [^\n]*\)\s*\n\s*\.frame\(maxWidth: (\d+)\)/);
 assertTrue(
   pillWidth !== null && Number(pillWidth[1]) <= 340,
   "search pill is capped at a compact width"
 );
 
-// The card fills the window; a shadow or inset there is cut off by the window
-// bounds and shows up as a translucent frame around the panel.
+// The search row is content inside the panel card, under the nav bar — not a
+// separate capsule floating above the surface.
 const cardStart = panel.indexOf("private var panelCard: some View");
 const cardEnd = panel.indexOf("private var topBar: some View", cardStart);
 const cardBody = panel.slice(cardStart, cardEnd);
 assertTrue(cardStart > 0 && cardEnd > cardStart, "panelCard is defined");
-assertTrue(!/\.shadow\(/.test(cardBody), "panelCard draws no clipped shadow");
+assertTrue(/searchRow/.test(cardBody), "search row lives inside the panel card");
+assertTrue(!/searchPill/.test(panel), "the detached search pill is gone");
+
+// One surface for the whole window, drawn by the root: the card and the detail
+// overlay supply content only. A second background, inset, or shadow at the
+// window edge is cut off by the window bounds and shows up as a translucent frame.
 const bodyStart = panel.indexOf("var body: some View {");
 const bodyEnd = panel.indexOf("private var isSearchFieldEditing", bodyStart);
 const rootBody = panel.slice(bodyStart, bodyEnd);
+assertTrue(/\.panelSurface\(\)/.test(rootBody), "root draws the shared panel surface");
+assertTrue(!/\.shadow\(/.test(rootBody), "root draws no clipped shadow");
 assertTrue(
   !/\.padding\(\.horizontal, 8\)/.test(rootBody) && !/\.padding\(\.bottom, 10\)/.test(rootBody),
   "panel content is not inset from the window edges"
+);
+assertTrue(!/\.background/.test(cardBody) && !/\.shadow\(/.test(cardBody), "panelCard draws no background or shadow of its own");
+const overlayStart = panel.indexOf("struct ClipboardItemDetailOverlay");
+const overlayBodyEnd = panel.indexOf("private var detailHeader", overlayStart);
+const overlayBody = panel.slice(overlayStart, overlayBodyEnd);
+assertTrue(
+  !/\.shadow\(/.test(overlayBody) && !/RoundedRectangle\(cornerRadius/.test(overlayBody),
+  "detail overlay draws no background or shadow of its own"
+);
+
+// Corner geometry comes from the theme so every surface shares one radius set,
+// and nothing falls back to a hard-cornered rectangle.
+const theme = read("Utilities/PasteTheme.swift");
+assertTrue(/static let panelCornerRadius: CGFloat = \d+/.test(theme), "theme defines the panel radius");
+assertTrue(/static let cardCornerRadius: CGFloat = \d+/.test(theme), "theme defines the card radius");
+assertTrue(/func panelSurface\(\)/.test(theme), "theme defines the shared panel surface");
+assertTrue(/style: \.continuous/.test(theme), "theme shapes use continuous corners");
+assertTrue(
+  !/RoundedRectangle\(cornerRadius: \d+, style: \.circular\)/.test(panel)
+    && !/RoundedRectangle\(cornerRadius: \d+\)/.test(panel),
+  "panel never falls back to a circular-cornered rectangle"
 );
 
 if (failed > 0) {

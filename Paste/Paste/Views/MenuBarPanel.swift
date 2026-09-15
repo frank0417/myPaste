@@ -70,18 +70,8 @@ struct MenuBarPanel: View {
         ZStack {
             // When detail is open, hide the shelf layer completely so nothing shows through.
             if detailItem == nil {
-                VStack(spacing: 2) {
-                    // A standalone floating field above the nav bar, not part of the card.
-                    if showSearch {
-                        searchPill
-                    }
-                    panelCard
-                }
-                // Pin the content to the window's top and let the card take every
-                // remaining point: a centered, shorter VStack leaves transparent bands
-                // that read as detached capsules and broken corners.
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .animation(.easeOut(duration: 0.18), value: showSearch)
+                panelCard
+                    .transition(.opacity)
             }
 
             if let detailItem = detailItem {
@@ -94,9 +84,14 @@ struct MenuBarPanel: View {
                     onPaste: { paste(detailItem) },
                     onToggleFavorite: { store?.toggleFavorite(detailItem) }
                 )
-                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                .transition(.opacity)
             }
         }
+        // One surface for the whole window. The shelf and the detail view are both
+        // content on it, so switching between them crossfades on a steady backdrop
+        // and the rounded edge never moves.
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .panelSurface()
         .animation(.easeOut(duration: 0.2), value: appState.shelfDetailItemID)
         .onAppear {
             if store == nil {
@@ -198,6 +193,12 @@ struct MenuBarPanel: View {
     private var panelCard: some View {
         VStack(spacing: 0) {
             topBar
+            // The search row lives inside the surface, right under the nav bar, so it
+            // never floats detached above the panel.
+            if showSearch {
+                searchRow
+                    .transition(.opacity)
+            }
             if appState.panelViewMode == .shelf {
                 shelf
             } else if appState.panelViewMode == .favorites {
@@ -224,20 +225,11 @@ struct MenuBarPanel: View {
                 )
             }
         }
-        // Fill the window so the rounded background *is* the panel: no dead band
-        // below the shelf and no capsule floating outside the card. The card runs
-        // edge to edge with no shadow: a shadow cut off by the window bounds shows
-        // up as a translucent frame around the panel.
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(PasteTheme.panelFill.opacity(0.92))
-                .background(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                )
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        // Pin the content to the top and let it take every remaining point; the
+        // surface behind it is drawn once by the root, so there is no second
+        // background to misalign with the window.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .animation(.easeOut(duration: 0.18), value: showSearch)
     }
 
     private var topBar: some View {
@@ -384,78 +376,70 @@ struct MenuBarPanel: View {
         .lineLimit(1)
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .background(
-            Capsule(style: .continuous)
-                .fill(Color(nsColor: .windowBackgroundColor).opacity(0.95))
-                .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
-        )
-        .padding(.horizontal, 18)
+        .shelfPill()
+        .padding(.horizontal, 16)
         .padding(.top, 14)
-        .padding(.bottom, 10)
+        .padding(.bottom, showSearch ? 8 : 10)
     }
 
-    /// Floats above the nav bar as its own pill so the bar keeps its single-line layout.
-    private var searchPill: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
-            PanelSearchField(
-                text: $draftQuery,
-                placeholder: "搜索剪贴板…",
-                shouldFocus: true,
-                field: $searchField,
-                onSubmit: pasteSelected
-            )
-            // The AppKit field has no natural size; without a fixed height it takes
-            // every point the VStack offers and balloons into a giant capsule.
-            .frame(maxWidth: .infinity)
-            .frame(height: PanelSearchField.fieldHeight)
-            .onChange(of: draftQuery) { _, value in
-                scheduleSearch(value)
-            }
-            if !draftQuery.isEmpty {
-                Text("\(filtered.count)")
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(.tertiary)
-            }
-            Button {
-                if draftQuery.isEmpty {
-                    closeSearch()
-                } else {
-                    clearSearch()
-                }
-            } label: {
-                Image(systemName: draftQuery.isEmpty ? "xmark" : "xmark.circle.fill")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 16, height: 16)
-            }
-            .buttonStyle(.plain)
-            .help(draftQuery.isEmpty ? "收起搜索" : "清空")
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
-        // One text line tall, whatever the window offers.
-        .fixedSize(horizontal: false, vertical: true)
-        .background {
-            Capsule(style: .continuous)
-                .fill(PasteTheme.panelFill.opacity(0.92))
-                .background(
-                    Capsule(style: .continuous)
-                        .fill(.ultraThinMaterial)
+    /// A single-line search capsule under the nav bar, inside the surface. It keeps to
+    /// a compact width and leaves the rest of the row to a quiet hint.
+    private var searchRow: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(PasteTheme.accent)
+                PanelSearchField(
+                    text: $draftQuery,
+                    placeholder: "搜索剪贴板…",
+                    shouldFocus: true,
+                    field: $searchField,
+                    onSubmit: pasteSelected
                 )
+                // The AppKit field has no natural size; without a fixed height it takes
+                // every point the VStack offers and balloons into a giant capsule.
+                .frame(maxWidth: .infinity)
+                .frame(height: PanelSearchField.fieldHeight)
+                .onChange(of: draftQuery) { _, value in
+                    scheduleSearch(value)
+                }
+                if !draftQuery.isEmpty {
+                    Text("\(filtered.count)")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.tertiary)
+                }
+                Button {
+                    if draftQuery.isEmpty {
+                        closeSearch()
+                    } else {
+                        clearSearch()
+                    }
+                } label: {
+                    Image(systemName: draftQuery.isEmpty ? "xmark" : "xmark.circle.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .frame(width: 16, height: 16)
+                }
+                .buttonStyle(.plain)
+                .help(draftQuery.isEmpty ? "收起搜索" : "清空")
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            // One text line tall, whatever the window offers.
+            .fixedSize(horizontal: false, vertical: true)
+            .shelfPill(tint: PasteTheme.accent.opacity(0.35))
+            .frame(maxWidth: 320)
+
+            Text("↩ 粘贴选中 · Esc 收起")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
+
+            Spacer(minLength: 0)
         }
-        .clipShape(Capsule(style: .continuous))
-        .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
-        .frame(maxWidth: 320)
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 18)
-        // Keeps the pill's shadow off the window edge.
-        .padding(.top, 8)
-        // Fade only: a move transition can rest at its offset when the hosting view
-        // is replaced mid-animation, which misplaced the pill.
-        .transition(.opacity)
+        .padding(.bottom, 8)
         .onAppear {
             // The panel rebuilds its hosting view on show / detail toggle; adopt the
             // live query so the field never disagrees with the filtered results.
@@ -636,11 +620,12 @@ struct MenuBarPanel: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
-        .frame(width: 220, height: 220)
         .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
+        .frame(width: 236, height: 236)
+        .background(PasteTheme.cardShape.fill(Color.primary.opacity(0.035)))
+        .overlay(
+            PasteTheme.cardShape
+                .strokeBorder(Color.primary.opacity(0.05), lineWidth: 1)
         )
     }
 
@@ -656,7 +641,7 @@ struct MenuBarPanel: View {
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .frame(width: 36, height: 36)
-                .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .background(Color.primary.opacity(0.06), in: PasteTheme.controlShape)
 
             Text(title)
                 .font(.headline)
@@ -673,13 +658,11 @@ struct MenuBarPanel: View {
                 .controlSize(.small)
         }
         .padding(16)
-        .frame(width: 168, height: 220, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(nsColor: .windowBackgroundColor).opacity(0.92))
-        )
+        // Same height as a shelf card so the row reads as one line of tiles.
+        .frame(width: 176, height: 236, alignment: .topLeading)
+        .background(PasteTheme.cardShape.fill(Color(nsColor: .windowBackgroundColor).opacity(0.92)))
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            PasteTheme.cardShape
                 .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
         )
     }
@@ -955,17 +938,8 @@ struct ClipboardItemDetailOverlay: View {
             Divider()
             detailFooter
         }
+        // The root panel draws the surface; this view only supplies content.
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color(nsColor: .windowBackgroundColor))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(PasteTheme.panelFill.opacity(0.96))
-                )
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .shadow(color: .black.opacity(0.18), radius: 24, y: 10)
     }
 
     private var detailHeader: some View {
@@ -1228,15 +1202,15 @@ struct ClipboardShelfCard: View {
             }
             .frame(width: cardWidth, height: cardHeight)
             .background(Color(nsColor: .windowBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .clipShape(PasteTheme.cardShape)
             .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                PasteTheme.cardShape
                     .strokeBorder(
-                        isSelected ? PasteTheme.cardHeader : (isHovered ? PasteTheme.cardBorder : PasteTheme.cardBorder.opacity(0.7)),
-                        lineWidth: isSelected ? 2.5 : 1
+                        isSelected ? PasteTheme.cardHeader.opacity(0.9) : (isHovered ? PasteTheme.cardBorder : PasteTheme.cardBorder.opacity(0.7)),
+                        lineWidth: isSelected ? 2 : 1
                     )
             )
-            .shadow(color: isSelected ? PasteTheme.cardHeader.opacity(0.22) : .black.opacity(0.06), radius: isSelected ? 10 : 4, y: 2)
+            .shadow(color: isSelected ? PasteTheme.cardHeader.opacity(0.2) : .black.opacity(0.05), radius: isSelected ? 12 : 5, y: 3)
         }
         .buttonStyle(.plain)
         .onHover { hovering in
@@ -1303,7 +1277,7 @@ struct ClipboardShelfCard: View {
         .foregroundStyle(.white)
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(PasteTheme.cardHeader)
+        .background(PasteTheme.cardHeaderGradient)
     }
 
     private var previewArea: some View {
