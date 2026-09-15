@@ -11,7 +11,6 @@ struct HotKeyRecorderView: View {
 
     @State private var isRecording = false
     @State private var monitor: Any?
-    @State private var recordingToken: Int?
 
     var body: some View {
         HStack(spacing: 8) {
@@ -54,39 +53,47 @@ struct HotKeyRecorderView: View {
         }
     }
 
+    @MainActor
     private func startRecording() {
         guard !isRecording else { return }
         isRecording = true
-        recordingToken = HotKeyRecordingSession.shared.begin { stopRecording() }
+        HotKeyRecordingSession.shared.begin(action) { stopRecording() }
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { event in
-            guard !event.isARepeat else { return nil }
-            // Esc cancels without changing the shortcut.
-            if event.keyCode == UInt16(kVK_Escape) {
+            let keyCode = event.keyCode
+            let flags = event.modifierFlags
+            let repeated = event.isARepeat
+            // Local monitors always fire on the main thread.
+            MainActor.assumeIsolated {
+                guard !repeated else { return }
+                // Esc cancels without changing the shortcut.
+                if keyCode == UInt16(kVK_Escape) {
+                    stopRecording()
+                    return
+                }
+                let candidate = HotKeyShortcut(
+                    keyCode: UInt32(keyCode),
+                    carbonModifiers: Self.carbonModifiers(from: flags)
+                )
+                // Keep listening while only modifiers are down so the user can finish the combo.
+                guard candidate.isComplete else { return }
+                // Restores the other shortcut first, so duplicates are detected on apply.
                 stopRecording()
-                return nil
+                // Reserved, duplicate, or already-taken combos are reported by the caller.
+                onChange(candidate)
             }
-            let carbon = Self.carbonModifiers(from: event.modifierFlags)
-            let candidate = HotKeyShortcut(keyCode: UInt32(event.keyCode), carbonModifiers: carbon)
-            // Keep listening while only modifiers are down so the user can finish the combo.
-            guard candidate.isComplete else { return nil }
-            // Restores the other shortcut first, so duplicates are detected on apply.
-            stopRecording()
-            // Reserved, duplicate, or already-taken combos are reported by the caller.
-            onChange(candidate)
+            // Swallow every keystroke while recording so nothing else reacts to it.
             return nil
         }
     }
 
+    @MainActor
     private func stopRecording() {
         isRecording = false
         if let monitor {
             NSEvent.removeMonitor(monitor)
             self.monitor = nil
         }
-        if let recordingToken {
-            self.recordingToken = nil
-            HotKeyRecordingSession.shared.end(recordingToken)
-        }
+        HotKeyRecordingSession.shared.end(action)
     }
 
     static func carbonModifiers(from flags: NSEvent.ModifierFlags) -> UInt32 {
@@ -105,27 +112,23 @@ struct HotKeyRecorderView: View {
 private final class HotKeyRecordingSession {
     static let shared = HotKeyRecordingSession()
 
-    private var nextToken = 1
-    private var activeToken: Int?
+    private var activeAction: HotKeyAction?
     private var cancelActive: (() -> Void)?
 
-    func begin(cancel: @escaping () -> Void) -> Int {
+    func begin(_ action: HotKeyAction, cancel: @escaping () -> Void) {
         if let previous = cancelActive {
+            activeAction = nil
             cancelActive = nil
-            activeToken = nil
             previous()
         }
-        let token = nextToken
-        nextToken += 1
-        activeToken = token
+        activeAction = action
         cancelActive = cancel
         GlobalHotKeyManager.shared.suspend()
-        return token
     }
 
-    func end(_ token: Int) {
-        guard activeToken == token else { return }
-        activeToken = nil
+    func end(_ action: HotKeyAction) {
+        guard activeAction == action else { return }
+        activeAction = nil
         cancelActive = nil
         GlobalHotKeyManager.shared.resume()
     }
