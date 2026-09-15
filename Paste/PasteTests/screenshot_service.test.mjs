@@ -34,22 +34,46 @@ function outcome({ status, bytes, hasPermission }) {
   return "cancelled";
 }
 
-// Mirrors ScreenshotService.payload(mode:pngData:).
-function payload(mode, { width, height, bytes }) {
+function characterCount(text) {
+  return [...text].filter((c) => !/\s/u.test(c)).length;
+}
+
+// Mirrors ScreenshotService.payload(mode:pngData:text:): recognized text rides on
+// the image item as plainText, and the subtitle reports how much was found.
+function payload(mode, { width, height, bytes, text = null }) {
   return {
     contentType: "image",
+    plainText: text,
     previewTitle: `截图 ${width}×${height}`,
-    previewSubtitle: SUBTITLE[mode],
+    previewSubtitle: text ? `${SUBTITLE[mode]} · 识别 ${characterCount(text)} 字` : SUBTITLE[mode],
     sourceAppName: "截图",
     sourceAppBundleID: null,
     hasThumbnail: bytes > 0
   };
 }
 
-// Mirrors ClipboardItem.searchableText for a screenshot: no plain text, so the title
-// and source label are the only things a query can hit.
+// Mirrors ScreenshotService.hudDetail.
+function hudDetail(text, recognitionEnabled) {
+  if (!recognitionEnabled) return "图片已复制";
+  if (!text) return "图片已复制 · 未识别到文字";
+  return `已识别 ${characterCount(text)} 字，文字已复制`;
+}
+
+// Mirrors ClipboardMonitor.imagePasteboardItem: one item, both representations, so
+// the receiving app decides whether it wants the picture or the text.
+function pasteboardTypes(text) {
+  const types = ["tiff", "png"];
+  if (text) types.push("string");
+  return types;
+}
+
+// Mirrors ClipboardItem.searchableText for a screenshot. Without OCR only the title
+// and source label are searchable; with it, the screenshot's own words are too.
 function searchableText(p) {
-  return [p.previewTitle, p.previewSubtitle, p.sourceAppName, "图片"].join("\n");
+  const parts = [p.previewTitle, p.previewSubtitle];
+  if (p.plainText) parts.push(p.plainText);
+  parts.push(p.sourceAppName, "图片");
+  return parts.join("\n");
 }
 
 let failed = 0;
@@ -130,6 +154,26 @@ const text = searchableText(shot);
 assertTrue(text.includes("截图"), "searchable by 截图");
 assertTrue(text.includes("图片"), "searchable by 图片");
 assertTrue(text.includes("1920"), "searchable by pixel size");
+
+// With OCR the capture carries its own words, which is what makes a screenshot
+// findable by what it says rather than only by when it was taken.
+const ocr = payload("region", {
+  width: 889,
+  height: 383,
+  bytes: 52_480,
+  text: "安静、好用的 Mac 工具。\n岸上工作室"
+});
+assertEqual(ocr.plainText, "安静、好用的 Mac 工具。\n岸上工作室", "recognized text lands in plainText");
+assertEqual(ocr.previewSubtitle, "区域截图 · 识别 17 字", "subtitle reports the recognized length");
+assertEqual(ocr.contentType, "image", "an OCR capture is still an image item");
+assertTrue(searchableText(ocr).includes("好用的"), "searchable by words inside the screenshot");
+
+assertEqual(hudDetail(null, false), "图片已复制", "recognition off just confirms the copy");
+assertEqual(hudDetail(null, true), "图片已复制 · 未识别到文字", "an empty result is reported");
+assertEqual(hudDetail("安静好用", true), "已识别 4 字，文字已复制", "a result reports its length");
+
+assertEqual(pasteboardTypes("文字"), ["tiff", "png", "string"], "a capture with text offers both");
+assertEqual(pasteboardTypes(null), ["tiff", "png"], "a capture without text offers only the image");
 
 if (failed > 0) {
   console.error(`\n${failed} test(s) failed`);

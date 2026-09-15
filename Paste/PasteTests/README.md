@@ -7,6 +7,7 @@ node Paste/PasteTests/content_type_detector.test.mjs
 node Paste/PasteTests/hybrid_search.test.mjs
 node Paste/PasteTests/hotkey_shortcut.test.mjs
 node Paste/PasteTests/screenshot_service.test.mjs
+node Paste/PasteTests/text_recognizer.test.mjs
 ```
 
 | Test | Mirrors |
@@ -14,4 +15,5 @@ node Paste/PasteTests/screenshot_service.test.mjs
 | `content_type_detector.test.mjs` | `ContentTypeDetector` classification and preview titles |
 | `hybrid_search.test.mjs` | `KeywordScorer` tokenizing/scoring and `HybridSearch.fuse` ranking |
 | `hotkey_shortcut.test.mjs` | `HotKeyShortcut` validation/display and `GlobalHotKeyManager.apply` fallback |
-| `screenshot_service.test.mjs` | `ScreenshotMode` screencapture flags and `ScreenshotService` outcome/payload rules |
+| `screenshot_service.test.mjs` | `ScreenshotMode` screencapture flags and `ScreenshotService` outcome/payload/pasteboard rules |
+| `text_recognizer.test.mjs` | `TextRecognizer` reading-order assembly, CJK joining and character counting |
