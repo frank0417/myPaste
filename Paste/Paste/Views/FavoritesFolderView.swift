@@ -43,11 +43,12 @@ struct FavoritesFolderView: View {
                 gridContent
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var shelfContent: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(alignment: .bottom, spacing: 14) {
+            LazyHStack(alignment: .center, spacing: 14) {
                 ForEach(Array(sorted.enumerated()), id: \.element.id) { index, item in
                     card(item, index: index + 1)
                 }
@@ -55,7 +56,9 @@ struct FavoritesFolderView: View {
             .padding(.horizontal, 18)
             .padding(.bottom, 18)
             .padding(.top, 4)
+            .frame(maxHeight: .infinity)
         }
+        .frame(maxHeight: .infinity)
     }
 
     private var gridContent: some View {

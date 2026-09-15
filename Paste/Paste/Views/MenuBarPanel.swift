@@ -77,6 +77,14 @@ struct MenuBarPanel: View {
                     }
                     panelCard
                 }
+                // Pin the content to the window's top and let the card take every
+                // remaining point: a centered, shorter VStack leaves transparent bands
+                // that read as detached capsules and broken corners.
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                // Room for the card's shadow; an edge-to-edge card gets its shadow
+                // clipped hard by the window bounds, which reads as dirty corners.
+                .padding(.horizontal, 8)
+                .padding(.bottom, 10)
                 .animation(.easeOut(duration: 0.18), value: showSearch)
             }
 
@@ -220,6 +228,9 @@ struct MenuBarPanel: View {
                 )
             }
         }
+        // Fill the window so the rounded background *is* the panel: no dead band
+        // below the shelf and no capsule floating outside the card.
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .fill(PasteTheme.panelFill.opacity(0.92))
@@ -440,8 +451,9 @@ struct MenuBarPanel: View {
         .padding(.horizontal, 18)
         // Keeps the pill's shadow off the window edge.
         .padding(.top, 6)
-        // Slides up out of the nav bar it belongs to.
-        .transition(.move(edge: .bottom).combined(with: .opacity))
+        // Fade only: a move transition can rest at its offset when the hosting view
+        // is replaced mid-animation, which misplaced the pill.
+        .transition(.opacity)
         .onAppear {
             // The panel rebuilds its hosting view on show / detail toggle; adopt the
             // live query so the field never disagrees with the filtered results.
@@ -547,8 +559,9 @@ struct MenuBarPanel: View {
 
     private var shelf: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            // Lazy: the panel opens with only the visible cards built.
-            LazyHStack(alignment: .bottom, spacing: 14) {
+            // Lazy: the panel opens with only the visible cards built. The stack fills
+            // the viewport height so the cards sit centered instead of hugging the top.
+            LazyHStack(alignment: .center, spacing: 14) {
                 if shouldShowLaunchCard {
                     onboardingCard(
                         icon: "power",
@@ -600,6 +613,7 @@ struct MenuBarPanel: View {
             .padding(.horizontal, 18)
             .padding(.bottom, 18)
             .padding(.top, 4)
+            .frame(maxHeight: .infinity)
         }
     }
 
