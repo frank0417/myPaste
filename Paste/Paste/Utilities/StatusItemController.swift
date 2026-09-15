@@ -49,6 +49,11 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         }
     }
 
+    /// Keeps the status-item tooltip in sync after the user changes the shortcut.
+    func refreshHotkeyHint(_ display: String) {
+        statusItem?.button?.toolTip = "ClipStack — 常驻后台（\(display) 唤出）"
+    }
+
     @objc private func statusItemClicked(_ sender: Any?) {
         guard let event = NSApp.currentEvent else {
             togglePanel()

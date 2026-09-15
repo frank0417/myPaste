@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Combine
 import Carbon.HIToolbox
 
 /// A button that captures the next key press as the global panel shortcut.
@@ -11,42 +12,65 @@ struct HotKeyRecorderView: View {
     @State private var monitor: Any?
 
     var body: some View {
-        Button {
-            startRecording()
-        } label: {
-            Text(isRecording ? "按下新快捷键…" : shortcut.display)
-                .font(.system(size: 12, weight: .semibold).monospaced())
-                .frame(minWidth: 72)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(isRecording ? PasteTheme.accent.opacity(0.18) : Color.primary.opacity(0.07))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .strokeBorder(isRecording ? PasteTheme.accent : Color.primary.opacity(0.15), lineWidth: 1)
-                )
+        HStack(spacing: 8) {
+            Button {
+                if isRecording {
+                    stopRecording()
+                } else {
+                    startRecording()
+                }
+            } label: {
+                Text(isRecording ? "按下新快捷键…" : shortcut.display)
+                    .font(.system(size: 12, weight: .semibold).monospaced())
+                    .frame(minWidth: 84)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(isRecording ? PasteTheme.accent.opacity(0.18) : Color.primary.opacity(0.07))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .strokeBorder(isRecording ? PasteTheme.accent : Color.primary.opacity(0.15), lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+
+            if shortcut != .default {
+                Button("恢复默认") {
+                    stopRecording()
+                    onChange(.default)
+                }
+                .font(.caption)
+                .buttonStyle(.link)
+            }
         }
-        .buttonStyle(.plain)
         .onDisappear { stopRecording() }
+        // Switching apps mid-recording would leave the hotkey suspended.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
+            stopRecording()
+        }
     }
 
     private func startRecording() {
         guard !isRecording else { return }
         isRecording = true
-        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+        // Otherwise the live hotkey intercepts the very combo the user is replacing.
+        GlobalHotKeyManager.shared.suspend()
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { event in
+            guard !event.isARepeat else { return nil }
             // Esc cancels without changing the shortcut.
             if event.keyCode == UInt16(kVK_Escape) {
                 stopRecording()
                 return nil
             }
             let carbon = Self.carbonModifiers(from: event.modifierFlags)
-            guard carbon != 0 else { return nil } // require at least one modifier
-            let new = HotKeyShortcut(keyCode: UInt32(event.keyCode), carbonModifiers: carbon)
-            shortcut = new
-            onChange(new)
+            let candidate = HotKeyShortcut(keyCode: UInt32(event.keyCode), carbonModifiers: carbon)
+            // Keep listening while only modifiers are down so the user can finish the combo.
+            guard candidate.isComplete else { return nil }
             stopRecording()
+            // Reserved or already-taken combos are reported by the caller.
+            onChange(candidate)
             return nil
         }
     }
@@ -57,6 +81,7 @@ struct HotKeyRecorderView: View {
             NSEvent.removeMonitor(monitor)
             self.monitor = nil
         }
+        GlobalHotKeyManager.shared.resume()
     }
 
     static func carbonModifiers(from flags: NSEvent.ModifierFlags) -> UInt32 {

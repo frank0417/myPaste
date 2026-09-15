@@ -15,6 +15,8 @@ final class AppState: ObservableObject {
     @Published var requestClearHistory: Bool = false
     @Published var requestPinSelected: Bool = false
     @Published var hotkey: HotKeyShortcut = .default
+    /// Result of the last hotkey change, shown in Settings.
+    @Published var hotkeyFeedback: HotKeyFeedback?
     @Published var requestExportJSON: Bool = false
     /// When set, the shelf panel shows a full-content detail overlay for this item.
     @Published var shelfDetailItemID: UUID?
@@ -102,15 +104,65 @@ final class AppState: ObservableObject {
         hotkey.save()
     }
 
-    func updateHotkey(_ shortcut: HotKeyShortcut) {
-        hotkey = shortcut
-        shortcut.save()
-        NotificationCenter.default.post(name: .hotKeyPreferenceChanged, object: nil)
+    /// Only persists the shortcut once it is actually registered with the system.
+    @discardableResult
+    func updateHotkey(_ shortcut: HotKeyShortcut) -> Bool {
+        if shortcut == hotkey, GlobalHotKeyManager.shared.current == shortcut {
+            hotkeyFeedback = .applied(shortcut.display)
+            return true
+        }
+        switch GlobalHotKeyManager.shared.apply(shortcut) {
+        case .applied:
+            hotkey = shortcut
+            shortcut.save()
+            hotkeyFeedback = .applied(shortcut.display)
+            StatusItemController.shared.refreshHotkeyHint(shortcut.display)
+            return true
+        case .rejected(let reason):
+            hotkeyFeedback = .rejected(reason)
+            return false
+        }
+    }
+
+    /// Registers the stored shortcut at launch, falling back to the default if it is taken.
+    func registerStoredHotkey() {
+        let stored = HotKeyShortcut.load()
+        if GlobalHotKeyManager.shared.current == stored {
+            hotkey = stored
+            return
+        }
+        if case .applied = GlobalHotKeyManager.shared.apply(stored) {
+            hotkey = stored
+            return
+        }
+        if case .applied = GlobalHotKeyManager.shared.apply(.default) {
+            hotkey = .default
+            HotKeyShortcut.default.save()
+            if stored != .default {
+                hotkeyFeedback = .rejected("原快捷键 \(stored.display) 已被占用，已恢复为 \(HotKeyShortcut.default.display)")
+            }
+        }
+    }
+}
+
+enum HotKeyFeedback: Equatable {
+    case applied(String)
+    case rejected(String)
+
+    var message: String {
+        switch self {
+        case .applied(let display): return "已生效：\(display)"
+        case .rejected(let reason): return reason
+        }
+    }
+
+    var isError: Bool {
+        if case .rejected = self { return true }
+        return false
     }
 }
 
 
 extension Notification.Name {
     static let pasteMonitoringPreferenceChanged = Notification.Name("pasteMonitoringPreferenceChanged")
-    static let hotKeyPreferenceChanged = Notification.Name("hotKeyPreferenceChanged")
 }

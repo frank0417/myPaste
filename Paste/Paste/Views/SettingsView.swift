@@ -44,9 +44,14 @@ struct SettingsView: View {
                     appState.updateHotkey(newShortcut)
                 }
             }
-            Text("点击右侧按钮后按下新的组合键（需包含 ⌘/⇧/⌥/⌃ 至少一个），按 Esc 取消。")
+            Text("点击按钮后按下新的组合键（需包含 ⌘ / ⌃ / ⌥ 中至少一个），按 Esc 取消。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            if let feedback = appState.hotkeyFeedback {
+                Label(feedback.message, systemImage: feedback.isError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(feedback.isError ? Color.orange : Color.secondary)
+            }
             Text("ClipStack 常驻菜单栏后台：关掉底部面板不会退出。入口是右上角层叠图标，或按 \(appState.hotkeyDisplay)。右键图标可选退出。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -120,13 +125,17 @@ struct SettingsView: View {
                 .font(.title.weight(.bold))
             Text("保存、搜索、同步你复制的一切")
                 .foregroundStyle(.secondary)
-            Text("版本 1.1.0")
+            Text("版本 \(Self.appVersion)")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
             Spacer()
         }
         .padding(28)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private static var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
     }
 
     private func updateLaunchAtLogin(_ enabled: Bool) {

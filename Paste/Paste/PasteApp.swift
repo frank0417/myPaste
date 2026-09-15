@@ -42,7 +42,6 @@ struct PasteApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var clipboardStore: ClipboardStore?
     private var monitoringObserver: NSObjectProtocol?
-    private var hotKeyObserver: NSObjectProtocol?
     private var didInstallStatusItem = false
     private weak var appState: AppState?
 
@@ -85,18 +84,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         GlobalHotKeyManager.shared.onHotKey = {
             StatusItemController.shared.togglePanel()
         }
-        let shortcut = HotKeyShortcut.load()
-        GlobalHotKeyManager.shared.register(shortcut)
-        hotKeyObserver = NotificationCenter.default.addObserver(
-            forName: .hotKeyPreferenceChanged,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                if let shortcut = self?.appState?.hotkey {
-                    GlobalHotKeyManager.shared.register(shortcut)
-                }
-            }
+        // Bind right away so the hotkey works even before the scene hands us AppState,
+        // then sync AppState (which reports a fallback if the combo was taken).
+        GlobalHotKeyManager.shared.apply(HotKeyShortcut.load())
+        Task { @MainActor [weak self] in
+            self?.appState?.registerStoredHotkey()
         }
     }
 
