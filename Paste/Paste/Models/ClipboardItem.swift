@@ -69,6 +69,11 @@ final class ClipboardItem {
     var sourceAppName: String?
     var isPinned: Bool
     var isFavorite: Bool
+    /// When the item was filed into the favorites folder, so the folder can sort by
+    /// when things were kept rather than when they were copied.
+    var favoritedAt: Date?
+    /// User-assigned categories, only meaningful for favorites.
+    var favoriteTagsJSON: String?
     var pasteCount: Int
     var contentHash: String
     var previewTitle: String
@@ -125,6 +130,8 @@ final class ClipboardItem {
         self.sourceAppName = sourceAppName
         self.isPinned = false
         self.isFavorite = false
+        self.favoritedAt = nil
+        self.favoriteTagsJSON = nil
         self.pasteCount = 0
         self.contentHash = contentHash
         self.previewTitle = previewTitle

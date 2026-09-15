@@ -11,6 +11,10 @@ final class ClipboardStore: ObservableObject {
     /// Only one store should own the monitor callback. UI panels must pass false or they
     /// overwrite the launch-time handler and then deallocate when the menu closes — breaking capture.
     private let ownsMonitor: Bool
+    /// Sweeping on every copy would refetch the whole history; once in a while is enough
+    /// for a policy measured in days.
+    private static let retentionSweepInterval: TimeInterval = 15 * 60
+    private var lastRetentionSweep: Date?
 
     init(modelContext: ModelContext, appState: AppState, ownsMonitor: Bool = false) {
         self.modelContext = modelContext
@@ -70,6 +74,7 @@ final class ClipboardStore: ObservableObject {
         AutoTagService.apply(to: item)
         try? modelContext.save()
         EmbeddingIndex.shared.upsert(id: item.id, text: item.searchableText)
+        enforceRetentionIfNeeded()
         enforceHistoryLimit()
     }
 
@@ -111,7 +116,52 @@ final class ClipboardStore: ObservableObject {
     }
 
     func toggleFavorite(_ item: ClipboardItem) {
-        item.isFavorite.toggle()
+        setFavorite(!item.isFavorite, for: item)
+    }
+
+    func setFavorite(_ favorite: Bool, for item: ClipboardItem) {
+        guard item.isFavorite != favorite else { return }
+        item.isFavorite = favorite
+        if favorite {
+            item.favoritedAt = .now
+        } else {
+            item.favoritedAt = nil
+            // Taking something out of the folder restarts its retention window — it must
+            // not disappear on the next sweep just because it was copied days ago.
+            item.updatedAt = .now
+        }
+        try? modelContext.save()
+    }
+
+    /// Tagging files the item into the folder as well: a category on something the user
+    /// never kept would vanish with the item.
+    func addFavoriteTag(_ raw: String, to item: ClipboardItem) {
+        guard let tag = FavoriteTagCatalog.normalize(raw) else { return }
+        setFavorite(true, for: item)
+        item.favoriteTags = FavoriteTagCatalog.adding(tag, to: item.favoriteTags)
+        try? modelContext.save()
+    }
+
+    func removeFavoriteTag(_ tag: String, from item: ClipboardItem) {
+        item.favoriteTags = FavoriteTagCatalog.removing(tag, from: item.favoriteTags)
+        try? modelContext.save()
+    }
+
+    func toggleFavoriteTag(_ tag: String, for item: ClipboardItem) {
+        if FavoriteTagCatalog.contains(tag, in: item.favoriteTags) {
+            removeFavoriteTag(tag, from: item)
+        } else {
+            addFavoriteTag(tag, to: item)
+        }
+    }
+
+    /// Drops a category everywhere; the favorites themselves stay in the folder.
+    func deleteFavoriteTag(_ tag: String) {
+        let descriptor = FetchDescriptor<ClipboardItem>(predicate: #Predicate { $0.isFavorite })
+        guard let favorites = try? modelContext.fetch(descriptor) else { return }
+        for item in favorites where FavoriteTagCatalog.contains(tag, in: item.favoriteTags) {
+            item.favoriteTags = FavoriteTagCatalog.removing(tag, from: item.favoriteTags)
+        }
         try? modelContext.save()
     }
 
@@ -148,6 +198,7 @@ final class ClipboardStore: ObservableObject {
                 "contentType": item.contentTypeRaw,
                 "previewTitle": item.previewTitle,
                 "isPinned": item.isPinned,
+                "isFavorite": item.isFavorite,
                 "createdAt": ISO8601DateFormatter().string(from: item.createdAt),
                 "updatedAt": ISO8601DateFormatter().string(from: item.updatedAt),
                 "pasteCount": item.pasteCount
@@ -157,6 +208,10 @@ final class ClipboardStore: ObservableObject {
             if let hex = item.colorHex { row["colorHex"] = hex }
             if let app = item.sourceAppName { row["sourceAppName"] = app }
             if let board = item.board?.name { row["board"] = board }
+            if let favoritedAt = item.favoritedAt {
+                row["favoritedAt"] = ISO8601DateFormatter().string(from: favoritedAt)
+            }
+            if !item.favoriteTags.isEmpty { row["favoriteTags"] = item.favoriteTags }
             if !item.autoTags.isEmpty { row["autoTags"] = item.autoTags }
             if let thumb = item.thumbnailData ?? item.imageData {
                 row["thumbnailBase64"] = thumb.base64EncodedString()
@@ -194,10 +249,40 @@ final class ClipboardStore: ObservableObject {
         }
     }
 
+    /// Favorites (and pinned items) are the long-term library; everything else only
+    /// lives for the configured number of days.
+    @discardableResult
+    func enforceRetention() -> Int {
+        lastRetentionSweep = .now
+        let days = RetentionPolicy.clampDays(appState?.keepUnfavoritedDays ?? RetentionPolicy.defaultDays)
+        let cutoff = RetentionPolicy.cutoff(days: days, now: .now)
+        let descriptor = FetchDescriptor<ClipboardItem>(
+            predicate: #Predicate { !$0.isFavorite && !$0.isPinned && $0.updatedAt < cutoff }
+        )
+        guard let stale = try? modelContext.fetch(descriptor), !stale.isEmpty else { return 0 }
+        let removed = stale.map(\.id)
+        for item in stale {
+            modelContext.delete(item)
+        }
+        try? modelContext.save()
+        EmbeddingIndex.shared.remove(ids: removed)
+        return removed.count
+    }
+
+    private func enforceRetentionIfNeeded() {
+        if let lastRetentionSweep,
+           Date.now.timeIntervalSince(lastRetentionSweep) < Self.retentionSweepInterval {
+            return
+        }
+        enforceRetention()
+    }
+
     private func enforceHistoryLimit() {
         let limit = appState?.maxHistoryCount ?? 500
         let descriptor = FetchDescriptor<ClipboardItem>(
-            predicate: #Predicate { !$0.isPinned },
+            // Favorites are kept on purpose, so they must not count against the cap
+            // or be trimmed by it.
+            predicate: #Predicate { !$0.isPinned && !$0.isFavorite },
             sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
         )
         guard let items = try? modelContext.fetch(descriptor), items.count > limit else { return }

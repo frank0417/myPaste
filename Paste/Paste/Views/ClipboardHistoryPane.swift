@@ -12,21 +12,32 @@ struct ClipboardHistoryPane: View {
 
     private var pinned: [ClipboardItem] { filtered.filter(\.isPinned) }
     private var recent: [ClipboardItem] { filtered.filter { !$0.isPinned } }
+    private var favorites: [ClipboardItem] { items.filter(\.isFavorite) }
 
     var body: some View {
         VStack(spacing: 0) {
             historyModeBar
-            AutoTagFilterBar(items: items)
-            FilterChipBar()
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
-
-            if filtered.isEmpty {
-                EmptyHistoryView(hasSearch: !appState.searchQuery.isEmpty)
-            } else if appState.mainHistoryMode == .timeline {
-                TimelineOutlineView(items: filtered, store: store)
+            if appState.mainHistoryMode == .favorites {
+                // The folder brings its own category chips and empty state.
+                FavoritesFolderView(
+                    items: filtered,
+                    favorites: favorites,
+                    layout: .grid,
+                    store: store
+                )
             } else {
-                listContent
+                AutoTagFilterBar(items: items)
+                FilterChipBar()
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+
+                if filtered.isEmpty {
+                    EmptyHistoryView(hasSearch: !appState.searchQuery.isEmpty)
+                } else if appState.mainHistoryMode == .timeline {
+                    TimelineOutlineView(items: filtered, store: store)
+                } else {
+                    listContent
+                }
             }
         }
     }
@@ -35,6 +46,7 @@ struct ClipboardHistoryPane: View {
         HStack(spacing: 8) {
             modeButton(title: "列表", systemImage: "list.bullet", mode: .list)
             modeButton(title: "时间线", systemImage: "calendar.day.timeline.leading", mode: .timeline)
+            modeButton(title: "收藏夹", systemImage: "star.fill", mode: .favorites)
             Spacer()
             Text("\(filtered.count) 条")
                 .font(.caption)
@@ -49,6 +61,11 @@ struct ClipboardHistoryPane: View {
         Button {
             withAnimation(.easeOut(duration: 0.18)) {
                 appState.mainHistoryMode = mode
+                if mode == .favorites {
+                    appState.showFavorites(scope: .all)
+                } else {
+                    appState.leaveFavorites()
+                }
             }
         } label: {
             Label(title, systemImage: systemImage)
@@ -94,7 +111,9 @@ struct ClipboardHistoryPane: View {
             onSelect: { appState.selectedItemID = item.id },
             onPaste: { store?.paste(item) },
             onPin: { store?.togglePin(item) },
-            onDelete: { store?.delete(item) }
+            onDelete: { store?.delete(item) },
+            onToggleFavorite: { store?.toggleFavorite(item) },
+            retentionDays: appState.keepUnfavoritedDays
         )
     }
 
@@ -119,6 +138,11 @@ struct FilterChipBar: View {
                         withAnimation(.easeInOut(duration: 0.18)) {
                             appState.selectedFilter = filter
                             appState.showOnlyPinned = filter == .pinned
+                            if filter == .favorite {
+                                appState.favoriteScope = .all
+                            } else {
+                                appState.leaveFavorites()
+                            }
                             if filter != .all {
                                 appState.selectedAutoTag = nil
                             }

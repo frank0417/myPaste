@@ -150,7 +150,8 @@ extension ClipboardItem {
             subtitle: previewSubtitle,
             body: plainText.map { String($0.prefix(2000)) },
             source: sourceAppName,
-            tag: primaryAutoTag?.displayName
+            // Favorite categories are searchable too, so typing 工作 finds the folder.
+            tag: ([primaryAutoTag?.displayName].compactMap { $0 } + favoriteTags).joined(separator: " ")
         )
     }
 

@@ -15,7 +15,11 @@ struct MenuBarPanel: View {
     @State private var acknowledgedBackgroundTip = UserDefaults.standard.bool(forKey: "acknowledgedBackgroundTip")
 
     private var filtered: [ClipboardItem] {
-        Array(ClipboardItemFilter.filter(items, appState: appState).prefix(appState.panelViewMode == .shelf ? 40 : 200))
+        Array(ClipboardItemFilter.filter(items, appState: appState).prefix(appState.panelViewMode == .timeline ? 200 : 40))
+    }
+
+    private var favorites: [ClipboardItem] {
+        items.filter(\.isFavorite)
     }
 
     private var showSearch: Bool { appState.isPanelSearchVisible }
@@ -37,10 +41,12 @@ struct MenuBarPanel: View {
             if let detailItem = detailItem {
                 ClipboardItemDetailOverlay(
                     item: detailItem,
+                    retentionDays: appState.keepUnfavoritedDays,
                     onClose: { appState.shelfDetailItemID = nil },
                     onCopy: { copyOnlyItem(detailItem) },
                     onCopyText: { store?.copyText(detailItem) },
-                    onPaste: { paste(detailItem) }
+                    onPaste: { paste(detailItem) },
+                    onToggleFavorite: { store?.toggleFavorite(detailItem) }
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
@@ -118,6 +124,18 @@ struct MenuBarPanel: View {
             topBar
             if appState.panelViewMode == .shelf {
                 shelf
+            } else if appState.panelViewMode == .favorites {
+                FavoritesFolderView(
+                    items: filtered,
+                    favorites: favorites,
+                    layout: .shelf,
+                    store: store,
+                    onOpenDetail: { item in
+                        appState.selectedItemID = item.id
+                        appState.shelfDetailItemID = item.id
+                    },
+                    onPaste: { paste($0) }
+                )
             } else {
                 AutoTagFilterBar(items: items, compact: true)
                 TimelineOutlineView(
@@ -183,6 +201,18 @@ struct MenuBarPanel: View {
                 appState.selectedAutoTag = nil
                 appState.selectedFilter = .all
                 appState.showOnlyPinned = false
+                appState.leaveFavorites()
+            }
+
+            boardTab(
+                title: "收藏夹",
+                systemImage: "star.fill",
+                selected: appState.panelViewMode == .favorites,
+                dot: Color(hex: "#F59E0B") ?? .orange,
+                badge: favorites.isEmpty ? nil : favorites.count
+            ) {
+                appState.panelViewMode = .favorites
+                appState.showFavorites(scope: .all)
             }
 
             boardTab(
@@ -192,6 +222,7 @@ struct MenuBarPanel: View {
                 dot: Color(hex: "#EF4444") ?? .red
             ) {
                 appState.panelViewMode = .timeline
+                appState.leaveFavorites()
             }
 
             // Auto-tag boards styled like Paste collections
@@ -206,6 +237,7 @@ struct MenuBarPanel: View {
                     appState.panelViewMode = .shelf
                     appState.selectedFilter = .all
                     appState.showOnlyPinned = false
+                    appState.leaveFavorites()
                     appState.selectedAutoTag = tag.rawValue
                 }
             }
@@ -475,7 +507,11 @@ struct MenuBarPanel: View {
                             onPaste: { paste(item) },
                             onCopyText: { store?.copyText(item) },
                             onPin: { store?.togglePin(item) },
-                            onDelete: { store?.delete(item) }
+                            onDelete: { store?.delete(item) },
+                            onToggleFavorite: { store?.toggleFavorite(item) },
+                            availableTags: favorites.favoriteTagNames,
+                            onToggleTag: { tag in store?.toggleFavoriteTag(tag, for: item) },
+                            retentionDays: appState.keepUnfavoritedDays
                         )
                     }
                 }
@@ -592,10 +628,12 @@ struct MenuBarPanel: View {
 
 struct ClipboardItemDetailOverlay: View {
     let item: ClipboardItem
+    var retentionDays: Int = RetentionPolicy.defaultDays
     let onClose: () -> Void
     let onCopy: () -> Void
     let onCopyText: () -> Void
     let onPaste: () -> Void
+    var onToggleFavorite: (() -> Void)?
 
     /// Text recognized inside a screenshot, shown under the picture.
     private var recognizedText: String? {
@@ -648,14 +686,37 @@ struct ClipboardItemDetailOverlay: View {
                 Text(item.previewTitle)
                     .font(.headline)
                     .lineLimit(1)
-                if let source = item.sourceAppName {
-                    Text(source)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    if let source = item.sourceAppName {
+                        Text(source)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(item.favoriteTags, id: \.self) { tag in
+                        Text(tag)
+                            .font(.caption2.weight(.semibold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                (Color(hex: FavoriteTagCatalog.accentHex(for: tag)) ?? PasteTheme.accent).opacity(0.16),
+                                in: Capsule()
+                            )
+                            .foregroundStyle(Color(hex: FavoriteTagCatalog.accentHex(for: tag)) ?? PasteTheme.accent)
+                    }
                 }
             }
 
             Spacer()
+
+            if let onToggleFavorite {
+                Button(action: onToggleFavorite) {
+                    Image(systemName: item.isFavorite ? "star.fill" : "star")
+                        .font(.title3)
+                        .foregroundStyle(item.isFavorite ? Color(hex: "#F59E0B") ?? .yellow : .secondary)
+                }
+                .buttonStyle(.plain)
+                .help(item.isFavorite ? "从收藏夹移除" : "收藏，长期保存")
+            }
 
             Button(action: onClose) {
                 Image(systemName: "xmark.circle.fill")
@@ -779,9 +840,17 @@ struct ClipboardItemDetailOverlay: View {
 
     private var detailFooter: some View {
         HStack(spacing: 10) {
-            Text(item.updatedAt.formatted(date: .abbreviated, time: .shortened))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.updatedAt.formatted(date: .abbreviated, time: .shortened))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Label(
+                    item.retentionStatus(days: retentionDays),
+                    systemImage: item.isRetentionProtected ? "star.fill" : "clock"
+                )
+                .font(.caption2)
+                .foregroundStyle(item.isRetentionProtected ? Color(hex: "#F59E0B") ?? .orange : Color.secondary)
+            }
             Spacer()
             if recognizedText != nil {
                 Button(action: onCopyText) {
@@ -814,12 +883,25 @@ struct ClipboardShelfCard: View {
     let onCopyText: () -> Void
     let onPin: () -> Void
     let onDelete: () -> Void
+    var onToggleFavorite: (() -> Void)?
+    /// Categories already in use across the folder, offered by the 分类 menu.
+    var availableTags: [String] = []
+    var onToggleTag: ((String) -> Void)?
+    var retentionDays: Int = RetentionPolicy.defaultDays
 
     @State private var isHovered = false
 
     /// Only screenshots carry text on an image item.
     private var hasRecognizedText: Bool {
         item.contentType == .image && !(item.plainText ?? "").isEmpty
+    }
+
+    private var tagMenuOptions: [String] {
+        let known = availableTags + item.favoriteTags
+        return FavoriteTagCatalog.sanitizedMenuOptions(
+            known: known,
+            suggestions: FavoriteTagCatalog.unusedSuggestions(existing: known)
+        )
     }
 
     private let cardWidth: CGFloat = 176
@@ -875,6 +957,25 @@ struct ClipboardShelfCard: View {
             if hasRecognizedText {
                 Button("复制识别的文字", action: onCopyText)
             }
+            if let onToggleFavorite {
+                Button(item.isFavorite ? "从收藏夹移除" : "收藏（长期保存）", action: onToggleFavorite)
+            }
+            if let onToggleTag {
+                Menu("分类") {
+                    ForEach(tagMenuOptions, id: \.self) { tag in
+                        Button {
+                            onToggleTag(tag)
+                        } label: {
+                            Label(
+                                tag,
+                                systemImage: FavoriteTagCatalog.contains(tag, in: item.favoriteTags)
+                                ? "checkmark.circle.fill"
+                                : "circle"
+                            )
+                        }
+                    }
+                }
+            }
             Button(item.isPinned ? "取消置顶" : "置顶", action: onPin)
             Divider()
             Button("删除", role: .destructive, action: onDelete)
@@ -893,6 +994,15 @@ struct ClipboardShelfCard: View {
                     .opacity(0.85)
             }
             Spacer(minLength: 4)
+            if let onToggleFavorite, isHovered || isSelected || item.isFavorite {
+                Button(action: onToggleFavorite) {
+                    Image(systemName: item.isFavorite ? "star.fill" : "star")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(item.isFavorite ? Color(hex: "#F59E0B") ?? .yellow : .white.opacity(0.85))
+                }
+                .buttonStyle(.plain)
+                .help(item.isFavorite ? "从收藏夹移除" : "收藏，长期保存")
+            }
             sourceAppIcon
                 .frame(width: 22, height: 22)
                 .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
@@ -919,9 +1029,37 @@ struct ClipboardShelfCard: View {
                     .background(.ultraThinMaterial, in: Capsule())
                     .padding(6)
             }
+            if !item.favoriteTags.isEmpty {
+                tagOverlay
+            }
         }
         .frame(height: previewHeight)
         .clipped()
+    }
+
+    /// The categories this favorite carries, so the folder reads at a glance.
+    private var tagOverlay: some View {
+        HStack(spacing: 4) {
+            ForEach(item.favoriteTags.prefix(2), id: \.self) { tag in
+                Text(tag)
+                    .font(.caption2.weight(.semibold))
+                    .lineLimit(1)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        (Color(hex: FavoriteTagCatalog.accentHex(for: tag)) ?? PasteTheme.accent).opacity(0.16),
+                        in: Capsule()
+                    )
+                    .foregroundStyle(Color(hex: FavoriteTagCatalog.accentHex(for: tag)) ?? PasteTheme.accent)
+            }
+            if item.favoriteTags.count > 2 {
+                Text("+\(item.favoriteTags.count - 2)")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
     }
 
     private var cardFooter: some View {
@@ -931,6 +1069,12 @@ struct ClipboardShelfCard: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             Spacer(minLength: 4)
+            if item.isExpiringSoon(days: retentionDays) {
+                Image(systemName: "clock.badge.exclamationmark")
+                    .font(.caption2)
+                    .foregroundStyle(Color(hex: "#EE6C4D") ?? .orange)
+                    .help("未收藏，不到 1 天后自动清理")
+            }
             if item.isPinned {
                 Image(systemName: "pin.fill")
                     .font(.caption2)

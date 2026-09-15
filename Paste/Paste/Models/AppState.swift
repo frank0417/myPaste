@@ -10,10 +10,16 @@ final class AppState: ObservableObject {
     @Published var isMonitoringEnabled: Bool = true
     @Published var launchAtLogin: Bool = false
     @Published var maxHistoryCount: Int = 500
+    /// How long a record that nobody favorited survives. Favorites are kept forever.
+    @Published var keepUnfavoritedDays: Int = RetentionPolicy.defaultDays
     @Published var syncEnabled: Bool = true
     /// Run on-device OCR on every capture and copy the text along with the image.
     @Published var screenshotTextRecognition: Bool = true
     @Published var showOnlyPinned: Bool = false
+    /// Set by the favorites folder surfaces; cleared when they switch away.
+    @Published var showOnlyFavorites: Bool = false
+    /// Which category chip is active inside the favorites folder.
+    @Published var favoriteScope: FavoriteScope = .all
     @Published var requestClearHistory: Bool = false
     @Published var requestPinSelected: Bool = false
     /// Reveals the bottom shelf panel.
@@ -40,11 +46,39 @@ final class AppState: ObservableObject {
     enum PanelViewMode: String {
         case shelf
         case timeline
+        case favorites
     }
 
     enum MainHistoryMode: String {
         case list
         case timeline
+        case favorites
+    }
+
+    /// True on every surface that shows the favorites folder instead of the history.
+    var favoritesOnly: Bool {
+        selectedFilter == .favorite || showOnlyFavorites
+    }
+
+    /// Enters the folder, or moves to another category inside it.
+    func showFavorites(scope: FavoriteScope = .all) {
+        showOnlyFavorites = true
+        favoriteScope = scope
+        selectedAutoTag = nil
+        showOnlyPinned = false
+        if selectedFilter != .favorite {
+            selectedFilter = .all
+        }
+    }
+
+    /// Leaves the folder. Every history surface calls this so the favorites-only
+    /// filter can never linger on a view that has no category chips.
+    func leaveFavorites() {
+        showOnlyFavorites = false
+        favoriteScope = .all
+        if selectedFilter == .favorite {
+            selectedFilter = .all
+        }
     }
 
     enum ContentFilter: String, CaseIterable, Identifiable {
@@ -58,6 +92,7 @@ final class AppState: ObservableObject {
         case color
         case snippet
         case pinned
+        case favorite
 
         var id: String { rawValue }
 
@@ -73,6 +108,7 @@ final class AppState: ObservableObject {
             case .color: return "颜色"
             case .snippet: return "长文本"
             case .pinned: return "置顶"
+            case .favorite: return "收藏夹"
             }
         }
 
@@ -88,6 +124,7 @@ final class AppState: ObservableObject {
             case .color: return "paintpalette"
             case .snippet: return "text.quote"
             case .pinned: return "pin.fill"
+            case .favorite: return "star.fill"
             }
         }
     }
@@ -113,6 +150,9 @@ final class AppState: ObservableObject {
         isMonitoringEnabled = defaults.object(forKey: "isMonitoringEnabled") as? Bool ?? true
         launchAtLogin = defaults.bool(forKey: "launchAtLogin")
         maxHistoryCount = defaults.object(forKey: "maxHistoryCount") as? Int ?? 500
+        keepUnfavoritedDays = RetentionPolicy.clampDays(
+            defaults.object(forKey: "keepUnfavoritedDays") as? Int ?? RetentionPolicy.defaultDays
+        )
         syncEnabled = defaults.object(forKey: "syncEnabled") as? Bool ?? true
         screenshotTextRecognition = defaults.object(forKey: "screenshotTextRecognition") as? Bool ?? true
         hotkey = HotKeyShortcut.load(.panel)
@@ -125,6 +165,7 @@ final class AppState: ObservableObject {
         defaults.set(isMonitoringEnabled, forKey: "isMonitoringEnabled")
         defaults.set(launchAtLogin, forKey: "launchAtLogin")
         defaults.set(maxHistoryCount, forKey: "maxHistoryCount")
+        defaults.set(keepUnfavoritedDays, forKey: "keepUnfavoritedDays")
         defaults.set(syncEnabled, forKey: "syncEnabled")
         defaults.set(screenshotTextRecognition, forKey: "screenshotTextRecognition")
         hotkey.save(for: .panel)
@@ -213,4 +254,6 @@ enum HotKeyFeedback: Equatable {
 
 extension Notification.Name {
     static let pasteMonitoringPreferenceChanged = Notification.Name("pasteMonitoringPreferenceChanged")
+    /// Asks the store that owns monitoring to apply the retention policy right away.
+    static let pasteRetentionSweepRequested = Notification.Name("pasteRetentionSweepRequested")
 }

@@ -137,15 +137,71 @@ private struct MainWindowAccessor: NSViewRepresentable {
 struct SidebarView: View {
     @EnvironmentObject private var appState: AppState
     @Query(sort: \ClipboardBoard.sortOrder) private var boards: [ClipboardBoard]
+    @Query(
+        filter: #Predicate<ClipboardItem> { $0.isFavorite },
+        sort: \ClipboardItem.updatedAt,
+        order: .reverse
+    ) private var favorites: [ClipboardItem]
 
     var body: some View {
         List {
+            Section("收藏夹") {
+                Button {
+                    appState.mainHistoryMode = .favorites
+                    appState.showFavorites(scope: .all)
+                } label: {
+                    HStack {
+                        Label("全部收藏", systemImage: "star.fill")
+                            .foregroundStyle(
+                                appState.mainHistoryMode == .favorites && appState.favoriteScope == .all
+                                ? PasteTheme.accent
+                                : .primary
+                            )
+                        Spacer()
+                        Text("\(favorites.count)")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                ForEach(favorites.favoriteTagCounts) { tag in
+                    Button {
+                        appState.mainHistoryMode = .favorites
+                        appState.showFavorites(scope: .tag(tag.name))
+                    } label: {
+                        HStack {
+                            Label(tag.name, systemImage: "tag.fill")
+                                .foregroundStyle(
+                                    appState.mainHistoryMode == .favorites
+                                    && appState.favoriteScope == .tag(tag.name)
+                                    ? (Color(hex: tag.accentHex) ?? PasteTheme.accent)
+                                    : .primary
+                                )
+                            Spacer()
+                            Text("\(tag.count)")
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Text("收藏的内容长期保存，未收藏的只保留 \(appState.keepUnfavoritedDays) 天。")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("自动标签") {
                 ForEach(AutoTag.allCases) { tag in
                     Button {
                         appState.selectedAutoTag = tag.rawValue
                         appState.selectedFilter = .all
                         appState.showOnlyPinned = false
+                        appState.leaveFavorites()
+                        if appState.mainHistoryMode == .favorites {
+                            appState.mainHistoryMode = .list
+                        }
                     } label: {
                         Label(tag.displayName, systemImage: tag.systemImage)
                             .foregroundStyle(
@@ -168,6 +224,7 @@ struct SidebarView: View {
             Section("视图") {
                 Button {
                     appState.mainHistoryMode = .list
+                    appState.leaveFavorites()
                 } label: {
                     Label("列表", systemImage: "list.bullet")
                         .foregroundStyle(appState.mainHistoryMode == .list ? PasteTheme.accent : .primary)
@@ -175,6 +232,7 @@ struct SidebarView: View {
                 .buttonStyle(.plain)
                 Button {
                     appState.mainHistoryMode = .timeline
+                    appState.leaveFavorites()
                 } label: {
                     Label("时间线大纲", systemImage: "calendar.day.timeline.leading")
                         .foregroundStyle(appState.mainHistoryMode == .timeline ? PasteTheme.accent : .primary)
@@ -187,6 +245,15 @@ struct SidebarView: View {
                     Button {
                         appState.selectedFilter = filter
                         appState.showOnlyPinned = (filter == .pinned)
+                        if filter == .favorite {
+                            appState.mainHistoryMode = .favorites
+                            appState.showFavorites(scope: .all)
+                        } else {
+                            appState.leaveFavorites()
+                            if appState.mainHistoryMode == .favorites {
+                                appState.mainHistoryMode = .list
+                            }
+                        }
                     } label: {
                         Label(filter.title, systemImage: filter.systemImage)
                             .foregroundStyle(appState.selectedFilter == filter ? PasteTheme.accent : .primary)
@@ -283,6 +350,12 @@ enum SeedData {
                 colorHex: type == .color ? text : nil
             )
             if type == .link { item.isPinned = true }
+            // One favorite out of the box so the folder shows what it is for.
+            if type == .code {
+                item.isFavorite = true
+                item.favoritedAt = .now
+                item.favoriteTags = ["代码"]
+            }
             AutoTagService.apply(to: item)
             context.insert(item)
             EmbeddingIndex.shared.upsert(id: item.id, text: item.searchableText)

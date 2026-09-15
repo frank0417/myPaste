@@ -42,6 +42,7 @@ struct PasteApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var clipboardStore: ClipboardStore?
     private var monitoringObserver: NSObjectProtocol?
+    private var retentionObserver: NSObjectProtocol?
     private var didInstallStatusItem = false
     private var didPrepareSearchIndex = false
     private weak var appState: AppState?
@@ -54,6 +55,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let store = ClipboardStore(modelContext: container.mainContext, appState: appState, ownsMonitor: true)
             clipboardStore = store
             store.startMonitoringIfNeeded()
+            // Items that expired while the app was closed go away on launch, so the
+            // history never shows records the policy already dropped.
+            store.enforceRetention()
             // Screenshots bypass the pasteboard poll, so file them through the same
             // store that owns monitoring — otherwise they land twice or not at all.
             ScreenshotService.shared.onCaptured = { [weak self] payload in
@@ -72,6 +76,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     } else {
                         delegate?.clipboardStore?.stopMonitoring()
                     }
+                }
+            }
+            retentionObserver = NotificationCenter.default.addObserver(
+                forName: .pasteRetentionSweepRequested,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                let delegate = self
+                Task { @MainActor in
+                    delegate?.clipboardStore?.enforceRetention()
                 }
             }
         }

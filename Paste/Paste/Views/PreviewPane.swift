@@ -8,6 +8,14 @@ struct PreviewPane: View {
     @Query(sort: \ClipboardBoard.sortOrder) private var boards: [ClipboardBoard]
     var store: ClipboardStore?
 
+    private var favoriteTagOptions: [String] {
+        let known = items.filter(\.isFavorite).favoriteTagNames
+        return FavoriteTagCatalog.sanitizedMenuOptions(
+            known: known,
+            suggestions: FavoriteTagCatalog.unusedSuggestions(existing: known)
+        )
+    }
+
     private var selected: ClipboardItem? {
         guard let id = appState.selectedItemID else { return items.first }
         return items.first(where: { $0.id == id }) ?? items.first
@@ -54,6 +62,10 @@ struct PreviewPane: View {
                     )
                     .foregroundStyle(Color(hex: item.contentType.accentHex) ?? PasteTheme.accent)
                 Spacer()
+                if item.isFavorite {
+                    Image(systemName: "star.fill")
+                        .foregroundStyle(Color(hex: "#F59E0B") ?? .orange)
+                }
                 if item.isPinned {
                     Image(systemName: "pin.fill")
                         .foregroundStyle(PasteTheme.accent)
@@ -62,6 +74,31 @@ struct PreviewPane: View {
             Text(item.previewTitle)
                 .font(.title2.weight(.semibold))
                 .textSelection(.enabled)
+            if !item.favoriteTags.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(item.favoriteTags, id: \.self) { tag in
+                        Button {
+                            store?.removeFavoriteTag(tag, from: item)
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(tag)
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 8, weight: .bold))
+                            }
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(
+                                (Color(hex: FavoriteTagCatalog.accentHex(for: tag)) ?? PasteTheme.accent).opacity(0.16),
+                                in: Capsule()
+                            )
+                            .foregroundStyle(Color(hex: FavoriteTagCatalog.accentHex(for: tag)) ?? PasteTheme.accent)
+                        }
+                        .buttonStyle(.plain)
+                        .help("移出「\(tag)」分类")
+                    }
+                }
+            }
         }
     }
 
@@ -143,6 +180,7 @@ struct PreviewPane: View {
             metaRow("来源", item.sourceAppName ?? "未知应用")
             metaRow("复制时间", item.createdAt.formatted(date: .abbreviated, time: .shortened))
             metaRow("粘贴次数", "\(item.pasteCount)")
+            metaRow("保存策略", item.retentionStatus(days: appState.keepUnfavoritedDays))
             if item.contentType == .file {
                 metaRow("路径", item.fileURLs.map(\.path).joined(separator: "\n"))
             }
@@ -189,11 +227,37 @@ struct PreviewPane: View {
             }
 
             Button {
+                store?.toggleFavorite(item)
+            } label: {
+                Image(systemName: item.isFavorite ? "star.fill" : "star")
+            }
+            .buttonStyle(.bordered)
+            .help(item.isFavorite ? "从收藏夹移除" : "收藏，长期保存")
+
+            Button {
                 store?.togglePin(item)
             } label: {
                 Image(systemName: item.isPinned ? "pin.slash" : "pin")
             }
             .buttonStyle(.bordered)
+
+            Menu {
+                ForEach(favoriteTagOptions, id: \.self) { tag in
+                    Button {
+                        store?.toggleFavoriteTag(tag, for: item)
+                    } label: {
+                        Label(
+                            tag,
+                            systemImage: FavoriteTagCatalog.contains(tag, in: item.favoriteTags)
+                            ? "checkmark.circle.fill"
+                            : "circle"
+                        )
+                    }
+                }
+            } label: {
+                Label(item.favoriteTags.first ?? "分类", systemImage: "tag")
+            }
+            .help("收藏夹分类（打标签会自动收藏）")
 
             Menu {
                 Button("无看板") { store?.assign(item: item, to: nil) }

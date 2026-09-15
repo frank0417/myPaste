@@ -90,18 +90,40 @@ struct SettingsView: View {
 
     private var historyTab: some View {
         Form {
-            Stepper(value: $appState.maxHistoryCount, in: 50...5000, step: 50) {
-                Text("最多保存 \(appState.maxHistoryCount) 条")
+            Section("收藏与保留") {
+                Stepper(
+                    value: $appState.keepUnfavoritedDays,
+                    in: RetentionPolicy.minimumDays...RetentionPolicy.maximumDays
+                ) {
+                    Text("未收藏的内容保留 \(appState.keepUnfavoritedDays) 天")
+                }
+                .onChange(of: appState.keepUnfavoritedDays) { _, _ in
+                    appState.savePreferences()
+                    // Shortening the window should take effect now, not at the next copy.
+                    NotificationCenter.default.post(name: .pasteRetentionSweepRequested, object: nil)
+                }
+                Button("立即清理过期内容") {
+                    NotificationCenter.default.post(name: .pasteRetentionSweepRequested, object: nil)
+                }
+                Text("收藏夹里的内容长期保存；其余记录在最后一次使用满 \(appState.keepUnfavoritedDays) 天后自动删除（置顶的也会保留）。粘贴或再次复制都会重新计时。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .onChange(of: appState.maxHistoryCount) { _, _ in
-                appState.savePreferences()
+
+            Section("容量") {
+                Stepper(value: $appState.maxHistoryCount, in: 50...5000, step: 50) {
+                    Text("最多保存 \(appState.maxHistoryCount) 条")
+                }
+                .onChange(of: appState.maxHistoryCount) { _, _ in
+                    appState.savePreferences()
+                }
+                Button("导出历史为 JSON…") {
+                    appState.requestExportJSON = true
+                }
+                Text("超出限制时会自动清理最早的记录，收藏与置顶不计入这个上限。图片与文件会占用更多磁盘空间。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            Button("导出历史为 JSON…") {
-                appState.requestExportJSON = true
-            }
-            Text("超出限制时会自动清理最早的非置顶记录。图片与文件会占用更多磁盘空间。")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
         .padding(20)
         .formStyle(.grouped)

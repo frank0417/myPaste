@@ -3,9 +3,21 @@ import Foundation
 @MainActor
 enum ClipboardItemFilter {
     static func matchesHard(_ item: ClipboardItem, appState: AppState) -> Bool {
+        if appState.favoritesOnly {
+            guard item.isFavorite else { return false }
+            switch appState.favoriteScope {
+            case .all:
+                break
+            case .untagged:
+                guard item.favoriteTags.isEmpty else { return false }
+            case .tag(let name):
+                guard FavoriteTagCatalog.contains(name, in: item.favoriteTags) else { return false }
+            }
+        }
+
         if appState.selectedFilter == .pinned || appState.showOnlyPinned {
             guard item.isPinned else { return false }
-        } else if appState.selectedFilter != .all {
+        } else if appState.selectedFilter != .all, appState.selectedFilter != .favorite {
             switch appState.selectedFilter {
             case .text:
                 guard [.text, .richText, .snippet].contains(item.contentType) else { return false }
@@ -23,7 +35,7 @@ enum ClipboardItemFilter {
                 guard item.contentType == .color else { return false }
             case .snippet:
                 guard item.contentType == .snippet else { return false }
-            case .all, .pinned:
+            case .all, .pinned, .favorite:
                 break
             }
         }

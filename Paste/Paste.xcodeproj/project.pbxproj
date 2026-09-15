@@ -37,6 +37,9 @@
 		F1A2B3C4D5E6F70819203A4B /* ScreenshotService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5C /* ScreenshotService.swift */; };
 		C2D3E4F5A6B70819203A4B5C /* TextRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C4D5E6F7A80819203A4B5D /* TextRecognizer.swift */; };
 		D4E5F6A7B8C90819203A4B5E /* ScreenshotHUD.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F6A7B8C9D00819203A4B5F /* ScreenshotHUD.swift */; };
+		A6B7C8D9E0F10819203A4B60 /* RetentionPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C8D9E0F1A20819203A4B61 /* RetentionPolicy.swift */; };
+		C8D9E0F1A2B30819203A4B62 /* FavoriteTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9E0F1A2B3C40819203A4B63 /* FavoriteTag.swift */; };
+		E0F1A2B3C4D50819203A4B64 /* FavoritesFolderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E60819203A4B65 /* FavoritesFolderView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -73,6 +76,9 @@
 		A1B2C3D4E5F60718293A4B5C /* ScreenshotService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotService.swift; sourceTree = "<group>"; };
 		B3C4D5E6F7A80819203A4B5D /* TextRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextRecognizer.swift; sourceTree = "<group>"; };
 		E5F6A7B8C9D00819203A4B5F /* ScreenshotHUD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotHUD.swift; sourceTree = "<group>"; };
+		B7C8D9E0F1A20819203A4B61 /* RetentionPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetentionPolicy.swift; sourceTree = "<group>"; };
+		D9E0F1A2B3C40819203A4B63 /* FavoriteTag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoriteTag.swift; sourceTree = "<group>"; };
+		F1A2B3C4D5E60819203A4B65 /* FavoritesFolderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesFolderView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -153,6 +159,7 @@
 				72F05B2CCFE249AFA44F04CA /* SettingsView.swift */,
 				A57B86873CE445BFBE80F41F /* HotKeyRecorderView.swift */,
 				E5F6A7B8C9D00819203A4B5F /* ScreenshotHUD.swift */,
+				F1A2B3C4D5E60819203A4B65 /* FavoritesFolderView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -169,6 +176,8 @@
 				7F3A1B2C4D5E6F708192A3B4 /* KeywordScorer.swift */,
 				9D5C3E4F60718293A4B5C6D7 /* HybridSearch.swift */,
 				D19A7283A4B5C6D7E8F9A0B3 /* SensitiveClipboardText.swift */,
+				B7C8D9E0F1A20819203A4B61 /* RetentionPolicy.swift */,
+				D9E0F1A2B3C40819203A4B63 /* FavoriteTag.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -272,6 +281,9 @@
 				F1A2B3C4D5E6F70819203A4B /* ScreenshotService.swift in Sources */,
 				C2D3E4F5A6B70819203A4B5C /* TextRecognizer.swift in Sources */,
 				D4E5F6A7B8C90819203A4B5E /* ScreenshotHUD.swift in Sources */,
+				A6B7C8D9E0F10819203A4B60 /* RetentionPolicy.swift in Sources */,
+				C8D9E0F1A2B30819203A4B62 /* FavoriteTag.swift in Sources */,
+				E0F1A2B3C4D50819203A4B64 /* FavoritesFolderView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -319,7 +331,7 @@
 				CODE_SIGN_ENTITLEMENTS = Paste/Paste.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Paste/Info.plist;
@@ -328,7 +340,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.4.0;
+				MARKETING_VERSION = 1.5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mypaste.ClipStack;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -344,7 +356,7 @@
 				CODE_SIGN_ENTITLEMENTS = Paste/Paste.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Paste/Info.plist;
@@ -353,7 +365,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.4.0;
+				MARKETING_VERSION = 1.5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mypaste.ClipStack;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

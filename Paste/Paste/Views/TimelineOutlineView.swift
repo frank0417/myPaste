@@ -46,7 +46,8 @@ struct TimelineOutlineView: View {
                                         onOpenDetail: { onOpenDetail?(item) },
                                         onPaste: { store?.paste(item) },
                                         onPin: { store?.togglePin(item) },
-                                        onDelete: { store?.delete(item) }
+                                        onDelete: { store?.delete(item) },
+                                        onToggleFavorite: { store?.toggleFavorite(item) }
                                     )
                                     .id(item.id)
                                 }
@@ -93,6 +94,7 @@ struct TimelineOutlineRow: View {
     let onPaste: () -> Void
     let onPin: () -> Void
     let onDelete: () -> Void
+    var onToggleFavorite: (() -> Void)?
 
     @State private var isHovered = false
 
@@ -122,6 +124,11 @@ struct TimelineOutlineRow: View {
                                     .font(.caption2)
                                     .foregroundStyle(PasteTheme.accent)
                             }
+                            if item.isFavorite {
+                                Image(systemName: "star.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(Color(hex: "#F59E0B") ?? .orange)
+                            }
                             Spacer()
                             if let tag = item.primaryAutoTag {
                                 Text(tag.displayName)
@@ -150,6 +157,9 @@ struct TimelineOutlineRow: View {
                     if isHovered || isSelected {
                         HStack(spacing: 4) {
                             smallAction("return", onPaste)
+                            if let onToggleFavorite {
+                                smallAction(item.isFavorite ? "star.fill" : "star", onToggleFavorite)
+                            }
                             smallAction("pin", onPin)
                         }
                     }
@@ -167,6 +177,9 @@ struct TimelineOutlineRow: View {
             .contextMenu {
                 Button("查看详情", action: onOpenDetail)
                 Button("粘贴", action: onPaste)
+                if let onToggleFavorite {
+                    Button(item.isFavorite ? "从收藏夹移除" : "收藏（长期保存）", action: onToggleFavorite)
+                }
                 Button(item.isPinned ? "取消置顶" : "置顶", action: onPin)
                 Divider()
                 Button("删除", role: .destructive, action: onDelete)
