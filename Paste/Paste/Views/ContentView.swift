@@ -25,6 +25,7 @@ struct ContentView: View {
             }
         }
         .background(PasteTheme.backgroundGradient.ignoresSafeArea())
+        .background(MainWindowAccessor())
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 SyncStatusBadge(status: syncService.status)
@@ -97,6 +98,25 @@ struct ContentView: View {
             try? data.write(to: url)
             syncService.markSyncing()
         }
+    }
+}
+
+/// Hands the hosting window to `StatusItemController`, which shows the main window and
+/// the floating shelf exclusively.
+private struct MainWindowAccessor: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async {
+            if let window = view.window {
+                StatusItemController.shared.registerMainWindow(window)
+            }
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        guard let window = nsView.window else { return }
+        StatusItemController.shared.registerMainWindow(window)
     }
 }
 

@@ -42,7 +42,6 @@ struct PasteApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var clipboardStore: ClipboardStore?
     private var monitoringObserver: NSObjectProtocol?
-    private var hotKeyObserver: NSObjectProtocol?
     private var didInstallStatusItem = false
     private var didPrepareSearchIndex = false
     private weak var appState: AppState?
@@ -93,21 +92,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Menu-bar agent: no Dock icon. Closing the shelf only hides UI.
         NSApp.setActivationPolicy(.accessory)
 
-        GlobalHotKeyManager.shared.onHotKey = {
-            StatusItemController.shared.togglePanel()
-        }
-        let shortcut = HotKeyShortcut.load()
-        GlobalHotKeyManager.shared.register(shortcut)
-        hotKeyObserver = NotificationCenter.default.addObserver(
-            forName: .hotKeyPreferenceChanged,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                if let shortcut = self?.appState?.hotkey {
-                    GlobalHotKeyManager.shared.register(shortcut)
-                }
+        GlobalHotKeyManager.shared.onHotKey = { action in
+            switch action {
+            case .panel:
+                StatusItemController.shared.togglePanel()
+            case .mainWindow:
+                StatusItemController.shared.toggleMainWindow()
             }
+        }
+        // Bind right away so the hotkeys work even before the scene hands us AppState,
+        // then sync AppState (which reports a fallback if a combo was taken).
+        for action in HotKeyAction.allCases {
+            GlobalHotKeyManager.shared.apply(HotKeyShortcut.load(action), for: action)
+        }
+        Task { @MainActor [weak self] in
+            self?.appState?.registerStoredHotkeys()
         }
     }
 

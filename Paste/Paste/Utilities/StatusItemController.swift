@@ -16,6 +16,9 @@ final class StatusItemController: NSObject, NSWindowDelegate {
 
     private var statusItem: NSStatusItem?
     private var panel: NSPanel?
+    /// The SwiftUI `Window` scene's window, handed over by `ContentView`. Held strongly so
+    /// the hotkey can bring it back after the user closes it.
+    private var mainWindow: NSWindow?
     private var modelContainer: ModelContainer?
     private var appState: AppState?
     private var localKeyMonitor: Any?
@@ -49,6 +52,17 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         }
     }
 
+    /// Keeps the status-item tooltip in sync after the user changes the shortcut.
+    func refreshHotkeyHint(_ display: String) {
+        statusItem?.button?.toolTip = "ClipStack — 常驻后台（\(display) 唤出）"
+    }
+
+    func registerMainWindow(_ window: NSWindow) {
+        guard mainWindow !== window else { return }
+        window.isReleasedWhenClosed = false
+        mainWindow = window
+    }
+
     @objc private func statusItemClicked(_ sender: Any?) {
         guard let event = NSApp.currentEvent else {
             togglePanel()
@@ -64,7 +78,10 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     private func showStatusMenu() {
         guard let statusItem else { return }
         let menu = NSMenu()
-        menu.addItem(withTitle: "显示剪贴板", action: #selector(menuShowPanel), keyEquivalent: "")
+        let panelHint = appState.map { "（\($0.hotkeyDisplay)）" } ?? ""
+        let windowHint = appState.map { "（\($0.mainWindowHotkeyDisplay)）" } ?? ""
+        menu.addItem(withTitle: "显示剪贴板面板\(panelHint)", action: #selector(menuShowPanel), keyEquivalent: "")
+        menu.addItem(withTitle: "显示主窗口\(windowHint)", action: #selector(menuShowMainWindow), keyEquivalent: "")
         menu.addItem(withTitle: "隐藏面板", action: #selector(menuHidePanel), keyEquivalent: "")
         menu.addItem(NSMenuItem.separator())
         menu.addItem(withTitle: "设置…", action: #selector(menuOpenSettings), keyEquivalent: ",")
@@ -82,6 +99,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     }
 
     @objc private func menuShowPanel() { showPanel() }
+    @objc private func menuShowMainWindow() { showMainWindow() }
     @objc private func menuHidePanel() { hidePanel() }
     @objc private func menuOpenSettings() {
         openSettings()
@@ -105,7 +123,8 @@ final class StatusItemController: NSObject, NSWindowDelegate {
             // next runloop turn once it exists.
             DispatchQueue.main.async {
                 NSApp.activate(ignoringOtherApps: true)
-                for window in NSApp.windows where !(window is NSPanel) {
+                // Skip the main window: settings must not drag it back on screen.
+                for window in NSApp.windows where !(window is NSPanel) && window !== self.mainWindow {
                     window.makeKeyAndOrderFront(nil)
                 }
             }
@@ -127,11 +146,50 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         }
     }
 
+    /// The shelf and the main window are mutually exclusive surfaces.
+    func toggleMainWindow() {
+        guard let window = resolveMainWindow() else { return }
+        if window.isVisible && NSApp.isActive {
+            hideMainWindow()
+        } else {
+            showMainWindow()
+        }
+    }
+
+    func showMainWindow() {
+        hidePanel()
+        guard let window = resolveMainWindow() else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+    }
+
+    func hideMainWindow() {
+        guard let window = resolveMainWindow(), window.isVisible else { return }
+        window.orderOut(nil)
+    }
+
+    /// `ContentView` registers the window once it exists; fall back to a lookup when the
+    /// scene hasn't rendered yet (the Settings window must never be mistaken for it).
+    private func resolveMainWindow() -> NSWindow? {
+        if let mainWindow { return mainWindow }
+        let found = NSApp.windows.first { window in
+            guard !(window is NSPanel), window.canBecomeMain else { return false }
+            if let identifier = window.identifier?.rawValue {
+                return !identifier.contains("Settings") && identifier.contains("main")
+            }
+            return window.title == "ClipStack"
+        }
+        mainWindow = found
+        return found
+    }
+
     func showPanel() {
         if panel == nil {
             panel = makePanel()
         }
         guard let panel else { return }
+        hideMainWindow()
 
         let expanded = appState?.shelfDetailItemID != nil
         isDetailExpanded = expanded
