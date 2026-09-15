@@ -33,7 +33,7 @@ struct MenuBarPanel: View {
                 VStack(spacing: 2) {
                     // A standalone floating field above the nav bar, not part of the card.
                     if showSearch {
-                        searchField
+                        searchPill
                     }
                     panelCard
                 }
@@ -345,7 +345,7 @@ struct MenuBarPanel: View {
     }
 
     /// Floats above the nav bar as its own pill so the bar keeps its single-line layout.
-    private var searchField: some View {
+    private var searchPill: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 12, weight: .semibold))
