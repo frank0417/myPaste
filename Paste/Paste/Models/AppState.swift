@@ -13,8 +13,6 @@ final class AppState: ObservableObject {
     /// How long a record that nobody favorited survives. Favorites are kept forever.
     @Published var keepUnfavoritedDays: Int = RetentionPolicy.defaultDays
     @Published var syncEnabled: Bool = true
-    /// Run on-device OCR on every capture and copy the text along with the image.
-    @Published var screenshotTextRecognition: Bool = true
     @Published var showOnlyPinned: Bool = false
     /// Set by the favorites folder surfaces; cleared when they switch away.
     @Published var showOnlyFavorites: Bool = false
@@ -28,6 +26,8 @@ final class AppState: ObservableObject {
     @Published var mainWindowHotkey: HotKeyShortcut = HotKeyAction.mainWindow.defaultShortcut
     /// Starts an interactive region screenshot.
     @Published var screenshotHotkey: HotKeyShortcut = HotKeyAction.screenshot.defaultShortcut
+    /// Starts an interactive region capture that keeps only the recognized text.
+    @Published var screenshotOCRHotkey: HotKeyShortcut = HotKeyAction.screenshotOCR.defaultShortcut
     /// Result of the last change per shortcut, shown in Settings.
     @Published var hotkeyFeedback: [HotKeyAction: HotKeyFeedback] = [:]
     @Published var requestExportJSON: Bool = false
@@ -131,12 +131,14 @@ final class AppState: ObservableObject {
     var hotkeyDisplay: String { hotkey.display }
     var mainWindowHotkeyDisplay: String { mainWindowHotkey.display }
     var screenshotHotkeyDisplay: String { screenshotHotkey.display }
+    var screenshotOCRHotkeyDisplay: String { screenshotOCRHotkey.display }
 
     func shortcut(for action: HotKeyAction) -> HotKeyShortcut {
         switch action {
         case .panel: return hotkey
         case .mainWindow: return mainWindowHotkey
         case .screenshot: return screenshotHotkey
+        case .screenshotOCR: return screenshotOCRHotkey
         }
     }
 
@@ -153,10 +155,10 @@ final class AppState: ObservableObject {
             defaults.object(forKey: "keepUnfavoritedDays") as? Int ?? RetentionPolicy.defaultDays
         )
         syncEnabled = defaults.object(forKey: "syncEnabled") as? Bool ?? true
-        screenshotTextRecognition = defaults.object(forKey: "screenshotTextRecognition") as? Bool ?? true
         hotkey = HotKeyShortcut.load(.panel)
         mainWindowHotkey = HotKeyShortcut.load(.mainWindow)
         screenshotHotkey = HotKeyShortcut.load(.screenshot)
+        screenshotOCRHotkey = HotKeyShortcut.load(.screenshotOCR)
     }
 
     func savePreferences() {
@@ -166,10 +168,10 @@ final class AppState: ObservableObject {
         defaults.set(maxHistoryCount, forKey: "maxHistoryCount")
         defaults.set(keepUnfavoritedDays, forKey: "keepUnfavoritedDays")
         defaults.set(syncEnabled, forKey: "syncEnabled")
-        defaults.set(screenshotTextRecognition, forKey: "screenshotTextRecognition")
         hotkey.save(for: .panel)
         mainWindowHotkey.save(for: .mainWindow)
         screenshotHotkey.save(for: .screenshot)
+        screenshotOCRHotkey.save(for: .screenshotOCR)
     }
 
     /// Only persists the shortcut once it is actually registered with the system.
@@ -226,6 +228,8 @@ final class AppState: ObservableObject {
             mainWindowHotkey = shortcut
         case .screenshot:
             screenshotHotkey = shortcut
+        case .screenshotOCR:
+            screenshotOCRHotkey = shortcut
         }
         if persist {
             shortcut.save(for: action)

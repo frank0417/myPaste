@@ -7,6 +7,7 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
     case panel
     case mainWindow
     case screenshot
+    case screenshotOCR
 
     var id: String { rawValue }
 
@@ -16,6 +17,7 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
         case .panel: return "唤出剪贴板面板"
         case .mainWindow: return "唤出主窗口"
         case .screenshot: return "截图（区域）"
+        case .screenshotOCR: return "截图识字（区域）"
         }
     }
 
@@ -25,6 +27,7 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
         case .panel: return "剪贴板面板"
         case .mainWindow: return "主窗口"
         case .screenshot: return "截图"
+        case .screenshotOCR: return "截图识字"
         }
     }
 
@@ -34,6 +37,7 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
         case .panel: return "globalHotKeyShortcut"
         case .mainWindow: return "mainWindowHotKeyShortcut"
         case .screenshot: return "screenshotHotKeyShortcut"
+        case .screenshotOCR: return "screenshotOCRHotKeyShortcut"
         }
     }
 
@@ -46,6 +50,8 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
         case .screenshot:
             // ⌃⇧⌘4 keeps the muscle memory of the system ⇧⌘4, which is reserved.
             return HotKeyShortcut(keyCode: UInt32(kVK_ANSI_4), carbonModifiers: UInt32(cmdKey | shiftKey | controlKey))
+        case .screenshotOCR:
+            return HotKeyShortcut(keyCode: UInt32(kVK_ANSI_5), carbonModifiers: UInt32(cmdKey | shiftKey | controlKey))
         }
     }
 
@@ -54,6 +60,7 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
         case .panel: return 1
         case .mainWindow: return 2
         case .screenshot: return 3
+        case .screenshotOCR: return 4
         }
     }
 }

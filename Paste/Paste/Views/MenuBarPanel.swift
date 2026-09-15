@@ -339,6 +339,11 @@ struct MenuBarPanel: View {
                 ForEach(ScreenshotMode.allCases) { mode in
                     Button(mode.title) { ScreenshotService.shared.capture(mode) }
                 }
+                Menu("截图识字（只存文字）") {
+                    ForEach(ScreenshotMode.allCases) { mode in
+                        Button(mode.title) { ScreenshotService.shared.capture(mode, recognizeText: true) }
+                    }
+                }
                 Divider()
                 Button(appState.isMonitoringEnabled ? "暂停监听" : "恢复监听") {
                     appState.isMonitoringEnabled.toggle()

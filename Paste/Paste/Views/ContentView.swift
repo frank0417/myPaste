@@ -37,12 +37,20 @@ struct ContentView: View {
                             Label(mode.title, systemImage: mode.systemImage)
                         }
                     }
+                    Divider()
+                    ForEach(ScreenshotMode.allCases) { mode in
+                        Button {
+                            ScreenshotService.shared.capture(mode, recognizeText: true)
+                        } label: {
+                            Label("\(mode.title)并识字", systemImage: "text.viewfinder")
+                        }
+                    }
                 } label: {
                     Label("截图", systemImage: "camera.viewfinder")
                 } primaryAction: {
                     ScreenshotService.shared.capture(.region)
                 }
-                .help("截图（\(appState.screenshotHotkeyDisplay)）— 结果自动存入历史")
+                .help("截图（\(appState.screenshotHotkeyDisplay)）只存图片；截图识字（\(appState.screenshotOCRHotkeyDisplay)）只存文字")
                 Button {
                     appState.isMonitoringEnabled.toggle()
                     appState.savePreferences()

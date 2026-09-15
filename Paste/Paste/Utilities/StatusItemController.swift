@@ -90,9 +90,11 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         menu.addItem(withTitle: "隐藏面板", action: #selector(menuHidePanel), keyEquivalent: "")
         menu.addItem(NSMenuItem.separator())
         let shotHint = appState.map { "（\($0.screenshotHotkeyDisplay)）" } ?? ""
+        let ocrHint = appState.map { "（\($0.screenshotOCRHotkeyDisplay)）" } ?? ""
         menu.addItem(withTitle: "截取区域\(shotHint)", action: #selector(menuCaptureRegion), keyEquivalent: "")
         menu.addItem(withTitle: "截取窗口", action: #selector(menuCaptureWindow), keyEquivalent: "")
         menu.addItem(withTitle: "截取整屏", action: #selector(menuCaptureFullScreen), keyEquivalent: "")
+        menu.addItem(withTitle: "截取区域并识字\(ocrHint)", action: #selector(menuCaptureRegionOCR), keyEquivalent: "")
         menu.addItem(NSMenuItem.separator())
         menu.addItem(withTitle: "设置…", action: #selector(menuOpenSettings), keyEquivalent: ",")
         menu.addItem(NSMenuItem.separator())
@@ -114,6 +116,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     @objc private func menuCaptureRegion() { ScreenshotService.shared.capture(.region) }
     @objc private func menuCaptureWindow() { ScreenshotService.shared.capture(.window) }
     @objc private func menuCaptureFullScreen() { ScreenshotService.shared.capture(.fullScreen) }
+    @objc private func menuCaptureRegionOCR() { ScreenshotService.shared.capture(.region, recognizeText: true) }
     @objc private func menuOpenSettings() {
         openSettings()
     }

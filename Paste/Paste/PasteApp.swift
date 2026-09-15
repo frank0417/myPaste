@@ -50,7 +50,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     func configure(container: ModelContainer, appState: AppState) {
         self.appState = appState
-        ScreenshotService.shared.appState = appState
         if clipboardStore == nil {
             let store = ClipboardStore(modelContext: container.mainContext, appState: appState, ownsMonitor: true)
             clipboardStore = store
@@ -120,6 +119,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 StatusItemController.shared.toggleMainWindow()
             case .screenshot:
                 ScreenshotService.shared.capture(.region)
+            case .screenshotOCR:
+                ScreenshotService.shared.capture(.region, recognizeText: true)
             }
         }
         // Bind right away so the hotkeys work even before the scene hands us AppState,

@@ -34,11 +34,7 @@ struct SettingsView: View {
             Text("复制后会按类型自动打标签（图片、链接、富文本等），可在时间线或标签栏筛选。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Toggle("截图后识别文字", isOn: $appState.screenshotTextRecognition)
-                .onChange(of: appState.screenshotTextRecognition) { _, _ in
-                    appState.savePreferences()
-                }
-            Text("截图后在本机识别画面中的文字（中英文），文字与图片一起放进剪贴板：粘贴到输入框得到文字，粘贴到图片位置得到图片。识别结果也会存进历史，可直接搜索截图里的字。")
+            Text("截图与截图识字是两个独立动作：普通截图只保存图片；「截图识字」只保留识别出的文字、不存图片。可从菜单栏图标、面板菜单发起，识字也有独立快捷键（默认 \(appState.screenshotOCRHotkeyDisplay)）。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Toggle("登录时启动", isOn: $appState.launchAtLogin)
@@ -50,7 +46,7 @@ struct SettingsView: View {
                 ForEach(HotKeyAction.allCases) { action in
                     hotkeyRow(action)
                 }
-                Text("点击按钮后按下新的组合键（需包含 ⌘ / ⌃ / ⌥ 中至少一个），按 Esc 取消。两个窗口不会同时出现：唤出其中一个会自动收起另一个。截图快捷键直接进入区域选择，按 Esc 放弃本次截图。")
+                Text("点击按钮后按下新的组合键（需包含 ⌘ / ⌃ / ⌥ 中至少一个），按 Esc 取消。两个窗口不会同时出现：唤出其中一个会自动收起另一个。截图与截图识字快捷键都直接进入区域选择，按 Esc 放弃本次截图。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -189,6 +185,7 @@ struct SettingsView: View {
         case .panel: return $appState.hotkey
         case .mainWindow: return $appState.mainWindowHotkey
         case .screenshot: return $appState.screenshotHotkey
+        case .screenshotOCR: return $appState.screenshotOCRHotkey
         }
     }
 

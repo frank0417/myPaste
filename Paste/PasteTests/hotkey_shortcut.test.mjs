@@ -37,18 +37,20 @@ const RESERVED = [
   { keyCode: KEY.five, carbon: cmdKey | shiftKey, name: "⇧⌘5（截屏）" }
 ];
 
-// HotKeyAction: the two mutually exclusive surfaces plus the screenshot trigger,
+// HotKeyAction: the two mutually exclusive surfaces plus the two capture triggers,
 // each with its own binding.
 const ACTION = {
   panel: { id: 1, shortTitle: "剪贴板面板", storageKey: "globalHotKeyShortcut" },
   mainWindow: { id: 2, shortTitle: "主窗口", storageKey: "mainWindowHotKeyShortcut" },
-  screenshot: { id: 3, shortTitle: "截图", storageKey: "screenshotHotKeyShortcut" }
+  screenshot: { id: 3, shortTitle: "截图", storageKey: "screenshotHotKeyShortcut" },
+  screenshotOCR: { id: 4, shortTitle: "截图识字", storageKey: "screenshotOCRHotKeyShortcut" }
 };
 
 const DEFAULTS = {
   panel: { keyCode: KEY.v, carbonModifiers: cmdKey | shiftKey },
   mainWindow: { keyCode: KEY.v, carbonModifiers: cmdKey | optionKey },
-  screenshot: { keyCode: KEY.four, carbonModifiers: cmdKey | shiftKey | controlKey }
+  screenshot: { keyCode: KEY.four, carbonModifiers: cmdKey | shiftKey | controlKey },
+  screenshotOCR: { keyCode: KEY.five, carbonModifiers: cmdKey | shiftKey | controlKey }
 };
 
 const DEFAULT = DEFAULTS.panel;
@@ -246,7 +248,16 @@ assertEqual(
 assertEqual(actionForHotKeyID(1), "panel", "hot key id 1 is the shelf panel");
 assertEqual(actionForHotKeyID(2), "mainWindow", "hot key id 2 is the main window");
 assertEqual(actionForHotKeyID(3), "screenshot", "hot key id 3 is the screenshot");
-assertEqual(actionForHotKeyID(4), null, "unknown hot key id is ignored");
+assertEqual(actionForHotKeyID(4), "screenshotOCR", "hot key id 4 is the OCR capture");
+assertEqual(rejectionReason(DEFAULTS.screenshotOCR), null, "OCR default is valid");
+assertEqual(display(DEFAULTS.screenshotOCR, "5"), "⌃⇧⌘5", "OCR default renders as ctrl-shift-cmd-5");
+assertTrue(
+  !sameShortcut(DEFAULTS.screenshotOCR, DEFAULTS.screenshot)
+    && !sameShortcut(DEFAULTS.screenshotOCR, DEFAULTS.panel)
+    && !sameShortcut(DEFAULTS.screenshotOCR, DEFAULTS.mainWindow),
+  "OCR default differs from every other default"
+);
+assertEqual(actionForHotKeyID(99), null, "unknown hot key id is ignored");
 
 if (failed > 0) {
   console.error(`\n${failed} test(s) failed`);
