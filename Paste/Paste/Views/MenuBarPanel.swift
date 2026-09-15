@@ -795,7 +795,7 @@ struct ClipboardItemDetailOverlay: View {
         switch item.contentType {
         case .image:
             VStack(alignment: .leading, spacing: 14) {
-                if let data = item.imageData ?? item.thumbnailData, let image = NSImage(data: data) {
+                if let image = ImageCache.shared.image(for: item, preferThumbnail: false) {
                     Image(nsImage: image)
                         .resizable()
                         .scaledToFit()
@@ -972,13 +972,7 @@ struct ClipboardShelfCard: View {
     }
 
     private var imagePixelSize: String? {
-        guard item.contentType == .image,
-              let data = item.imageData ?? item.thumbnailData,
-              let image = NSImage(data: data) else { return nil }
-        let w = Int(image.size.width)
-        let h = Int(image.size.height)
-        guard w > 0, h > 0 else { return nil }
-        return "\(w) × \(h)"
+        ImageCache.shared.pixelSize(for: item)
     }
 
     private var footerMeta: String {
@@ -1153,8 +1147,7 @@ struct ClipboardShelfCard: View {
 
     @ViewBuilder
     private var previewBody: some View {
-        if item.contentType == .image, let data = item.thumbnailData ?? item.imageData,
-           let nsImage = NSImage(data: data) {
+        if item.contentType == .image, let nsImage = ImageCache.shared.image(for: item) {
             // Fit inside the card — never overflow the panel/card bounds.
             Image(nsImage: nsImage)
                 .resizable()
@@ -1190,9 +1183,8 @@ struct ClipboardShelfCard: View {
 
     @ViewBuilder
     private var sourceAppIcon: some View {
-        if let bundleID = item.sourceAppBundleID,
-           let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
-            Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+        if let icon = ImageCache.shared.sourceIcon(bundleID: item.sourceAppBundleID) {
+            Image(nsImage: icon)
                 .resizable()
                 .interpolation(.high)
                 .scaledToFit()

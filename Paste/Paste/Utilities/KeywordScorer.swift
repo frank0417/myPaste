@@ -106,11 +106,49 @@ enum KeywordScorer {
     }
 
     static func score(query: String, item: ClipboardItem) -> Double {
-        score(query: query, document: item.keywordDocument)
+        score(query: query, fields: Self.fields(for: item))
+    }
+
+    static func score(query: String, document: KeywordDocument) -> Double {
+        let foldedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !foldedQuery.isEmpty else { return 0 }
+        return score(tokens: tokens(in: foldedQuery), foldedQuery: foldedQuery, fields: KeywordFields(document))
     }
 
     static func haystack(item: ClipboardItem) -> String {
-        KeywordFields(item.keywordDocument).haystack
+        Self.fields(for: item).haystack
+    }
+
+    /// Lowercasing + joining the searchable fields is the hot path of every search
+    /// frame, so the result is memoized per item. The fingerprint covers everything
+    /// that can change after ingest: last-used date plus both tag lists.
+    private static let fieldsCacheLock = NSLock()
+    private static var fieldsCache: [UUID: (fingerprint: String, fields: KeywordFields)] = [:]
+
+    static func fields(for item: ClipboardItem) -> KeywordFields {
+        let fingerprint = "\(item.updatedAt.timeIntervalSince1970)|\(item.favoriteTagsJSON ?? "")|\(item.autoTagsJSON ?? "")"
+        fieldsCacheLock.lock()
+        if let cached = fieldsCache[item.id], cached.fingerprint == fingerprint {
+            fieldsCacheLock.unlock()
+            return cached.fields
+        }
+        fieldsCacheLock.unlock()
+
+        let fields = KeywordFields(item.keywordDocument)
+
+        fieldsCacheLock.lock()
+        if fieldsCache.count > 4000 {
+            fieldsCache.removeAll(keepingCapacity: false)
+        }
+        fieldsCache[item.id] = (fingerprint, fields)
+        fieldsCacheLock.unlock()
+        return fields
+    }
+
+    private static func score(query: String, fields: KeywordFields) -> Double {
+        let foldedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !foldedQuery.isEmpty else { return 0 }
+        return score(tokens: tokens(in: foldedQuery), foldedQuery: foldedQuery, fields: fields)
     }
 
     private static func isIdentifierQuery(_ query: String) -> Bool {

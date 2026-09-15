@@ -40,6 +40,7 @@
 		A6B7C8D9E0F10819203A4B60 /* RetentionPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C8D9E0F1A20819203A4B61 /* RetentionPolicy.swift */; };
 		C8D9E0F1A2B30819203A4B62 /* FavoriteTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9E0F1A2B3C40819203A4B63 /* FavoriteTag.swift */; };
 		E0F1A2B3C4D50819203A4B64 /* FavoritesFolderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E60819203A4B65 /* FavoritesFolderView.swift */; };
+		A2B3C4D5E6F70819203A4B66 /* ImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C4D5E6F7A80819203A4B67 /* ImageCache.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -79,6 +80,7 @@
 		B7C8D9E0F1A20819203A4B61 /* RetentionPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetentionPolicy.swift; sourceTree = "<group>"; };
 		D9E0F1A2B3C40819203A4B63 /* FavoriteTag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoriteTag.swift; sourceTree = "<group>"; };
 		F1A2B3C4D5E60819203A4B65 /* FavoritesFolderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesFolderView.swift; sourceTree = "<group>"; };
+		B3C4D5E6F7A80819203A4B67 /* ImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCache.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -178,6 +180,7 @@
 				D19A7283A4B5C6D7E8F9A0B3 /* SensitiveClipboardText.swift */,
 				B7C8D9E0F1A20819203A4B61 /* RetentionPolicy.swift */,
 				D9E0F1A2B3C40819203A4B63 /* FavoriteTag.swift */,
+				B3C4D5E6F7A80819203A4B67 /* ImageCache.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -284,6 +287,7 @@
 				A6B7C8D9E0F10819203A4B60 /* RetentionPolicy.swift in Sources */,
 				C8D9E0F1A2B30819203A4B62 /* FavoriteTag.swift in Sources */,
 				E0F1A2B3C4D50819203A4B64 /* FavoritesFolderView.swift in Sources */,
+				A2B3C4D5E6F70819203A4B66 /* ImageCache.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

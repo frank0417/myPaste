@@ -79,23 +79,26 @@ final class ClipboardStore: ObservableObject {
     }
 
     func paste(_ item: ClipboardItem) {
-        writeToPasteboard(item)
-        item.pasteCount += 1
-        item.updatedAt = .now
-        try? modelContext.save()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-            // Accessibility is only required to synthesize ⌘V. Content is already on the pasteboard.
-            if !AccessibilityPermission.isTrusted {
-                AccessibilityPermission.requestIfNeeded(prompt: true)
+        writeToPasteboard(item) { [weak self] in
+            guard let self else { return }
+            item.pasteCount += 1
+            item.updatedAt = .now
+            try? self.modelContext.save()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                // Accessibility is only required to synthesize ⌘V. Content is already on the pasteboard.
+                if !AccessibilityPermission.isTrusted {
+                    AccessibilityPermission.requestIfNeeded(prompt: true)
+                }
+                Self.simulatePasteKeystroke()
             }
-            Self.simulatePasteKeystroke()
         }
     }
 
     func copyOnly(_ item: ClipboardItem) {
-        writeToPasteboard(item)
-        item.updatedAt = .now
-        try? modelContext.save()
+        writeToPasteboard(item) { [weak self] in
+            item.updatedAt = .now
+            try? self?.modelContext.save()
+        }
     }
 
     /// Copies only the text an item carries — for a screenshot, the recognized text
@@ -170,6 +173,7 @@ final class ClipboardStore: ObservableObject {
         modelContext.delete(item)
         try? modelContext.save()
         EmbeddingIndex.shared.remove(ids: [id])
+        ImageCache.shared.remove(id: id)
     }
 
     func clearHistory(keepPinned: Bool = true) {
@@ -182,6 +186,7 @@ final class ClipboardStore: ObservableObject {
         }
         try? modelContext.save()
         EmbeddingIndex.shared.remove(ids: removed)
+        removed.forEach { ImageCache.shared.remove(id: $0) }
     }
 
     func assign(item: ClipboardItem, to board: ClipboardBoard?) {
@@ -221,31 +226,66 @@ final class ClipboardStore: ObservableObject {
         return try? JSONSerialization.data(withJSONObject: rows, options: [.prettyPrinted, .sortedKeys])
     }
 
-    private func writeToPasteboard(_ item: ClipboardItem) {
+    /// The completion runs on the main thread once the pasteboard holds the content.
+    /// Image encodings are prepared off-main (and cached per item), so pasting a
+    /// screenshot no longer stalls the UI.
+    private func writeToPasteboard(_ item: ClipboardItem, completion: @escaping () -> Void = {}) {
         monitor.ignoreNextPasteboardChange()
-        let pb = NSPasteboard.general
-        pb.clearContents()
         switch item.contentType {
         case .image:
             // Screenshots carry their recognized text in plainText; pasting one offers
             // both, exactly like the capture did.
-            if let data = item.imageData,
-               let pasteboardItem = ClipboardMonitor.imagePasteboardItem(imageData: data, text: item.plainText) {
-                pb.writeObjects([pasteboardItem])
+            let itemID = item.id
+            guard let data = item.imageData else {
+                completion()
+                return
+            }
+            let text = item.plainText
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                var pasteboardItem: NSPasteboardItem?
+                if let encodings = ImageCache.shared.pasteEncodings(id: itemID, imageData: data) {
+                    let pbItem = NSPasteboardItem()
+                    pbItem.setData(encodings.tiff, forType: .tiff)
+                    if let png = encodings.png {
+                        pbItem.setData(png, forType: .png)
+                    }
+                    if let text, !text.isEmpty {
+                        pbItem.setString(text, forType: .string)
+                    }
+                    pasteboardItem = pbItem
+                }
+                DispatchQueue.main.async {
+                    self?.monitor.ignoreNextPasteboardChange()
+                    let pb = NSPasteboard.general
+                    pb.clearContents()
+                    if let pasteboardItem {
+                        pb.writeObjects([pasteboardItem])
+                    }
+                    completion()
+                }
             }
         case .file:
+            let pb = NSPasteboard.general
+            pb.clearContents()
             pb.writeObjects(item.fileURLs as [NSURL])
+            completion()
         case .color:
+            let pb = NSPasteboard.general
+            pb.clearContents()
             if let hex = item.colorHex ?? item.plainText {
                 pb.setString(hex, forType: .string)
             }
+            completion()
         default:
+            let pb = NSPasteboard.general
+            pb.clearContents()
             if let rtf = item.richTextData {
                 pb.setData(rtf, forType: .rtf)
             }
             if let text = item.plainText {
                 pb.setString(text, forType: .string)
             }
+            completion()
         }
     }
 
@@ -266,6 +306,7 @@ final class ClipboardStore: ObservableObject {
         }
         try? modelContext.save()
         EmbeddingIndex.shared.remove(ids: removed)
+        removed.forEach { ImageCache.shared.remove(id: $0) }
         return removed.count
     }
 
@@ -279,16 +320,23 @@ final class ClipboardStore: ObservableObject {
 
     private func enforceHistoryLimit() {
         let limit = appState?.maxHistoryCount ?? 500
-        let descriptor = FetchDescriptor<ClipboardItem>(
-            // Favorites are kept on purpose, so they must not count against the cap
-            // or be trimmed by it.
-            predicate: #Predicate { !$0.isPinned && !$0.isFavorite },
-            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
+        // Favorites are kept on purpose, so they must not count against the cap
+        // or be trimmed by it.
+        let counting = #Predicate<ClipboardItem> { !$0.isPinned && !$0.isFavorite }
+        let count = (try? modelContext.fetchCount(FetchDescriptor<ClipboardItem>(predicate: counting))) ?? 0
+        let excess = count - limit
+        guard excess > 0 else { return }
+
+        // Fetch only the records that will actually be deleted, oldest first —
+        // materializing the whole history on every copy was measurable on main.
+        var descriptor = FetchDescriptor<ClipboardItem>(
+            predicate: counting,
+            sortBy: [SortDescriptor(\.updatedAt, order: .forward)]
         )
-        guard let items = try? modelContext.fetch(descriptor), items.count > limit else { return }
-        var removed: [UUID] = []
-        for item in items.suffix(from: limit) {
-            removed.append(item.id)
+        descriptor.fetchLimit = excess
+        guard let stale = try? modelContext.fetch(descriptor), !stale.isEmpty else { return }
+        let removed = stale.map(\.id)
+        for item in stale {
             modelContext.delete(item)
         }
         try? modelContext.save()

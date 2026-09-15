@@ -115,7 +115,7 @@ struct PreviewPane: View {
         switch item.contentType {
         case .image:
             VStack(alignment: .leading, spacing: 14) {
-                if let data = item.imageData, let image = NSImage(data: data) {
+                if let image = ImageCache.shared.image(for: item, preferThumbnail: false) {
                     Image(nsImage: image)
                         .resizable()
                         .scaledToFit()

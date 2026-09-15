@@ -108,8 +108,7 @@ struct ClipboardItemRow: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color(hex: item.contentType.accentHex)?.opacity(0.14) ?? PasteTheme.accent.opacity(0.14))
                 .frame(width: 42, height: 42)
-            if item.contentType == .image, let data = item.thumbnailData ?? item.imageData,
-               let nsImage = NSImage(data: data) {
+            if item.contentType == .image, let nsImage = ImageCache.shared.image(for: item) {
                 Image(nsImage: nsImage)
                     .resizable()
                     .scaledToFill()

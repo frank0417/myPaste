@@ -15,6 +15,11 @@ final class ClipboardMonitor: ObservableObject {
     private var lastChangeCount: Int = -1
     private var ignoreNextChange: Bool = false
     private let pasteboard = NSPasteboard.general
+    /// Image decode + hashing + thumbnail rendering happen here, never on main.
+    private let captureQueue = DispatchQueue(label: "com.mypaste.PasteNest.capture", qos: .userInitiated)
+    private var captureInFlight = false
+    /// Set when the pasteboard changed again while a capture was running.
+    private var captureAgainPending = false
 
     var onNewItem: ((CapturedClipboardPayload) -> Void)?
 
@@ -60,12 +65,46 @@ final class ClipboardMonitor: ObservableObject {
             return
         }
 
-        if let payload = Self.capture(from: pasteboard) {
-            onNewItem?(payload)
+        // One capture at a time; a change that lands mid-capture re-runs once after,
+        // so rapid copies coalesce instead of queueing up stale work.
+        guard !captureInFlight else {
+            captureAgainPending = true
+            return
+        }
+        startCapture()
+    }
+
+    private func startCapture() {
+        captureInFlight = true
+
+        // Read the source app now, on main, while it is still the app that copied.
+        let sourceApp = NSWorkspace.shared.frontmostApplication
+        let sourceName = sourceApp?.localizedName
+        let sourceBundle = sourceApp?.bundleIdentifier
+
+        captureQueue.async { [weak self] in
+            let payload = Self.capture(
+                from: NSPasteboard.general,
+                sourceName: sourceName,
+                sourceBundle: sourceBundle
+            )
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.captureInFlight = false
+                if let payload {
+                    self.onNewItem?(payload)
+                }
+                if self.captureAgainPending {
+                    self.captureAgainPending = false
+                    // Do not go through poll(): the change count was already consumed,
+                    // but the pasteboard holds newer content than the capture read.
+                    self.startCapture()
+                }
+            }
         }
     }
 
-    private static func resolvedContentType(plain: String, rtf: Data?) -> ClipboardContentType {
+    private nonisolated static func resolvedContentType(plain: String, rtf: Data?) -> ClipboardContentType {
         var type = ContentTypeDetector.detect(from: plain)
         if rtf != nil, type == .text || type == .snippet {
             type = .richText
@@ -73,11 +112,14 @@ final class ClipboardMonitor: ObservableObject {
         return type
     }
 
-    static func capture(from pasteboard: NSPasteboard) -> CapturedClipboardPayload? {
-        let sourceApp = NSWorkspace.shared.frontmostApplication
-        let sourceName = sourceApp?.localizedName
-        let sourceBundle = sourceApp?.bundleIdentifier
-
+    /// Reads whatever the pasteboard currently holds. Runs on `captureQueue`; the
+    /// source app is captured by the caller on the main thread, where NSWorkspace
+    /// belongs and while it still reflects the copying app.
+    nonisolated static func capture(
+        from pasteboard: NSPasteboard,
+        sourceName: String? = nil,
+        sourceBundle: String? = nil
+    ) -> CapturedClipboardPayload? {
         if let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [
             .urlReadingFileURLsOnly: true
         ]) as? [URL], !urls.isEmpty {
@@ -159,7 +201,7 @@ final class ClipboardMonitor: ObservableObject {
         )
     }
 
-    private static func readColor(from pasteboard: NSPasteboard) -> NSColor? {
+    private nonisolated static func readColor(from pasteboard: NSPasteboard) -> NSColor? {
         if let colors = pasteboard.readObjects(forClasses: [NSColor.self], options: nil) as? [NSColor],
            let color = colors.first {
             return color
@@ -168,7 +210,7 @@ final class ClipboardMonitor: ObservableObject {
     }
 
     /// Shared with `ScreenshotService` so captures get the same shelf thumbnails.
-    static func thumbnailData(from image: NSImage, maxSize: CGFloat) -> Data? {
+    nonisolated static func thumbnailData(from image: NSImage, maxSize: CGFloat) -> Data? {
         let size = image.size
         guard size.width > 0, size.height > 0 else { return nil }
         let scale = min(maxSize / size.width, maxSize / size.height, 1)
