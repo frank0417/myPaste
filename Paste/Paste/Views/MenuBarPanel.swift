@@ -333,13 +333,10 @@ struct MenuBarPanel: View {
             Menu {
                 Button("粘贴选中项") { pasteSelected() }
                 Divider()
-                ForEach(ScreenshotMode.allCases) { mode in
-                    Button(mode.title) { ScreenshotService.shared.capture(mode) }
-                }
-                Menu("截图识字（只存文字）") {
-                    ForEach(ScreenshotMode.allCases) { mode in
-                        Button(mode.title) { ScreenshotService.shared.capture(mode, recognizeText: true) }
-                    }
+                // Captures live on their hotkeys; the menu keeps a single entry so
+                // the shortcut is discoverable.
+                Button("截取区域（\(appState.screenshotHotkeyDisplay)）") {
+                    ScreenshotService.shared.capture(.region)
                 }
                 Divider()
                 Button(appState.isMonitoringEnabled ? "暂停监听" : "恢复监听") {
