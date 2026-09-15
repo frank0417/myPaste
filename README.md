@@ -1,4 +1,4 @@
-# Paste — Mac 剪贴板管理工具
+# PasteNest — Mac 剪贴板管理工具
 
 保存、搜索、同步你复制的一切。面向 Mac App Store 的原生 SwiftUI 应用。
 
@@ -59,7 +59,7 @@ Paste/
 
 ## App Store 准备清单
 
-> 上架时请使用你自己的唯一应用名 / Bundle ID。已有商业应用名为 Paste，审核时建议使用可区分名称（例如 myPaste）。
+> 上架时请使用你自己的唯一应用名 / Bundle ID。本仓库的应用名为 **PasteNest**（App Store 无同名应用；ClipStack / ClipShelf / ClipKeep / ClipNest 均已被占用）。
 
 - [x] App Sandbox 与 Hardened Runtime
 - [x] CloudKit / iCloud 容器 entitlement

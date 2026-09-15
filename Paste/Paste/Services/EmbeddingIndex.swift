@@ -24,7 +24,7 @@ final class EmbeddingIndex: @unchecked Sendable {
         case cjk
     }
 
-    private let embedQueue = DispatchQueue(label: "com.mypaste.ClipStack.embeddings", qos: .utility)
+    private let embedQueue = DispatchQueue(label: "com.mypaste.PasteNest.embeddings", qos: .utility)
     private let recordLock = NSLock()
     private var records: [UUID: Record] = [:]
     private var models: [ScriptSpace: NLContextualEmbedding] = [:]
@@ -319,7 +319,7 @@ final class EmbeddingIndex: @unchecked Sendable {
     private static var fileURL: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSTemporaryDirectory())
-        return base.appendingPathComponent("ClipStack", isDirectory: true)
+        return base.appendingPathComponent("PasteNest", isDirectory: true)
             .appendingPathComponent("embeddings.plist")
     }
 

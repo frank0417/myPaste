@@ -74,7 +74,7 @@ final class ScreenshotService: ObservableObject {
 
     @Published private(set) var isCapturing = false
 
-    private let queue = DispatchQueue(label: "com.mypaste.ClipStack.screenshot")
+    private let queue = DispatchQueue(label: "com.mypaste.PasteNest.screenshot")
 
     private init() {}
 
@@ -176,7 +176,7 @@ final class ScreenshotService: ObservableObject {
         openScreenRecordingSettings()
     }
 
-    /// Prompts once so ClipStack shows up in 隐私与安全性 → 屏幕录制.
+    /// Prompts once so PasteNest shows up in 隐私与安全性 → 屏幕录制.
     private func requestScreenRecordingAccessIfNeeded() {
         guard !Self.hasScreenRecordingAccess else { return }
         _ = CGRequestScreenCaptureAccess()
@@ -186,7 +186,7 @@ final class ScreenshotService: ObservableObject {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = "需要「屏幕录制」权限"
-        alert.informativeText = "macOS 要求截图前先授权。请在「系统设置 → 隐私与安全性 → 屏幕录制」中勾选 ClipStack，然后重新启动 ClipStack。"
+        alert.informativeText = "macOS 要求截图前先授权。请在「系统设置 → 隐私与安全性 → 屏幕录制」中勾选 PasteNest，然后重新启动 PasteNest。"
         alert.addButton(withTitle: "打开系统设置")
         alert.addButton(withTitle: "稍后")
         NSApp.activate(ignoringOtherApps: true)
@@ -199,7 +199,7 @@ final class ScreenshotService: ObservableObject {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = "截图失败"
-        alert.informativeText = "系统截图工具返回错误代码 \(status)。请重试，或用系统快捷键 ⇧⌘4 截图后由 ClipStack 自动收录。"
+        alert.informativeText = "系统截图工具返回错误代码 \(status)。请重试，或用系统快捷键 ⇧⌘4 截图后由 PasteNest 自动收录。"
         alert.addButton(withTitle: "好")
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
@@ -219,7 +219,7 @@ final class ScreenshotService: ObservableObject {
 
     private nonisolated static func makeOutputURL() -> URL {
         FileManager.default.temporaryDirectory
-            .appendingPathComponent("ClipStack-Screenshot-\(UUID().uuidString)")
+            .appendingPathComponent("PasteNest-Screenshot-\(UUID().uuidString)")
             .appendingPathExtension("png")
     }
 

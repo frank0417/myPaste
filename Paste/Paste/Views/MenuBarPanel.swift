@@ -320,7 +320,7 @@ struct MenuBarPanel: View {
                     StatusItemController.shared.hidePanel()
                 }
                 Divider()
-                Button("退出 ClipStack", role: .destructive) {
+                Button("退出 PasteNest", role: .destructive) {
                     NSApp.terminate(nil)
                 }
             } label: {
@@ -506,7 +506,7 @@ struct MenuBarPanel: View {
                     onboardingCard(
                         icon: "power",
                         title: "登录时打开",
-                        detail: "重启 Mac 后自动启动 ClipStack，保持常驻后台。",
+                        detail: "重启 Mac 后自动启动 PasteNest，保持常驻后台。",
                         actionTitle: "启用"
                     ) {
                         enableLaunchAtLogin()

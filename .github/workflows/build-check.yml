@@ -52,7 +52,7 @@ jobs:
           mkdir -p build
           xcodebuild build \
             -project Paste/Paste.xcodeproj \
-            -scheme ClipStack \
+            -scheme PasteNest \
             -configuration Debug \
             -destination "platform=macOS" \
             -derivedDataPath build/DerivedData \

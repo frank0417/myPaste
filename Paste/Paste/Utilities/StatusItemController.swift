@@ -36,10 +36,10 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         if statusItem == nil {
             let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
             if let button = item.button {
-                let image = NSImage(systemSymbolName: "square.stack.3d.up.fill", accessibilityDescription: "ClipStack")
+                let image = NSImage(systemSymbolName: "square.stack.3d.up.fill", accessibilityDescription: "PasteNest")
                 image?.isTemplate = true
                 button.image = image
-                button.toolTip = "ClipStack — 常驻后台（\(appState.hotkeyDisplay) 唤出）"
+                button.toolTip = "PasteNest — 常驻后台（\(appState.hotkeyDisplay) 唤出）"
                 button.target = self
                 button.action = #selector(statusItemClicked(_:))
                 button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -54,7 +54,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
 
     /// Keeps the status-item tooltip in sync after the user changes the shortcut.
     func refreshHotkeyHint(_ display: String) {
-        statusItem?.button?.toolTip = "ClipStack — 常驻后台（\(display) 唤出）"
+        statusItem?.button?.toolTip = "PasteNest — 常驻后台（\(display) 唤出）"
     }
 
     /// `ScreenshotService` hides the shelf before a capture and restores it after.
@@ -96,7 +96,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         menu.addItem(NSMenuItem.separator())
         menu.addItem(withTitle: "设置…", action: #selector(menuOpenSettings), keyEquivalent: ",")
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(withTitle: "退出 ClipStack", action: #selector(menuQuit), keyEquivalent: "q")
+        menu.addItem(withTitle: "退出 PasteNest", action: #selector(menuQuit), keyEquivalent: "q")
         for item in menu.items {
             item.target = self
         }
@@ -193,7 +193,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
             if let identifier = window.identifier?.rawValue {
                 return !identifier.contains("Settings") && identifier.contains("main")
             }
-            return window.title == "ClipStack"
+            return window.title == "PasteNest"
         }
         mainWindow = found
         return found

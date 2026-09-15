@@ -57,7 +57,7 @@
 		72F05B2CCFE249AFA44F04CA /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		0FAA7E75BC8A4BB59679AF95 /* PasteTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteTheme.swift; sourceTree = "<group>"; };
 		8C0CF0541C8A4203A2049492 /* HotKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKey.swift; sourceTree = "<group>"; };
-		E9D1A839A8C14B148802BBB2 /* ClipStack.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClipStack.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E9D1A839A8C14B148802BBB2 /* PasteNest.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PasteNest.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0E997FCFB67E400A82C97FAF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A6D457FE0C9E4A7789F0E471 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		BC4C25708741498F83434ECA /* Paste.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Paste.entitlements; sourceTree = "<group>"; };
@@ -103,7 +103,7 @@
 		BED633F87AD143F38C6D9F10 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				E9D1A839A8C14B148802BBB2 /* ClipStack.app */,
+				E9D1A839A8C14B148802BBB2 /* PasteNest.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -185,9 +185,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		D3AA28C6E22440C993BC3E84 /* ClipStack */ = {
+		D3AA28C6E22440C993BC3E84 /* PasteNest */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 2CF10E9ED22E4EC1B84FB8C1 /* Build configuration list for PBXNativeTarget "ClipStack" */;
+			buildConfigurationList = 2CF10E9ED22E4EC1B84FB8C1 /* Build configuration list for PBXNativeTarget "PasteNest" */;
 			buildPhases = (
 				040EB2E2801544ACB1040B33 /* Sources */,
 				599C493FE24B4C968B5F098B /* Frameworks */,
@@ -197,9 +197,9 @@
 			);
 			dependencies = (
 			);
-			name = ClipStack;
-			productName = ClipStack;
-			productReference = E9D1A839A8C14B148802BBB2 /* ClipStack.app */;
+			name = PasteNest;
+			productName = PasteNest;
+			productReference = E9D1A839A8C14B148802BBB2 /* PasteNest.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -231,7 +231,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				D3AA28C6E22440C993BC3E84 /* ClipStack */,
+				D3AA28C6E22440C993BC3E84 /* PasteNest */,
 			);
 		};
 /* End PBXProject section */
@@ -341,7 +341,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.5.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mypaste.ClipStack;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mypaste.PasteNest;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -366,7 +366,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.5.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.mypaste.ClipStack;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mypaste.PasteNest;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -385,7 +385,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		2CF10E9ED22E4EC1B84FB8C1 /* Build configuration list for PBXNativeTarget "ClipStack" */ = {
+		2CF10E9ED22E4EC1B84FB8C1 /* Build configuration list for PBXNativeTarget "PasteNest" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				DC747AB18A7C4027839BB95D /* Debug */,

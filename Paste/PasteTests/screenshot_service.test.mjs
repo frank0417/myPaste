@@ -89,7 +89,7 @@ function assertTrue(cond, name) {
   assertEqual(Boolean(cond), true, name);
 }
 
-const OUT = "/tmp/ClipStack-Screenshot-ABC.png";
+const OUT = "/tmp/PasteNest-Screenshot-ABC.png";
 
 assertEqual(argumentsFor("region", OUT), ["-i", "-t", "png", OUT], "region captures interactively");
 assertEqual(argumentsFor("window", OUT), ["-i", "-W", "-t", "png", OUT], "window starts in window mode");

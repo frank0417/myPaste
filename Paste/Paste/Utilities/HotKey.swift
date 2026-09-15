@@ -105,7 +105,7 @@ struct HotKeyShortcut: Codable, Equatable {
         kVK_CapsLock, kVK_Function
     ]
 
-    /// Combos macOS or ClipStack itself owns; registering them would silently never fire
+    /// Combos macOS or PasteNest itself owns; registering them would silently never fire
     /// or break a core action, so reject them while recording instead.
     private static let reserved: [(keyCode: Int, carbon: UInt32, name: String)] = [
         (kVK_Space, UInt32(cmdKey), "⌘Space（聚焦搜索）"),
@@ -203,7 +203,7 @@ enum HotKeyApplyResult: Equatable {
     case rejected(String)
 }
 
-/// Registers the global hotkeys that reveal the ClipStack shelf and main window.
+/// Registers the global hotkeys that reveal the PasteNest shelf and main window.
 @MainActor
 final class GlobalHotKeyManager {
     static let shared = GlobalHotKeyManager()
@@ -235,7 +235,7 @@ final class GlobalHotKeyManager {
             return .rejected("与「\(clash.key.shortTitle)」快捷键相同，请换一个")
         }
         guard installHandlerIfNeeded() else {
-            return .rejected("无法注册全局快捷键，请重启 ClipStack 后重试")
+            return .rejected("无法注册全局快捷键，请重启 PasteNest 后重试")
         }
 
         let previous = bindings[action]?.shortcut

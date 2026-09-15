@@ -60,11 +60,11 @@ struct SettingsView: View {
                     Text(AccessibilityPermission.isTrusted ? "已允许" : "未允许")
                         .foregroundStyle(AccessibilityPermission.isTrusted ? Color.secondary : Color.orange)
                 }
-                Button("在系统设置中允许 ClipStack…") {
+                Button("在系统设置中允许 PasteNest…") {
                     AccessibilityPermission.requestIfNeeded(prompt: true)
                     AccessibilityPermission.openSystemSettings()
                 }
-                Text("自动记录复制内容不需要辅助功能。只有「一键粘贴到其他 App」才需要。若列表里没有 ClipStack，先点此按钮再刷新列表。")
+                Text("自动记录复制内容不需要辅助功能。只有「一键粘贴到其他 App」才需要。若列表里没有 PasteNest，先点此按钮再刷新列表。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -75,12 +75,12 @@ struct SettingsView: View {
                 Button("在系统设置中允许截图…") {
                     ScreenshotService.requestScreenRecordingAccess()
                 }
-                Text("截图需要「屏幕录制」权限。授权后需重新启动 ClipStack 才会生效。")
+                Text("截图需要「屏幕录制」权限。授权后需重新启动 PasteNest 才会生效。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
-            Text("ClipStack 常驻菜单栏后台，关掉窗口不会退出：按 \(appState.hotkeyDisplay) 唤出底部面板，按 \(appState.mainWindowHotkeyDisplay) 唤出主窗口，也可点击右上角层叠图标。右键图标可退出。")
+            Text("PasteNest 常驻菜单栏后台，关掉窗口不会退出：按 \(appState.hotkeyDisplay) 唤出底部面板，按 \(appState.mainWindowHotkeyDisplay) 唤出主窗口，也可点击右上角层叠图标。右键图标可退出。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -153,7 +153,7 @@ struct SettingsView: View {
             Image(systemName: "square.stack.3d.up.fill")
                 .font(.system(size: 42))
                 .foregroundStyle(PasteTheme.accent)
-            Text("ClipStack")
+            Text("PasteNest")
                 .font(.title.weight(.bold))
             Text("保存、搜索、同步你复制的一切")
                 .foregroundStyle(.secondary)
