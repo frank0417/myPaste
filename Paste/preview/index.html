@@ -562,8 +562,11 @@
       border-radius: 0;
       box-shadow: none;
       z-index: 2;
-      cursor: default;
+      cursor: grab;
       overflow: visible;
+    }
+    .shot-toolbar.is-dragging {
+      cursor: grabbing;
     }
     .shot-toolbar::before {
       content: "";
@@ -880,6 +883,7 @@
       <div class="divider"></div>
       <button id="shotUndo" data-tip-key="undo" data-tip="撤销" aria-label="撤销">↺</button>
       <button id="shotDownload" data-tip-key="download" data-tip="下载截图" aria-label="下载截图">⇩</button>
+      <button id="shotOCR" data-tip-key="recognizeText" data-tip="识别文字" aria-label="识别文字">文</button>
       <div class="divider"></div>
       <button class="cancel" id="shotCancel" data-tip-key="cancel" data-tip="取消（Esc）" aria-label="取消（Esc）">✕</button>
       <button class="ok" id="shotConfirm" data-tip-key="confirm" data-tip="完成（Enter）" aria-label="完成（Enter）">✓</button>
@@ -908,18 +912,21 @@
         drag: "拖动工具条", rect: "矩形", ellipse: "圆形", line: "直线", arrow: "箭头",
         pen: "画笔", text: "文字", pin: "序号", mosaic: "马赛克", crop: "重新选区",
         color: "颜色", width: "粗细", undo: "撤销", download: "下载截图",
+        recognizeText: "识别文字",
         cancel: "取消（Esc）", confirm: "完成（Enter）"
       },
       "zh-Hant": {
         drag: "拖曳工具列", rect: "矩形", ellipse: "圓形", line: "直線", arrow: "箭頭",
         pen: "畫筆", text: "文字", pin: "序號", mosaic: "馬賽克", crop: "重新選區",
         color: "顏色", width: "粗細", undo: "復原", download: "下載截圖",
+        recognizeText: "辨識文字",
         cancel: "取消（Esc）", confirm: "完成（Enter）"
       },
       en: {
         drag: "Move toolbar", rect: "Rectangle", ellipse: "Ellipse", line: "Line", arrow: "Arrow",
         pen: "Pen", text: "Text", pin: "Number", mosaic: "Mosaic", crop: "Reselect",
         color: "Color", width: "Thickness", undo: "Undo", download: "Save screenshot",
+        recognizeText: "Recognize text",
         cancel: "Cancel (Esc)", confirm: "Done (Enter)"
       }
     };
@@ -1151,6 +1158,7 @@
       strokes: [],
       current: null,
       pin: 1,
+      toolbarOffset: { x: 0, y: 0 },
       ctx: null
     };
     shot.swatch.style.background = shot.color;
@@ -1206,11 +1214,11 @@
       shot.badge.textContent = `${Math.round(w)} × ${Math.round(h)}`;
       const tb = shot.toolbar;
       tb.style.display = "flex";
-      const tw = tb.offsetWidth || 638;
+      const tw = tb.offsetWidth || 672;
       const th = 48;
       const hint = 28;
-      let tx = x + w / 2 - tw / 2;
-      let ty = y + h + 12;
+      let tx = x + w / 2 - tw / 2 + (shot.toolbarOffset?.x || 0);
+      let ty = y + h + 12 + (shot.toolbarOffset?.y || 0);
       if (ty + th > window.innerHeight - 8) ty = y - th - 12;
       ty -= hint;
       tx = Math.min(Math.max(tx, 8), Math.max(8, window.innerWidth - tw - 8));
@@ -1293,6 +1301,7 @@
       shot.strokes = [];
       shot.current = null;
       shot.pin = 1;
+      shot.toolbarOffset = { x: 0, y: 0 };
       setTool("move");
       const dpr = window.devicePixelRatio || 1;
       shot.canvas.width = Math.round(window.innerWidth * dpr);
@@ -1345,6 +1354,23 @@
       shot.toast.classList.add("show");
       setTimeout(() => shot.toast.classList.remove("show"), 1600);
     };
+    document.getElementById("shotOCR").onclick = (e) => {
+      e.stopPropagation();
+      shot.toast.textContent = "已识别 12 字，文字已复制";
+      shot.toast.classList.add("show");
+      setTimeout(() => shot.toast.classList.remove("show"), 1900);
+    };
+    shot.toolbar.addEventListener("mousedown", (e) => {
+      if (e.target.closest("button") || e.target.closest(".shot-palette") || e.target.closest(".shot-widths")) return;
+      e.preventDefault();
+      e.stopPropagation();
+      shot.toolbar.classList.add("is-dragging");
+      shot.drag = {
+        kind: "toolbar",
+        start: { x: e.clientX, y: e.clientY },
+        origin: { x: shot.toolbarOffset.x, y: shot.toolbarOffset.y }
+      };
+    });
     document.getElementById("shotColor").onclick = (e) => {
       e.stopPropagation();
       shot.palette.classList.toggle("open");
@@ -1431,6 +1457,7 @@
       shot.strokes = [];
       shot.tool = "move";
       setTool("move");
+      shot.toolbarOffset = { x: 0, y: 0 };
       shot.drag = { kind: "new", start: pt };
       shot.rect = { x: pt.x, y: pt.y, w: 0, h: 0 };
       layoutShot();
@@ -1465,6 +1492,12 @@
         if (h.includes("e")) x2 = pt.x;
         shot.rect = { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) };
         layoutShot();
+      } else if (shot.drag.kind === "toolbar") {
+        shot.toolbarOffset = {
+          x: shot.drag.origin.x + pt.x - shot.drag.start.x,
+          y: shot.drag.origin.y + pt.y - shot.drag.start.y
+        };
+        layoutShot();
       } else if (shot.drag.kind === "draw" && shot.current) {
         if (shot.current.tool === "pen") shot.current.points.push(pt);
         else shot.current.points[1] = pt;
@@ -1474,6 +1507,7 @@
 
     window.addEventListener("mouseup", () => {
       if (!shot.drag) return;
+      shot.toolbar.classList.remove("is-dragging");
       if (shot.drag.kind === "new" && shot.rect && (shot.rect.w < 4 || shot.rect.h < 4)) shot.rect = null;
       if (shot.drag.kind === "draw" && shot.current) {
         shot.strokes.push(shot.current);

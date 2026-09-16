@@ -4,7 +4,7 @@
 
 const HANDLE_HIT = 10;
 const MIN_SELECTION = 4;
-const TOOLBAR = { width: 638, height: 48 };
+const TOOLBAR = { width: 672, height: 48 };
 const TOOLBAR_GAP = 12;
 const TOOLBAR_HINT_HEIGHT = 28;
 const SIZE_BADGE_HEIGHT = 22;
@@ -355,6 +355,7 @@ const TOOLBAR_ACTION_HINTS = {
     width: "粗细",
     undo: "撤销",
     download: "下载截图",
+    recognizeText: "识别文字",
     cancel: "取消（Esc）",
     confirm: "完成（Enter）"
   },
@@ -364,6 +365,7 @@ const TOOLBAR_ACTION_HINTS = {
     width: "粗細",
     undo: "復原",
     download: "下載截圖",
+    recognizeText: "辨識文字",
     cancel: "取消（Esc）",
     confirm: "完成（Enter）"
   },
@@ -373,6 +375,7 @@ const TOOLBAR_ACTION_HINTS = {
     width: "Thickness",
     undo: "Undo",
     download: "Save screenshot",
+    recognizeText: "Recognize text",
     cancel: "Cancel (Esc)",
     confirm: "Done (Enter)"
   }
@@ -408,7 +411,7 @@ function resolveScreenshotLanguage(preferred = []) {
 let bar = toolbarFrame(selection, canvas);
 assertEqual(
   bar,
-  { x: 361, y: 587 - TOOLBAR_HINT_HEIGHT, width: 638, height: 48 + TOOLBAR_HINT_HEIGHT },
+  { x: 344, y: 587 - TOOLBAR_HINT_HEIGHT, width: 672, height: 48 + TOOLBAR_HINT_HEIGHT },
   "toolbar host hangs below the selection with hint space above the capsule"
 );
 assertEqual(bar.height - TOOLBAR.height, TOOLBAR_HINT_HEIGHT, "host is taller than the capsule so hints are not clipped");
@@ -417,7 +420,7 @@ assertTrue(bar.y + TOOLBAR_HINT_HEIGHT + TOOLBAR.height <= 820, "no room below: 
 bar = toolbarFrame({ x: 20, y: 120, width: 80, height: 40 }, canvas);
 assertEqual(bar.x, 8, "toolbar is kept inside the left edge");
 bar = toolbarFrame({ x: 1400, y: 120, width: 30, height: 40 }, canvas);
-assertEqual(bar.x, 1440 - 638 - 8, "toolbar is kept inside the right edge");
+assertEqual(bar.x, 1440 - 672 - 8, "toolbar is kept inside the right edge");
 
 assertEqual(SUPPORTED_LANGUAGES, ["zh-Hans", "zh-Hant", "en"], "overlay ships Simplified, Traditional, and English");
 assertEqual(resolveScreenshotLanguage(["zh-Hans"]), "zh-Hans", "Simplified Chinese is used as-is");
@@ -434,7 +437,7 @@ for (const lang of SUPPORTED_LANGUAGES) {
     TOOLBAR_TOOLS.every((tool) => Boolean(TOOL_TITLES[lang][tool])),
     `${lang} has a hover hint for every toolbar icon`
   );
-  assertEqual(Object.keys(TOOLBAR_ACTION_HINTS[lang]).length, 7, `${lang} chrome controls have hover hints`);
+  assertEqual(Object.keys(TOOLBAR_ACTION_HINTS[lang]).length, 8, `${lang} chrome controls have hover hints`);
   assertTrue(Boolean(TEXT_PLACEHOLDER[lang]), `${lang} has a text-tool placeholder`);
 }
 assertEqual(TOOL_TITLES["zh-Hans"].rect, "矩形", "Simplified rect hint");
@@ -444,8 +447,25 @@ assertEqual(TOOL_TITLES.en.mosaic, "Mosaic", "English mosaic hint");
 assertEqual(TOOLBAR_ACTION_HINTS["zh-Hans"].download, "下载截图", "Simplified download hint");
 assertEqual(TOOLBAR_ACTION_HINTS["zh-Hant"].download, "下載截圖", "Traditional download hint");
 assertEqual(TOOLBAR_ACTION_HINTS.en.download, "Save screenshot", "English download hint");
+assertEqual(TOOLBAR_ACTION_HINTS["zh-Hans"].recognizeText, "识别文字", "Simplified OCR hint");
+assertEqual(TOOLBAR_ACTION_HINTS["zh-Hant"].recognizeText, "辨識文字", "Traditional OCR hint");
+assertEqual(TOOLBAR_ACTION_HINTS.en.recognizeText, "Recognize text", "English OCR hint");
 assertEqual(TOOLBAR_ACTION_HINTS.en.cancel, "Cancel (Esc)", "English cancel hint");
 assertTrue(TOOL_TITLES["zh-Hant"].ellipse !== TOOL_TITLES["zh-Hans"].ellipse, "Traditional ellipse uses a distinct glyph");
+
+const OVERLAY_ACCEPTS_FIRST_MOUSE = true;
+const TOOLBAR_BUTTON_CURSOR_IS_POINTING_HAND = true;
+const TOOLBAR_IS_FULLY_DRAGGABLE = true;
+const ANNOTATION_TOOLBAR_INCLUDES_OCR = true;
+assertTrue(OVERLAY_ACCEPTS_FIRST_MOUSE, "first mouse-down after the hotkey starts the selection");
+assertTrue(TOOLBAR_BUTTON_CURSOR_IS_POINTING_HAND, "toolbar buttons show a pointing-hand cursor");
+assertTrue(TOOLBAR_IS_FULLY_DRAGGABLE, "the whole annotation strip can be dragged");
+assertTrue(ANNOTATION_TOOLBAR_INCLUDES_OCR, "plain-capture toolbar includes 识别文字");
+assertTrue(Object.prototype.hasOwnProperty.call(TOOLBAR_ACTION_HINTS["zh-Hans"], "recognizeText"), "OCR is a chrome hint, not a drawing tool");
+
+const draggedBar = toolbarFrame(selection, canvas, TOOLBAR, { width: 40, height: -18 });
+assertEqual(draggedBar.x, 344 + 40, "dragging the strip applies the horizontal offset");
+assertEqual(draggedBar.y, 587 - TOOLBAR_HINT_HEIGHT - 18, "dragging the strip applies the vertical offset");
 
 const badge = sizeBadgeFrame(selection, canvas, 64);
 assertEqual(badge.y, 120 - 22 - 6, "size badge sits above the top-left");

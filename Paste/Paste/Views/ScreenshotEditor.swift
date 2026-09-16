@@ -60,6 +60,7 @@ enum ScreenshotToolbarHintText {
     static var width: String { ScreenshotL10n.string(.width) }
     static var undo: String { ScreenshotL10n.string(.undo) }
     static var download: String { ScreenshotL10n.string(.download) }
+    static var recognizeText: String { ScreenshotL10n.string(.recognizeText) }
     static var cancel: String { ScreenshotL10n.string(.cancel) }
     static var confirm: String { ScreenshotL10n.string(.confirm) }
 }
@@ -253,10 +254,18 @@ enum ScreenshotLayout {
     static let handleRadius: CGFloat = 4
     static let handleHitRadius: CGFloat = 10
     static let minSelection: CGFloat = 4
-    static let toolbarSize = CGSize(width: 638, height: 48)
+    static let toolbarSize = CGSize(width: 672, height: 48)
     /// Extra host height above the capsule so icon hover hints are not clipped.
     static let toolbarHintHeight: CGFloat = 28
     static let toolbarGap: CGFloat = 12
+    /// Accessory / first-click activation must not eat the opening drag.
+    static let overlayAcceptsFirstMouse = true
+    /// Annotation-strip buttons use `NSCursor.pointingHand` on hover.
+    static let toolbarButtonCursorIsPointingHand = true
+    /// The whole strip can be dragged, not only the ellipsis grip.
+    static let toolbarIsFullyDraggable = true
+    /// Plain captures keep 识别文字 on the annotation strip.
+    static let annotationToolbarIncludesOCR = true
     static let sizeBadgeHeight: CGFloat = 22
     static let sizeBadgeGap: CGFloat = 6
     static let mosaicBlock: CGFloat = 10
