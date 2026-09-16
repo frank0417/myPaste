@@ -403,7 +403,7 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
     /// Toolbar / text field keep their own clicks; a live drag stays on the canvas
     /// even if the pointer crosses the strip.
     func shouldLetSubviewHandle(_ event: NSEvent) -> Bool {
-        if dragKind != .idle { return false }
+        guard case .idle = dragKind else { return false }
         let point = canvasPoint(from: event)
         if let field = textField, field.frame.contains(point) { return true }
         if let toolbarHost, !toolbarHost.isHidden, toolbarHost.frame.contains(point) {
