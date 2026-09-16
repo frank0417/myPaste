@@ -45,6 +45,7 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
         case .mainWindow:
             return HotKeyShortcut(keyCode: UInt32(kVK_ANSI_V), carbonModifiers: UInt32(cmdKey | optionKey))
         case .screenshot:
+            // ⇧⌘X — ⇧⌘D was the previous factory default (migrated on load).
             return HotKeyShortcut(keyCode: UInt32(kVK_ANSI_X), carbonModifiers: UInt32(cmdKey | shiftKey))
         }
     }
@@ -69,8 +70,20 @@ struct HotKeyShortcut: Codable, Equatable {
               shortcut.rejectionReason == nil else {
             return action.defaultShortcut
         }
+        // ⇧⌘D was the factory screenshot combo. Treat a still-stored copy as
+        // unset so existing installs pick up ⇧⌘X; a combo the user recorded
+        // themselves is left alone.
+        if action == .screenshot, shortcut == Self.retiredScreenshotDefault {
+            return action.defaultShortcut
+        }
         return shortcut
     }
+
+    /// Factory screenshot combo before ⇧⌘X.
+    private static let retiredScreenshotDefault = HotKeyShortcut(
+        keyCode: UInt32(kVK_ANSI_D),
+        carbonModifiers: UInt32(cmdKey | shiftKey)
+    )
 
     func save(for action: HotKeyAction) {
         if let data = try? JSONEncoder().encode(self) {

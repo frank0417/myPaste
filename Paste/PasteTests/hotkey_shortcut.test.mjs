@@ -206,6 +206,24 @@ assertTrue(
   "screenshot default differs from both window defaults"
 );
 
+const RETIRED_SCREENSHOT = { keyCode: KEY.d, carbonModifiers: cmdKey | shiftKey };
+function loadScreenshot(stored) {
+  if (!stored) return DEFAULTS.screenshot;
+  if (sameShortcut(stored, RETIRED_SCREENSHOT)) return DEFAULTS.screenshot;
+  return stored;
+}
+assertEqual(loadScreenshot(null), DEFAULTS.screenshot, "missing storage uses ⇧⌘X");
+assertEqual(
+  loadScreenshot(RETIRED_SCREENSHOT),
+  DEFAULTS.screenshot,
+  "a still-stored ⇧⌘D factory default upgrades to ⇧⌘X"
+);
+assertEqual(
+  loadScreenshot({ keyCode: KEY.v, carbonModifiers: cmdKey | controlKey }),
+  { keyCode: KEY.v, carbonModifiers: cmdKey | controlKey },
+  "a custom screenshot combo is kept"
+);
+
 // A rejected combo must not clear the working shortcut.
 const bindings = {
   panel: DEFAULTS.panel,
@@ -261,7 +279,8 @@ const swift = fs.readFileSync(
   "utf8"
 );
 assertTrue(/kVK_ANSI_X/.test(swift), "Swift screenshot default uses kVK_ANSI_X");
-assertTrue(!/kVK_ANSI_D/.test(swift), "Swift screenshot default is no longer kVK_ANSI_D");
+assertTrue(/retiredScreenshotDefault/.test(swift), "old ⇧⌘D factory default is migrated");
+assertTrue(/kVK_ANSI_D/.test(swift), "retired default is still named so stored ⇧⌘D can be recognized");
 
 if (failed > 0) {
   console.error(`\n${failed} test(s) failed`);
