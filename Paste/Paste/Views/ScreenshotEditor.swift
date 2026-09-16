@@ -137,6 +137,26 @@ enum ScreenshotLayout {
     static let imageDrawRespectsFlipped = true
     /// Composite paints the CGImage before flipping the context for strokes.
     static let compositeDrawsImageBeforeFlip = true
+
+    /// ScreenCaptureKit output size in pixels. `SCStreamConfiguration` defaults to
+    /// 1920×1080, which looks soft on a Retina display; always size the buffer from
+    /// the filter's point scale, and never smaller than `backingScaleFactor`.
+    static func outputPixelSize(
+        contentRect: CGSize,
+        pointPixelScale: CGFloat,
+        screenPoints: CGSize,
+        backingScale: CGFloat
+    ) -> (width: Int, height: Int) {
+        let filterScale = pointPixelScale > 0 ? pointPixelScale : 1
+        let filterWidth = Int((contentRect.width * filterScale).rounded())
+        let filterHeight = Int((contentRect.height * filterScale).rounded())
+        let screenWidth = Int((screenPoints.width * max(backingScale, 1)).rounded())
+        let screenHeight = Int((screenPoints.height * max(backingScale, 1)).rounded())
+        if filterWidth >= screenWidth && filterHeight >= screenHeight {
+            return (max(filterWidth, 1), max(filterHeight, 1))
+        }
+        return (max(screenWidth, 1), max(screenHeight, 1))
+    }
     static let defaultColorHex = "#F5222D"
     static let selectionColorHex = "#2F80FF"
     static let dimOpacity: CGFloat = 0.55
@@ -373,7 +393,17 @@ enum ScreenshotRenderer {
         strokes: [ScreenshotStroke]
     ) -> Data? {
         guard let source = cgImage(from: image) else { return nil }
-        let scale = CGFloat(source.width) / max(image.size.width, 1)
+        return png(cgImage: source, pointSize: image.size, selection: selection, strokes: strokes)
+    }
+
+    static func png(
+        cgImage: CGImage,
+        pointSize: CGSize,
+        selection: CGRect,
+        strokes: [ScreenshotStroke]
+    ) -> Data? {
+        let source = cgImage
+        let scale = CGFloat(source.width) / max(pointSize.width, 1)
         let crop = ScreenshotLayout.pixelCrop(
             selection,
             scale: scale,
@@ -413,6 +443,10 @@ enum ScreenshotRenderer {
     }
 
     static func cgImage(from image: NSImage) -> CGImage? {
+        let bitmaps = image.representations.compactMap { $0 as? NSBitmapImageRep }
+        if let best = bitmaps.max(by: { $0.pixelsWide < $1.pixelsWide }), let cgImage = best.cgImage {
+            return cgImage
+        }
         var proposed = CGRect(origin: .zero, size: image.size)
         return image.cgImage(forProposedRect: &proposed, context: nil, hints: nil)
     }

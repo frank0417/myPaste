@@ -245,6 +245,37 @@ const COMPOSITE_DRAWS_IMAGE_BEFORE_FLIP = true;
 assertTrue(IMAGE_DRAW_RESPECTS_FLIPPED, "freeze is drawn with respectFlipped");
 assertTrue(COMPOSITE_DRAWS_IMAGE_BEFORE_FLIP, "PNG paints the bitmap before the stroke flip");
 
+function outputPixelSize(contentRect, pointPixelScale, screenPoints, backingScale) {
+  const filterScale = pointPixelScale > 0 ? pointPixelScale : 1;
+  const filterWidth = Math.round(contentRect.width * filterScale);
+  const filterHeight = Math.round(contentRect.height * filterScale);
+  const screenWidth = Math.round(screenPoints.width * Math.max(backingScale, 1));
+  const screenHeight = Math.round(screenPoints.height * Math.max(backingScale, 1));
+  if (filterWidth >= screenWidth && filterHeight >= screenHeight) {
+    return { width: Math.max(filterWidth, 1), height: Math.max(filterHeight, 1) };
+  }
+  return { width: Math.max(screenWidth, 1), height: Math.max(screenHeight, 1) };
+}
+assertEqual(
+  outputPixelSize({ width: 1512, height: 982 }, 2, { width: 1512, height: 982 }, 2),
+  { width: 3024, height: 1964 },
+  "Retina capture is 2x pixels, not 1920×1080"
+);
+assertEqual(
+  outputPixelSize({ width: 1512, height: 982 }, 1, { width: 1512, height: 982 }, 2),
+  { width: 3024, height: 1964 },
+  "a 1x filter scale still uses backingScaleFactor"
+);
+assertEqual(
+  outputPixelSize({ width: 1920, height: 1080 }, 1, { width: 1920, height: 1080 }, 1),
+  { width: 1920, height: 1080 },
+  "a 1x display stays 1x"
+);
+assertTrue(
+  outputPixelSize({ width: 1512, height: 982 }, 2, { width: 1512, height: 982 }, 2).width > 1920,
+  "output is larger than ScreenCaptureKit's 1920 default"
+);
+
 const handles = handlePoints(selection);
 assertEqual(handles.nw, { x: 200, y: 120 }, "nw handle is top-left");
 assertEqual(handles.se, { x: 1160, y: 575 }, "se handle is bottom-right");

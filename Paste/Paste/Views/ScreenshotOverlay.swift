@@ -37,6 +37,7 @@ final class ScreenshotOverlayController {
         for frame in frames {
             let session = ScreenshotSession(
                 image: frame.image,
+                cgImage: frame.cgImage,
                 scale: frame.scale,
                 canvasSize: frame.screen.frame.size,
                 windows: frame.windows,
@@ -79,14 +80,24 @@ final class ScreenshotOverlayController {
         session.commitTextIfNeeded()
         guard let selection = session.selection, selection.width >= ScreenshotLayout.minSelection else { return }
         let strokes = session.recognizeText ? [] : session.strokes
-        guard let annotated = ScreenshotRenderer.png(image: session.image, selection: selection, strokes: strokes) else {
+        guard let annotated = ScreenshotRenderer.png(
+            cgImage: session.cgImage,
+            pointSize: session.canvasSize,
+            selection: selection,
+            strokes: strokes
+        ) else {
             return
         }
         let raw: Data
         if strokes.isEmpty {
             raw = annotated
         } else {
-            raw = ScreenshotRenderer.png(image: session.image, selection: selection, strokes: []) ?? annotated
+            raw = ScreenshotRenderer.png(
+                cgImage: session.cgImage,
+                pointSize: session.canvasSize,
+                selection: selection,
+                strokes: []
+            ) ?? annotated
         }
         finish(.captured(png: annotated, rawPNG: raw))
     }
@@ -171,6 +182,7 @@ private final class ScreenshotOverlayPanel: NSPanel {
 
 final class ScreenshotSession: ObservableObject {
     let image: NSImage
+    let cgImage: CGImage
     let scale: CGFloat
     let canvasSize: CGSize
     let windows: [CGRect]
@@ -196,6 +208,7 @@ final class ScreenshotSession: ObservableObject {
 
     init(
         image: NSImage,
+        cgImage: CGImage,
         scale: CGFloat,
         canvasSize: CGSize,
         windows: [CGRect],
@@ -203,6 +216,7 @@ final class ScreenshotSession: ObservableObject {
         recognizeText: Bool
     ) {
         self.image = image
+        self.cgImage = cgImage
         self.scale = scale
         self.canvasSize = canvasSize
         self.windows = windows
@@ -314,18 +328,20 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
         }
     }
 
+    /// Blit the captured CGImage at native pixels. Going through NSImage in a
+    /// flipped view can rasterize at 1x and look soft on Retina.
+    private func drawFreeze() {
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+        ctx.saveGState()
+        ctx.interpolationQuality = .none
+        ctx.translateBy(x: 0, y: bounds.height)
+        ctx.scaleBy(x: 1, y: -1)
+        ctx.draw(session.cgImage, in: bounds)
+        ctx.restoreGState()
+    }
+
     override func draw(_ dirtyRect: NSRect) {
-        // The canvas is flipped (top-left origin) so selection math matches the
-        // screen. The four-argument `draw(in:from:operation:fraction:)` ignores
-        // that and paints the freeze upside down.
-        session.image.draw(
-            in: bounds,
-            from: CGRect(origin: .zero, size: session.image.size),
-            operation: .copy,
-            fraction: 1,
-            respectFlipped: true,
-            hints: nil
-        )
+        drawFreeze()
 
         let dim = NSBezierPath(rect: bounds)
         if let selection = session.selection {
@@ -586,7 +602,8 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
         commitText()
         guard let selection = session.selection,
               let data = ScreenshotRenderer.png(
-                image: session.image,
+                cgImage: session.cgImage,
+                pointSize: session.canvasSize,
                 selection: selection,
                 strokes: session.recognizeText ? [] : session.strokes
               ) else { return }
@@ -703,9 +720,7 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
     }
 
     private func colorAt(_ point: CGPoint) -> NSColor {
-        guard let source = ScreenshotRenderer.cgImage(from: session.image) else {
-            return .gray
-        }
+        let source = session.cgImage
         let scale = CGFloat(source.width) / max(bounds.width, 1)
         let px = min(max(Int(point.x * scale), 0), source.width - 1)
         let py = min(max(Int(point.y * scale), 0), source.height - 1)
