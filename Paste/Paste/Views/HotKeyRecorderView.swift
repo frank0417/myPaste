@@ -23,16 +23,20 @@ struct HotKeyRecorderView: View {
             } label: {
                 Text(isRecording ? "按下新快捷键…" : shortcut.display)
                     .font(.system(size: 12, weight: .semibold).monospaced())
+                    .foregroundStyle(PasteTheme.ink)
                     .frame(minWidth: 84)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
                     .background(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(isRecording ? PasteTheme.accent.opacity(0.18) : Color.primary.opacity(0.07))
+                        Capsule(style: .continuous)
+                            .fill(isRecording ? PasteTheme.accent.opacity(0.16) : Color(nsColor: .windowBackgroundColor).opacity(0.9))
                     )
                     .overlay(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .strokeBorder(isRecording ? PasteTheme.accent : Color.primary.opacity(0.15), lineWidth: 1)
+                        Capsule(style: .continuous)
+                            .strokeBorder(
+                                isRecording ? PasteTheme.accent : Color.primary.opacity(0.08),
+                                lineWidth: 1
+                            )
                     )
             }
             .buttonStyle(.plain)

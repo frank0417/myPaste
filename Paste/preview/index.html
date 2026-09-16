@@ -309,6 +309,142 @@
       font-size: 0.86rem;
       animation: rise 0.9s ease 0.2s both;
     }
+    .settings-window {
+      margin-top: 28px;
+      width: min(560px, 100%);
+      border-radius: 20px;
+      overflow: hidden;
+      background:
+        linear-gradient(145deg, #f7f4ee, #e7f0ef 45%, #f0ebe3);
+      border: 1px solid rgba(255,255,255,0.7);
+      box-shadow: var(--shadow);
+      animation: rise 0.9s ease 0.18s both;
+    }
+    .settings-chrome {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px 0;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .settings-dots { display: flex; gap: 6px; margin-right: 8px; }
+    .settings-dots i {
+      width: 12px; height: 12px; border-radius: 50%; display: block;
+      background: #e5e7eb;
+    }
+    .settings-dots i:nth-child(1) { background: #ff5f57; }
+    .settings-dots i:nth-child(2) { background: #febc2e; }
+    .settings-dots i:nth-child(3) { background: #28c840; }
+    .settings-tabs {
+      display: flex;
+      gap: 4px;
+      margin: 12px 16px 8px;
+      padding: 6px 8px;
+      background: rgba(255,255,255,.78);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+    }
+    .settings-tabs button {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .settings-tabs button.active {
+      background: rgba(27,42,47,.08);
+      color: var(--ink);
+    }
+    .settings-body { padding: 8px 20px 22px; display: grid; gap: 14px; }
+    .settings-card {
+      background: rgba(255,255,255,.55);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+    .settings-card h3 {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .settings-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .settings-row strong {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .settings-row p, .settings-card p {
+      margin: 4px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .settings-row p { margin: 0; }
+    .settings-copy { flex: 1; }
+    .settings-chip {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.9);
+      color: var(--ink);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .settings-switch {
+      width: 38px;
+      height: 22px;
+      border-radius: 99px;
+      background: var(--accent);
+      position: relative;
+      flex: 0 0 auto;
+    }
+    .settings-switch::after {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      top: 2px;
+      right: 2px;
+    }
+    .settings-key {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.9);
+      border: 1px solid var(--line);
+    }
+    .settings-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .settings-status i {
+      width: 6px; height: 6px; border-radius: 50%; background: #22c55e;
+    }
+    .settings-pane { display: none; }
+    .settings-pane.active { display: grid; gap: 14px; }
     @keyframes rise {
       from { opacity: 0; transform: translateY(14px); }
       to { opacity: 1; transform: none; }
@@ -523,6 +659,121 @@
         <span style="color:var(--muted);font-size:.78rem">⇧⌘V</span>
       </div>
       <div class="list" id="miniList"></div>
+    </section>
+
+    <section class="settings-window" aria-label="设置">
+      <div class="settings-chrome">
+        <span class="settings-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        设置
+      </div>
+      <div class="settings-tabs" role="tablist">
+        <button type="button" class="active" data-settings-tab="general">通用</button>
+        <button type="button" data-settings-tab="hotkeys">快捷键</button>
+        <button type="button" data-settings-tab="history">历史</button>
+        <button type="button" data-settings-tab="sync">同步</button>
+        <button type="button" data-settings-tab="about">关于</button>
+      </div>
+      <div class="settings-body">
+        <div class="settings-pane active" data-settings-pane="general">
+          <div class="settings-card">
+            <h3>偏好</h3>
+            <div class="settings-row">
+              <div class="settings-copy">
+                <strong>监听剪贴板</strong>
+                <p>复制后会按类型自动打标签（图片、链接、富文本等），可在时间线或标签栏筛选。</p>
+              </div>
+              <span class="settings-switch" aria-hidden="true"></span>
+            </div>
+            <div class="settings-row">
+              <div class="settings-copy">
+                <strong>登录时启动</strong>
+                <p>PasteNest 常驻菜单栏后台，关掉窗口不会退出。</p>
+              </div>
+              <span class="settings-switch" aria-hidden="true"></span>
+            </div>
+          </div>
+          <div class="settings-card">
+            <h3>快捷键</h3>
+            <div class="settings-row">
+              <div class="settings-copy">
+                <strong>全局快捷键</strong>
+                <p>面板 ⇧⌘V · 主窗口 ⌥⌘V · 截图 ⇧⌘D</p>
+              </div>
+              <button class="settings-chip" type="button" id="settingsOpenHotkeys">修改…</button>
+            </div>
+          </div>
+          <div class="settings-card">
+            <h3>权限</h3>
+            <div class="settings-row">
+              <div class="settings-copy">
+                <strong>辅助功能</strong>
+                <p>只有「一键粘贴到其他 App」才需要。</p>
+              </div>
+              <span class="settings-chip">已允许</span>
+            </div>
+          </div>
+        </div>
+        <div class="settings-pane" data-settings-pane="hotkeys">
+          <div class="settings-card">
+            <h3>全局快捷键</h3>
+            <div class="settings-row">
+              <div class="settings-copy">
+                <strong>唤出剪贴板面板</strong>
+                <div class="settings-status"><i></i>已生效 ⇧⌘V</div>
+              </div>
+              <span class="settings-key">⇧⌘V</span>
+            </div>
+            <div class="settings-row">
+              <div class="settings-copy">
+                <strong>唤出主窗口</strong>
+                <div class="settings-status"><i></i>已生效 ⌥⌘V</div>
+              </div>
+              <span class="settings-key">⌥⌘V</span>
+            </div>
+            <div class="settings-row">
+              <div class="settings-copy">
+                <strong>截图（区域）</strong>
+                <div class="settings-status"><i></i>已生效 ⇧⌘D</div>
+              </div>
+              <span class="settings-key">⇧⌘D</span>
+            </div>
+          </div>
+          <div class="settings-card">
+            <div class="settings-row">
+              <div class="settings-copy">
+                <strong>恢复默认</strong>
+                <p>面板与主窗口不会同时出现。截图会冻结屏幕；识字没有单独快捷键。</p>
+              </div>
+              <button class="settings-chip" type="button">全部恢复默认</button>
+            </div>
+          </div>
+        </div>
+        <div class="settings-pane" data-settings-pane="history">
+          <div class="settings-card">
+            <h3>收藏与保留</h3>
+            <strong>未收藏的内容保留 3 天</strong>
+            <p>收藏夹里的内容长期保存；其余记录到期后自动删除。</p>
+          </div>
+        </div>
+        <div class="settings-pane" data-settings-pane="sync">
+          <div class="settings-card">
+            <h3>iCloud</h3>
+            <div class="settings-row">
+              <div class="settings-copy">
+                <strong>通过 iCloud 同步</strong>
+                <p>历史通过你的 Apple ID 在多台 Mac 间同步。</p>
+              </div>
+              <span class="settings-switch" aria-hidden="true"></span>
+            </div>
+          </div>
+        </div>
+        <div class="settings-pane" data-settings-pane="about">
+          <div class="settings-card" style="text-align:center">
+            <strong style="font-size:22px">PasteNest</strong>
+            <p>保存、搜索、同步你复制的一切</p>
+          </div>
+        </div>
+      </div>
     </section>
 
     <p class="footnote">支持全局快捷键 ⇧⌘V、区域截图标注（矩形 / 箭头 / 马赛克 / 文字）、看板分类与 JSON 导出。这是 Mac 原生 SwiftUI 应用的交互预览。完整工程位于 <code>Paste/Paste.xcodeproj</code>，可在 macOS 14+ 用 Xcode 打开并提交 App Store。</p>
@@ -1098,6 +1349,19 @@
         drawStrokes();
       }
     });
+
+    function showSettingsTab(name) {
+      document.querySelectorAll(".settings-tabs [data-settings-tab]").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.settingsTab === name);
+      });
+      document.querySelectorAll("[data-settings-pane]").forEach((pane) => {
+        pane.classList.toggle("active", pane.dataset.settingsPane === name);
+      });
+    }
+    document.querySelectorAll(".settings-tabs [data-settings-tab]").forEach((btn) => {
+      btn.onclick = () => showSettingsTab(btn.dataset.settingsTab);
+    });
+    document.getElementById("settingsOpenHotkeys").onclick = () => showSettingsTab("hotkeys");
 
     renderChips();
     renderList();
