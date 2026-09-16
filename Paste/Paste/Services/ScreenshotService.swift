@@ -77,8 +77,9 @@ final class ScreenshotService: ObservableObject {
     private init() {}
 
     /// `recognizeText` splits the two purposes: a plain capture keeps the picture and
-    /// never runs OCR; a 识字 capture keeps only the recognized text and drops the
-    /// image entirely. The user picks per capture, from the menus or the hotkeys.
+    /// never runs OCR (the user can still ask for 识别文字 on the card later); a 识字
+    /// capture keeps only the recognized text and drops the image entirely. The user
+    /// picks per capture from the menus; the hotkey always takes a plain capture.
     func capture(_ mode: ScreenshotMode, recognizeText: Bool = false) {
         guard !isCapturing else { return }
         isCapturing = true
@@ -161,7 +162,7 @@ final class ScreenshotService: ObservableObject {
             ScreenshotHUD.shared.show(
                 thumbnail: payload.thumbnailData.flatMap(NSImage.init(data:)),
                 title: payload.previewTitle,
-                detail: "图片已复制"
+                detail: "图片已复制 · 卡片上可「识别文字」"
             )
         }
     }

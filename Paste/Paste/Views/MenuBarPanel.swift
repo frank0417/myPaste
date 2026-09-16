@@ -90,7 +90,8 @@ struct MenuBarPanel: View {
                         onCopy: { copyOnlyItem(detailItem) },
                         onCopyText: { store?.copyText(detailItem) },
                         onPaste: { paste(detailItem) },
-                        onToggleFavorite: { store?.toggleFavorite(detailItem) }
+                        onToggleFavorite: { store?.toggleFavorite(detailItem) },
+                        onRecognizeText: { store?.recognizeText(in: detailItem) }
                     )
                     .transition(.opacity)
                 }
@@ -343,10 +344,13 @@ struct MenuBarPanel: View {
             Menu {
                 Button("粘贴选中项") { pasteSelected() }
                 Divider()
-                // Captures live on their hotkeys; the menu keeps a single entry so
-                // the shortcut is discoverable.
+                // Captures live on their hotkey; the menu keeps the shortcut visible
+                // and offers the text-only capture as a choice, not a second key.
                 Button("截取区域（\(appState.screenshotHotkeyDisplay)）") {
                     ScreenshotService.shared.capture(.region)
+                }
+                Button("截取区域并识字（只存文字）") {
+                    ScreenshotService.shared.capture(.region, recognizeText: true)
                 }
                 Divider()
                 Button(appState.isMonitoringEnabled ? "暂停监听" : "恢复监听") {
@@ -618,6 +622,7 @@ struct MenuBarPanel: View {
                             onToggleFavorite: { store?.toggleFavorite(item) },
                             availableTags: favorites.favoriteTagNames,
                             onToggleTag: { tag in store?.toggleFavoriteTag(tag, for: item) },
+                            onRecognizeText: { store?.recognizeText(in: item) },
                             retentionDays: appState.keepUnfavoritedDays
                         )
                     }
@@ -942,6 +947,7 @@ struct ClipboardItemDetailOverlay: View {
     let onCopyText: () -> Void
     let onPaste: () -> Void
     var onToggleFavorite: (() -> Void)?
+    var onRecognizeText: (() -> Void)?
 
     /// Text recognized inside a screenshot, shown under the picture.
     private var recognizedText: String? {
@@ -1156,6 +1162,12 @@ struct ClipboardItemDetailOverlay: View {
                     Label("复制文字", systemImage: "text.viewfinder")
                 }
                 .buttonStyle(.bordered)
+            } else if item.contentType == .image, item.imageData != nil, let onRecognizeText {
+                Button(action: onRecognizeText) {
+                    Label("识别文字", systemImage: "text.viewfinder")
+                }
+                .buttonStyle(.bordered)
+                .help("用 Vision 在本机识别这张截图里的文字")
             }
             Button(action: onCopy) {
                 Label("复制", systemImage: "doc.on.doc")
@@ -1186,6 +1198,8 @@ struct ClipboardShelfCard: View {
     /// Categories already in use across the folder, offered by the 分类 menu.
     var availableTags: [String] = []
     var onToggleTag: ((String) -> Void)?
+    /// Reads the text in an image on demand; offered while the item has none yet.
+    var onRecognizeText: (() -> Void)?
     var retentionDays: Int = RetentionPolicy.defaultDays
 
     @State private var isHovered = false
@@ -1193,6 +1207,10 @@ struct ClipboardShelfCard: View {
     /// Only screenshots carry text on an image item.
     private var hasRecognizedText: Bool {
         item.contentType == .image && !(item.plainText ?? "").isEmpty
+    }
+
+    private var canRecognizeText: Bool {
+        onRecognizeText != nil && item.contentType == .image && item.imageData != nil && !hasRecognizedText
     }
 
     private var tagMenuOptions: [String] {
@@ -1249,6 +1267,8 @@ struct ClipboardShelfCard: View {
             Button("粘贴", action: onPaste)
             if hasRecognizedText {
                 Button("复制识别的文字", action: onCopyText)
+            } else if canRecognizeText, let onRecognizeText {
+                Button("识别文字", action: onRecognizeText)
             }
             if let onToggleFavorite {
                 Button(item.isFavorite ? "从收藏夹移除" : "收藏（长期保存）", action: onToggleFavorite)

@@ -101,6 +101,59 @@ final class ClipboardStore: ObservableObject {
         }
     }
 
+    /// Whether "识别文字" makes sense for this item: an image whose text has not
+    /// been read yet, and that is not already being read.
+    func canRecognizeText(in item: ClipboardItem) -> Bool {
+        item.contentType == .image
+            && item.imageData != nil
+            && (item.plainText ?? "").isEmpty
+            && !recognizingItemIDs.contains(item.id)
+    }
+
+    /// Items with OCR in flight, so the menu does not offer it twice.
+    @Published private(set) var recognizingItemIDs: Set<UUID> = []
+
+    /// Reads the text in a screenshot on demand and attaches it to the item, so the
+    /// user picks per capture whether they want the words. Runs Vision off the main
+    /// actor; the picture stays, the text becomes searchable and copyable.
+    func recognizeText(in item: ClipboardItem) {
+        guard canRecognizeText(in: item), let data = item.imageData else { return }
+        let id = item.id
+        recognizingItemIDs.insert(id)
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let text = TextRecognizer.recognize(imageData: data)
+            await MainActor.run {
+                guard let self else { return }
+                self.recognizingItemIDs.remove(id)
+                self.attachRecognizedText(text, to: id)
+            }
+        }
+    }
+
+    private func attachRecognizedText(_ text: String?, to id: UUID) {
+        var descriptor = FetchDescriptor<ClipboardItem>(predicate: #Predicate { $0.id == id })
+        descriptor.fetchLimit = 1
+        guard let item = try? modelContext.fetch(descriptor).first else { return }
+        guard let text, !text.isEmpty else {
+            ScreenshotHUD.shared.show(thumbnail: nil, title: "识别文字", detail: "未识别到文字")
+            return
+        }
+        item.plainText = text
+        let count = TextRecognizer.characterCount(of: text)
+        let base = item.previewSubtitle?.components(separatedBy: " · 已识字").first ?? item.previewSubtitle
+        item.previewSubtitle = [base, "已识字 \(count) 字"].compactMap { $0 }.joined(separator: " · ")
+        // The keyword field cache and the panel memo key off updatedAt; without a bump
+        // the new words would stay invisible to search until the next paste.
+        item.updatedAt = .now
+        try? modelContext.save()
+        EmbeddingIndex.shared.upsert(id: item.id, text: item.searchableText)
+        ScreenshotHUD.shared.show(
+            thumbnail: item.thumbnailData.flatMap(NSImage.init(data:)),
+            title: item.previewTitle,
+            detail: "已识别 \(count) 字，右键可复制文字"
+        )
+    }
+
     /// Copies only the text an item carries — for a screenshot, the recognized text
     /// without the picture tagging along.
     func copyText(_ item: ClipboardItem) {

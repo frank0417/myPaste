@@ -41,7 +41,7 @@ struct SettingsView: View {
             Text("复制后会按类型自动打标签（图片、链接、富文本等），可在时间线或标签栏筛选。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text("截图与截图识字是两个独立动作：普通截图只保存图片；「截图识字」只保留识别出的文字、不存图片。可从菜单栏图标、面板菜单发起，识字也有独立快捷键（默认 \(appState.screenshotOCRHotkeyDisplay)）。")
+            Text("截图（\(appState.screenshotHotkeyDisplay)）保存图片；之后在卡片上右键「识别文字」即可用 Vision 在本机识别画面文字（中英文）。菜单里的「截取区域并识字」则只保留文字、不存图片。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Toggle("登录时启动", isOn: $appState.launchAtLogin)
@@ -55,7 +55,7 @@ struct SettingsView: View {
                         appState.settingsTab = .hotkeys
                     }
                 }
-                Text("面板 \(appState.hotkeyDisplay) · 主窗口 \(appState.mainWindowHotkeyDisplay) · 截图 \(appState.screenshotHotkeyDisplay) · 截图识字 \(appState.screenshotOCRHotkeyDisplay)。在「快捷键」页可重新录制，录下即刻生效。")
+                Text("面板 \(appState.hotkeyDisplay) · 主窗口 \(appState.mainWindowHotkeyDisplay) · 截图 \(appState.screenshotHotkeyDisplay)。在「快捷键」页可重新录制，录下即刻生效。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -114,7 +114,7 @@ struct SettingsView: View {
                     appState.resetHotkeysToDefaults()
                 }
                 .disabled(HotKeyAction.allCases.allSatisfy { appState.shortcut(for: $0) == $0.defaultShortcut })
-                Text("面板与主窗口不会同时出现：唤出其中一个会自动收起另一个。截图与截图识字都直接进入区域选择，按 Esc 放弃本次截图。")
+                Text("面板与主窗口不会同时出现：唤出其中一个会自动收起另一个。截图直接进入区域选择，按 Esc 放弃本次截图；识字不需要单独的快捷键，截完在卡片上选「识别文字」即可。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -239,7 +239,6 @@ struct SettingsView: View {
         case .panel: return $appState.hotkey
         case .mainWindow: return $appState.mainWindowHotkey
         case .screenshot: return $appState.screenshotHotkey
-        case .screenshotOCR: return $appState.screenshotOCRHotkey
         }
     }
 
