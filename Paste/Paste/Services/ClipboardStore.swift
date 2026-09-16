@@ -120,15 +120,21 @@ final class ClipboardStore: ObservableObject {
         guard canRecognizeText(in: item), let data = item.imageData else { return }
         let id = item.id
         recognizingItemIDs.insert(id)
-        Task.detached(priority: .userInitiated) { [weak self] in
+        // Strong, immutable capture: a weak `self` is a captured var, which the
+        // compiler rejects inside concurrently-executing code.
+        Self.recognitionQueue.async { [self] in
             let text = TextRecognizer.recognize(imageData: data)
-            await MainActor.run {
-                guard let self else { return }
+            Task { @MainActor in
                 self.recognizingItemIDs.remove(id)
                 self.attachRecognizedText(text, to: id)
             }
         }
     }
+
+    private static let recognitionQueue = DispatchQueue(
+        label: "com.mypaste.PasteNest.recognize-text",
+        qos: .userInitiated
+    )
 
     private func attachRecognizedText(_ text: String?, to id: UUID) {
         var descriptor = FetchDescriptor<ClipboardItem>(predicate: #Predicate { $0.id == id })
