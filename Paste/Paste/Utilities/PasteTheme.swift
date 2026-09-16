@@ -38,6 +38,14 @@ enum PasteTheme {
 
         static var chipTracking: CGFloat { usesCJKLayout ? 0.15 : -0.2 }
         static var chipMinimumScale: CGFloat { usesCJKLayout ? 0.88 : 0.75 }
+        /// CJK glyphs fill the em square, so capsules need a little more vertical room.
+        static var chipHorizontalPadding: CGFloat { usesCJKLayout ? 10 : 9 }
+        static var chipVerticalPadding: CGFloat { usesCJKLayout ? 6 : 5 }
+        static var buttonHorizontalPadding: CGFloat { usesCJKLayout ? 12 : 10 }
+        static var buttonVerticalPadding: CGFloat { usesCJKLayout ? 6.5 : 5 }
+        static var actionGap: CGFloat { usesCJKLayout ? 4 : 5.5 }
+        static var iconButtonSize: CGFloat { 24 }
+        static var searchPointSize: CGFloat { usesCJKLayout ? 12.5 : 12 }
 
         static func containsCJK(_ text: String) -> Bool {
             text.contains(where: \.isCJK)
@@ -195,6 +203,36 @@ extension View {
             .minimumScaleFactor(0.8)
             .allowsTightening(true)
     }
+
+    func shelfIconHitTarget() -> some View {
+        self
+            .font(PasteTheme.Typography.icon)
+            .frame(width: PasteTheme.Typography.iconButtonSize, height: PasteTheme.Typography.iconButtonSize)
+            .contentShape(Circle())
+    }
+}
+
+/// Icon + title for shelf actions. Compact drops the title so English footers
+/// can collapse to symbols instead of overflowing the 980pt panel.
+struct ShelfActionLabel: View {
+    let title: String
+    let systemImage: String
+    var compact: Bool = false
+
+    var body: some View {
+        HStack(spacing: PasteTheme.Typography.actionGap) {
+            Image(systemName: systemImage)
+                .font(PasteTheme.Typography.iconSmall)
+                .symbolRenderingMode(.hierarchical)
+            if !compact {
+                Text(title)
+                    .tracking(PasteTheme.Typography.chipTracking)
+            }
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(compact ? 1 : PasteTheme.Typography.chipMinimumScale)
+        .allowsTightening(true)
+    }
 }
 
 /// Filled capsule used for the primary action on the shelf (启用 / 粘贴).
@@ -203,11 +241,11 @@ struct ShelfAccentButtonStyle: ButtonStyle {
         configuration.label
             .font(PasteTheme.Typography.button)
             .lineLimit(1)
-            .minimumScaleFactor(0.8)
+            .minimumScaleFactor(PasteTheme.Typography.chipMinimumScale)
             .allowsTightening(true)
             .foregroundStyle(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.horizontal, PasteTheme.Typography.buttonHorizontalPadding)
+            .padding(.vertical, PasteTheme.Typography.buttonVerticalPadding)
             .background(
                 Capsule(style: .continuous)
                     .fill(PasteTheme.accent.opacity(configuration.isPressed ? 0.82 : 1))
@@ -221,11 +259,11 @@ struct ShelfQuietButtonStyle: ButtonStyle {
         configuration.label
             .font(PasteTheme.Typography.button)
             .lineLimit(1)
-            .minimumScaleFactor(0.8)
+            .minimumScaleFactor(PasteTheme.Typography.chipMinimumScale)
             .allowsTightening(true)
             .foregroundStyle(PasteTheme.ink.opacity(0.78))
-            .padding(.horizontal, 11)
-            .padding(.vertical, 6)
+            .padding(.horizontal, PasteTheme.Typography.buttonHorizontalPadding)
+            .padding(.vertical, PasteTheme.Typography.buttonVerticalPadding)
             .background(
                 Capsule(style: .continuous)
                     .fill(Color.primary.opacity(configuration.isPressed ? 0.10 : 0.055))

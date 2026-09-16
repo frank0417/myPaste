@@ -355,8 +355,8 @@ struct AutoTagFilterBar: View {
                     .font(PasteTheme.Typography.chipBadge)
                     .foregroundStyle(.tertiary)
             }
-            .padding(.horizontal, compact ? 8 : 10)
-            .padding(.vertical, compact ? 4 : 6)
+            .padding(.horizontal, compact ? 8 : PasteTheme.Typography.chipHorizontalPadding)
+            .padding(.vertical, compact ? 4 : PasteTheme.Typography.chipVerticalPadding)
             .background(
                 selected ? accent.opacity(0.16) : Color.primary.opacity(0.05),
                 in: Capsule()

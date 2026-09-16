@@ -36,14 +36,23 @@ assertTrue(/func lineSpacing\(for text: String\)/.test(theme), "CJK previews get
 assertTrue(/func shelfChipLabel\(\)/.test(theme), "chip labels share one modifier");
 assertTrue(/struct ShelfAccentButtonStyle: ButtonStyle/.test(theme), "primary actions use a capsule accent style");
 assertTrue(/struct ShelfQuietButtonStyle: ButtonStyle/.test(theme), "secondary actions use a hairline capsule style");
+assertTrue(/static var buttonHorizontalPadding: CGFloat/.test(theme), "button padding keys off CJK vs Latin");
+assertTrue(/static var actionGap: CGFloat/.test(theme), "icon-to-title gap keys off CJK vs Latin");
+assertTrue(/struct ShelfActionLabel: View/.test(theme), "action labels are a dedicated view, not system Label");
+assertTrue(/ViewThatFits\(in: \.horizontal\)/.test(panel), "detail footer collapses to icons when English is too wide");
+assertTrue(/ShelfActionLabel\(/.test(panel), "footer uses ShelfActionLabel");
+assertTrue(/dynamicTypeSize\(DynamicTypeSize\.medium \.\.\. DynamicTypeSize\.xLarge\)/.test(panel), "panel caps Dynamic Type so chips stay on one line");
+assertTrue(/shelfIconHitTarget\(\)/.test(panel), "icon buttons share one hit target size");
 
 assertTrue(/enum PanelL10n/.test(l10n), "panel chrome is localized");
 assertTrue(/case zhHans/.test(l10n) && /case zhHant/.test(l10n) && /case en/.test(l10n), "zh-Hans, zh-Hant, and English are covered");
 assertTrue(/return \.zhHans/.test(l10n), "unrecognized locales fall back to zh-Hans");
-assertTrue(/en: "Clipboard"/.test(l10n) && /hant: "剪貼板"/.test(l10n), "clipboard tab has English and Traditional labels");
+assertTrue(/en: "Board"/.test(l10n) && /hant: "剪貼板"/.test(l10n), "clipboard tab has a short English label");
 assertTrue(/en: "Saved"/.test(l10n), "favorites tab uses a short English label");
 assertTrue(/en: "Listening"/.test(l10n), "status text has an English form");
 assertTrue(/en: "Paste"/.test(l10n) && /en: "Copy"/.test(l10n), "footer actions are localized");
+assertTrue(/en: "Read"/.test(l10n) && /en: "Save"/.test(l10n), "OCR and download use short English verbs");
+assertTrue(/en: "Search…"/.test(l10n), "search placeholder stays short in English");
 assertTrue(/characters"/.test(l10n), "character counts have a plural English form");
 
 assertTrue(/PanelL10n\.clipboard/.test(panel), "top bar uses localized tab titles");

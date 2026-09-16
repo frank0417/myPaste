@@ -227,8 +227,8 @@ struct FavoriteTagBar: View {
                             .font(PasteTheme.Typography.caption)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
+                            .padding(.horizontal, PasteTheme.Typography.chipHorizontalPadding)
+                            .padding(.vertical, PasteTheme.Typography.chipVerticalPadding)
                             .background(Color.primary.opacity(0.05), in: Capsule())
                             .foregroundStyle(.secondary)
                     }
@@ -305,8 +305,8 @@ struct FavoriteTagBar: View {
                     .font(PasteTheme.Typography.chipBadge)
                     .foregroundStyle(.tertiary)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
+            .padding(.horizontal, PasteTheme.Typography.chipHorizontalPadding)
+            .padding(.vertical, PasteTheme.Typography.chipVerticalPadding)
             .background(
                 selected ? accent.opacity(0.16) : Color.primary.opacity(0.05),
                 in: Capsule()

@@ -50,13 +50,13 @@ enum PanelL10n {
         }
     }
 
-    static var clipboard: String { pick("剪贴板", hant: "剪貼板", en: "Clipboard") }
+    static var clipboard: String { pick("剪贴板", hant: "剪貼板", en: "Board") }
     static var favorites: String { pick("收藏夹", hant: "收藏夾", en: "Saved") }
     static var timeline: String { pick("时间线", hant: "時間線", en: "Timeline") }
     static var search: String { pick("搜索", hant: "搜尋", en: "Search") }
     static var collapseSearch: String { pick("收起搜索", hant: "收起搜尋", en: "Hide search") }
     static var clearSearch: String { pick("清空", hant: "清空", en: "Clear") }
-    static var searchPlaceholder: String { pick("搜索剪贴板…", hant: "搜尋剪貼板…", en: "Search clipboard…") }
+    static var searchPlaceholder: String { pick("搜索剪贴板…", hant: "搜尋剪貼板…", en: "Search…") }
     static var menu: String { pick("菜单", hant: "選單", en: "Menu") }
     static var listening: String { pick("后台监听中", hant: "背景監聽中", en: "Listening") }
     static var paused: String { pick("已暂停", hant: "已暫停", en: "Paused") }
@@ -78,7 +78,7 @@ enum PanelL10n {
         )
     }
     static var enable: String { pick("启用", hant: "啟用", en: "Enable") }
-    static var backgroundTitle: String { pick("常驻后台", hant: "常駐背景", en: "Stays in the menu bar") }
+    static var backgroundTitle: String { pick("常驻后台", hant: "常駐背景", en: "Always on") }
     static func backgroundDetail(_ hotkey: String) -> String {
         pick(
             "关闭面板不会退出。按 \(hotkey) 随时唤出。",
@@ -137,11 +137,11 @@ enum PanelL10n {
     static var details: String { pick("查看详情", hant: "查看詳細資料", en: "Details") }
     static var paste: String { pick("粘贴", hant: "貼上", en: "Paste") }
     static var copy: String { pick("复制", hant: "複製", en: "Copy") }
-    static var copyText: String { pick("复制文字", hant: "複製文字", en: "Copy text") }
+    static var copyText: String { pick("复制文字", hant: "複製文字", en: "Text") }
     static var copyRecognized: String { pick("复制识别的文字", hant: "複製辨識的文字", en: "Copy recognized text") }
-    static var recognizeText: String { pick("识别文字", hant: "辨識文字", en: "Recognize text") }
+    static var recognizeText: String { pick("识别文字", hant: "辨識文字", en: "Read") }
     static var recognizeHelp: String { pick("用 Vision 在本机识别这张截图里的文字", hant: "用 Vision 在本機辨識這張截圖裡的文字", en: "Recognize text in this screenshot on-device with Vision") }
-    static var download: String { pick("下载", hant: "下載", en: "Download") }
+    static var download: String { pick("下载", hant: "下載", en: "Save") }
     static var downloadImage: String { pick("下载图片", hant: "下載圖片", en: "Download image") }
     static var downloadHelp: String { pick("保存为 PNG 到「下载」", hant: "儲存為 PNG 到「下載」", en: "Save as PNG to Downloads") }
     static var favorite: String { pick("收藏（长期保存）", hant: "收藏（長期保存）", en: "Save (keep forever)") }

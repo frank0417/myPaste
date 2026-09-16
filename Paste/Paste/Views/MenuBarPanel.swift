@@ -104,6 +104,9 @@ struct MenuBarPanel: View {
             .panelSurface()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // The shelf is a fixed 390pt HUD. Unbounded Dynamic Type blows chips and
+        // footers; keep a modest range so CJK and Latin both stay on one line.
+        .dynamicTypeSize(DynamicTypeSize.medium ... DynamicTypeSize.xLarge)
         .animation(.easeOut(duration: 0.18), value: showSearch)
         .animation(.easeOut(duration: 0.2), value: appState.shelfDetailItemID)
         .onAppear {
@@ -255,13 +258,11 @@ struct MenuBarPanel: View {
                 }
             } label: {
                 Image(systemName: "magnifyingglass")
-                    .font(PasteTheme.Typography.icon)
                     .foregroundStyle(showSearch ? PasteTheme.accent : .secondary)
-                    .frame(width: 26, height: 26)
+                    .shelfIconHitTarget()
                     .background(
                         Circle().fill(showSearch ? PasteTheme.accent.opacity(0.14) : .clear)
                     )
-                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
             .help(showSearch ? PanelL10n.collapseSearch : PanelL10n.search)
@@ -270,10 +271,8 @@ struct MenuBarPanel: View {
                 ScreenshotService.shared.capture(.region)
             } label: {
                 Image(systemName: "camera.viewfinder")
-                    .font(PasteTheme.Typography.icon)
                     .foregroundStyle(.secondary)
-                    .frame(width: 26, height: 26)
-                    .contentShape(Circle())
+                    .shelfIconHitTarget()
             }
             .buttonStyle(.plain)
             .help(PanelL10n.captureHelp(appState.screenshotHotkeyDisplay))
@@ -354,10 +353,8 @@ struct MenuBarPanel: View {
                 StatusItemController.shared.popPanelOverflowMenu()
             } label: {
                 Image(systemName: "ellipsis")
-                    .font(PasteTheme.Typography.icon)
                     .foregroundStyle(.secondary)
-                    .frame(width: 26, height: 26)
-                    .contentShape(Circle())
+                    .shelfIconHitTarget()
             }
             .buttonStyle(.plain)
             .help(PanelL10n.menu)
@@ -532,9 +529,9 @@ struct MenuBarPanel: View {
                         .foregroundStyle(.tertiary)
                 }
             }
-            .foregroundStyle(selected ? Color.primary : Color.secondary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .foregroundStyle(selected ? Color.primary : Color.secondary.opacity(0.88))
+            .padding(.horizontal, PasteTheme.Typography.chipHorizontalPadding)
+            .padding(.vertical, PasteTheme.Typography.chipVerticalPadding)
             .background(
                 Capsule()
                     .fill(selected ? Color.primary.opacity(0.08) : Color.clear)
@@ -849,10 +846,7 @@ private final class PanelSearchFieldHost: NSView {
         textField.isEditable = true
         textField.isSelectable = true
         textField.focusRingType = .none
-        textField.font = .systemFont(
-            ofSize: PasteTheme.Typography.usesCJKLayout ? 12.5 : 12,
-            weight: .regular
-        )
+        textField.font = .systemFont(ofSize: PasteTheme.Typography.searchPointSize, weight: .regular)
         textField.lineBreakMode = .byClipping
         textField.cell?.wraps = false
         textField.cell?.isScrollable = true
@@ -1123,9 +1117,10 @@ struct ClipboardItemDetailOverlay: View {
                     .foregroundStyle(.tertiary)
                 Spacer(minLength: 0)
                 Button(action: onCopyText) {
-                    Label(PanelL10n.copyText, systemImage: "doc.on.clipboard")
+                    ShelfActionLabel(title: PanelL10n.copyText, systemImage: "doc.on.clipboard")
                 }
                 .buttonStyle(ShelfQuietButtonStyle())
+                .help(PanelL10n.copyText)
             }
             Text(text)
                 .font(PasteTheme.Typography.preview)
@@ -1153,37 +1148,52 @@ struct ClipboardItemDetailOverlay: View {
                 .minimumScaleFactor(0.8)
                 .foregroundStyle(item.isRetentionProtected ? Color(hex: "#F59E0B") ?? .orange : Color.secondary)
             }
-            Spacer()
-            if recognizedText != nil {
-                Button(action: onCopyText) {
-                    Label(PanelL10n.copyText, systemImage: "text.viewfinder")
+            Spacer(minLength: 8)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    footerActions(compact: false)
                 }
-                .buttonStyle(ShelfQuietButtonStyle())
-            } else if item.contentType == .image, item.imageData != nil, let onRecognizeText {
-                Button(action: onRecognizeText) {
-                    Label(PanelL10n.recognizeText, systemImage: "text.viewfinder")
+                HStack(spacing: 6) {
+                    footerActions(compact: true)
                 }
-                .buttonStyle(ShelfQuietButtonStyle())
-                .help(PanelL10n.recognizeHelp)
             }
-            if item.contentType == .image, item.imageData != nil, let onSaveImage {
-                Button(action: onSaveImage) {
-                    Label(PanelL10n.download, systemImage: "arrow.down.to.line")
-                }
-                .buttonStyle(ShelfQuietButtonStyle())
-                .help(PanelL10n.downloadHelp)
-            }
-            Button(action: onCopy) {
-                Label(PanelL10n.copy, systemImage: "doc.on.doc")
-            }
-            .buttonStyle(ShelfQuietButtonStyle())
-            Button(action: onPaste) {
-                Label(PanelL10n.paste, systemImage: "return")
-            }
-            .buttonStyle(ShelfAccentButtonStyle())
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
+    }
+
+    @ViewBuilder
+    private func footerActions(compact: Bool) -> some View {
+        if recognizedText != nil {
+            Button(action: onCopyText) {
+                ShelfActionLabel(title: PanelL10n.copyText, systemImage: "text.viewfinder", compact: compact)
+            }
+            .buttonStyle(ShelfQuietButtonStyle())
+            .help(PanelL10n.copyText)
+        } else if item.contentType == .image, item.imageData != nil, let onRecognizeText {
+            Button(action: onRecognizeText) {
+                ShelfActionLabel(title: PanelL10n.recognizeText, systemImage: "text.viewfinder", compact: compact)
+            }
+            .buttonStyle(ShelfQuietButtonStyle())
+            .help(PanelL10n.recognizeHelp)
+        }
+        if item.contentType == .image, item.imageData != nil, let onSaveImage {
+            Button(action: onSaveImage) {
+                ShelfActionLabel(title: PanelL10n.download, systemImage: "arrow.down.to.line", compact: compact)
+            }
+            .buttonStyle(ShelfQuietButtonStyle())
+            .help(PanelL10n.downloadHelp)
+        }
+        Button(action: onCopy) {
+            ShelfActionLabel(title: PanelL10n.copy, systemImage: "doc.on.doc", compact: compact)
+        }
+        .buttonStyle(ShelfQuietButtonStyle())
+        .help(PanelL10n.copy)
+        Button(action: onPaste) {
+            ShelfActionLabel(title: PanelL10n.paste, systemImage: "return", compact: compact)
+        }
+        .buttonStyle(ShelfAccentButtonStyle())
+        .help(PanelL10n.paste)
     }
 }
 
