@@ -1,10 +1,10 @@
-// Locks the "快捷键设置…" wiring so CI / Linux agents can catch a regression
-// without Xcode. Two failures stacked here in 1.5.6:
+// Locks the panel overflow / status menus and the owned Settings window so
+// CI / Linux agents can catch a regression without Xcode.
 //
-// 1. SwiftUI `Menu` inside the non-activating shelf NSPanel highlighted items
-//    but never ran their actions — clicking "快捷键设置…" did nothing.
-// 2. `NSApp.sendAction(showSettingsWindow:)` is a no-op for an LSUIElement
-//    accessory app, so even a fired action never produced a window.
+// SwiftUI `Menu` inside the non-activating shelf NSPanel highlighted items
+// but never ran their actions. `NSApp.sendAction(showSettingsWindow:)` is a
+// no-op for an LSUIElement accessory app, so even a fired action never
+// produced a window.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -37,8 +37,12 @@ const topBar = panel.slice(topBarStart, topBarEnd);
 assertTrue(topBarStart > 0 && topBarEnd > topBarStart, "topBar is defined");
 
 assertTrue(
-  /popPanelOverflowMenu\(pasteSelected:/.test(topBar),
+  /popPanelOverflowMenu\(\)/.test(topBar),
   "ellipsis button pops an AppKit overflow menu"
+);
+assertTrue(
+  !/popPanelOverflowMenu\(pasteSelected:/.test(topBar),
+  "overflow menu no longer takes pasteSelected"
 );
 assertTrue(
   !/Menu\s*\{/.test(topBar),
@@ -50,20 +54,44 @@ assertTrue(
 );
 
 assertTrue(
-  /func popPanelOverflowMenu\(pasteSelected:/.test(controller),
+  /func popPanelOverflowMenu\(\)/.test(controller),
   "StatusItemController pops the panel overflow menu"
 );
 assertTrue(
-  /addMenuItem\(menu, title: "快捷键设置…"/.test(controller),
-  "overflow NSMenu includes 快捷键设置…"
+  /addMenuItem\(menu, title: "打开设置…"/.test(controller),
+  "overflow NSMenu still includes 打开设置…"
 );
 assertTrue(
-  /menu\.addItem\(withTitle: "快捷键设置…"/.test(controller),
-  "status-item menu still includes 快捷键设置…"
+  /menu\.addItem\(withTitle: "设置…"/.test(controller),
+  "status-item menu still includes 设置…"
 );
 assertTrue(
-  /@objc private func menuOpenHotkeySettings\(\)\s*\{\s*openSettings\(tab: \.hotkeys\)/.test(controller),
-  "快捷键设置… lands on the hotkeys tab"
+  !/粘贴选中项/.test(controller),
+  "overflow NSMenu no longer includes 粘贴选中项"
+);
+assertTrue(
+  !/截取区域并识字/.test(controller),
+  "menus no longer include 截取区域并识字（只存文字）"
+);
+assertTrue(
+  !/快捷键设置…/.test(controller),
+  "menus no longer include 快捷键设置…"
+);
+assertTrue(
+  !/menuOpenHotkeySettings/.test(controller),
+  "hotkey-settings menu action is gone"
+);
+assertTrue(
+  !/menuCaptureRegionOCR/.test(controller),
+  "OCR-only capture menu action is gone"
+);
+assertTrue(
+  !/runPanelPasteSelected/.test(controller),
+  "paste-selected overflow action is gone"
+);
+assertTrue(
+  /@objc private func menuToggleMonitoring\(\)/.test(controller),
+  "pause/resume monitoring remains on the overflow menu"
 );
 
 assertTrue(
@@ -84,7 +112,7 @@ assertTrue(
 );
 assertTrue(
   /func openSettings\(tab: AppState\.SettingsTab\? = nil\)/.test(controller),
-  "openSettings still accepts a tab so 快捷键设置… can deep-link"
+  "openSettings still accepts a tab so Settings 修改… can deep-link"
 );
 assertTrue(
   /presentSettingsWindow\(\)/.test(controller),
@@ -110,7 +138,7 @@ assertTrue(
 );
 assertTrue(
   /\.tag\(AppState\.SettingsTab\.hotkeys\)/.test(settings),
-  "快捷键 tab is tagged so menus can select it"
+  "快捷键 tab is tagged so Settings 修改… can select it"
 );
 
 if (failed > 0) {
