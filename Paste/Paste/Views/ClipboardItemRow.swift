@@ -48,7 +48,7 @@ struct ClipboardItemRow: View {
                             Image(systemName: "clock.badge.exclamationmark")
                                 .font(.caption2)
                                 .foregroundStyle(Color(hex: "#EE6C4D") ?? .orange)
-                                .help("未收藏，不到 1 天后自动清理")
+                                .help(PanelL10n.expiringSoonHelp)
                         }
                         Text(item.previewSubtitle ?? item.contentType.displayName)
                             .font(.caption)
@@ -91,13 +91,13 @@ struct ClipboardItemRow: View {
             withAnimation(.easeOut(duration: 0.15)) { isHovered = hovering }
         }
         .contextMenu {
-            Button("粘贴", action: onPaste)
+            Button(PanelL10n.paste, action: onPaste)
             if let onToggleFavorite {
-                Button(item.isFavorite ? "从收藏夹移除" : "收藏（长期保存）", action: onToggleFavorite)
+                Button(item.isFavorite ? PanelL10n.unfavorite : PanelL10n.favorite, action: onToggleFavorite)
             }
-            Button(item.isPinned ? "取消置顶" : "置顶", action: onPin)
+            Button(item.isPinned ? PanelL10n.unpin : PanelL10n.pin, action: onPin)
             Divider()
-            Button("删除", role: .destructive, action: onDelete)
+            Button(PanelL10n.delete, role: .destructive, action: onDelete)
         }
         .onTapGesture(count: 2, perform: onPaste)
     }

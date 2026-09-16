@@ -5,11 +5,43 @@
 
 const MODES = ["region", "window", "fullScreen"];
 
-const SUBTITLE = {
-  region: "区域截图",
-  window: "窗口截图",
-  fullScreen: "整屏截图"
+const L10N = {
+  "zh-Hans": {
+    subtitle: { region: "区域截图", window: "窗口截图", fullScreen: "整屏截图" },
+    screenshot: "截图",
+    ocr: "截图识字",
+    image: "图片",
+    imageCopied: "图片已复制",
+    noText: "未识别到文字",
+    recognized: (n) => `已识别 ${n} 字，文字已复制`,
+    attached: (n) => `已识字 ${n} 字`,
+    downloadPrefix: "PasteNest 截图"
+  },
+  "zh-Hant": {
+    subtitle: { region: "區域截圖", window: "視窗截圖", fullScreen: "整屏截圖" },
+    screenshot: "截圖",
+    ocr: "截圖識字",
+    image: "圖片",
+    imageCopied: "圖片已複製",
+    noText: "未辨識到文字",
+    recognized: (n) => `已辨識 ${n} 字，文字已複製`,
+    attached: (n) => `已識字 ${n} 字`,
+    downloadPrefix: "PasteNest 截圖"
+  },
+  en: {
+    subtitle: { region: "Region screenshot", window: "Window screenshot", fullScreen: "Full-screen screenshot" },
+    screenshot: "Screenshot",
+    ocr: "Screenshot OCR",
+    image: "Image",
+    imageCopied: "Image copied",
+    noText: "No text found",
+    recognized: (n) => (n === 1 ? "Recognized 1 character, copied" : `Recognized ${n} characters, copied`),
+    attached: (n) => (n === 1 ? "OCR 1 char" : `OCR ${n} chars`),
+    downloadPrefix: "PasteNest Screenshot"
+  }
 };
+
+const SUBTITLE = L10N["zh-Hans"].subtitle;
 
 // Mirrors ScreenshotMode.arguments(output:).
 function argumentsFor(mode, output) {
@@ -50,37 +82,38 @@ function detect(text) {
 
 // Mirrors ScreenshotService.payload: a plain capture is an image item and nothing
 // else — OCR never runs, so there is no text to carry.
-function payload(mode, { width, height, bytes }) {
+function payload(mode, { width, height, bytes }, lang = "zh-Hans") {
+  const t = L10N[lang];
   return {
     contentType: "image",
     plainText: null,
-    previewTitle: `截图 ${width}×${height}`,
-    previewSubtitle: SUBTITLE[mode],
-    sourceAppName: "截图",
+    previewTitle: `${t.screenshot} ${width}×${height}`,
+    previewSubtitle: t.subtitle[mode],
+    sourceAppName: t.screenshot,
     sourceAppBundleID: null,
     hasThumbnail: bytes > 0
   };
 }
 
-// Mirrors ScreenshotService.textPayload: a 识字 capture keeps only the words. The
-// image is discarded, and normal type detection still applies to the text.
-function textPayload(mode, text) {
+function textPayload(mode, text, lang = "zh-Hans") {
   const type = detect(text);
+  const t = L10N[lang];
+  const count = characterCount(text);
   return {
     contentType: type,
     plainText: text,
     imageData: null,
     previewTitle: text.trim().split("\n")[0].slice(0, 80),
-    previewSubtitle: `截图识字 · ${characterCount(text)} 字`,
-    sourceAppName: "截图识字",
+    previewSubtitle: `${t.ocr} · ${t.attached(count)}`,
+    sourceAppName: t.ocr,
     hasThumbnail: false
   };
 }
 
-// Mirrors ScreenshotService.hudDetail (识字 mode; plain mode just says 图片已复制).
-function hudDetail(text) {
-  if (!text) return "未识别到文字";
-  return `已识别 ${characterCount(text)} 字，文字已复制`;
+function hudDetail(text, lang = "zh-Hans") {
+  const t = L10N[lang];
+  if (!text) return t.noText;
+  return t.recognized(characterCount(text));
 }
 
 // The pasteboard contents per purpose: a plain capture offers the image, a 识字
@@ -91,10 +124,11 @@ function pasteboardTypes(purpose) {
 
 // Mirrors ClipboardItem.searchableText. A plain capture is found by 截图 / 图片 /
 // its size; a 识字 capture is found by the words inside it.
-function searchableText(p) {
+function searchableText(p, lang = "zh-Hans") {
+  const t = L10N[lang];
   const parts = [p.previewTitle, p.previewSubtitle];
   if (p.plainText) parts.push(p.plainText);
-  parts.push(p.sourceAppName, p.contentType === "image" ? "图片" : null);
+  parts.push(p.sourceAppName, p.contentType === "image" ? t.image : null);
   return parts.filter(Boolean).join("\n");
 }
 
@@ -178,7 +212,7 @@ const ocr = textPayload("region", "安静、好用的 Mac 工具。\n岸上工�
 assertEqual(ocr.contentType, "snippet", "multi-line recognized text is a snippet");
 assertEqual(ocr.plainText, "安静、好用的 Mac 工具。\n岸上工作室", "the words are the whole item");
 assertEqual(ocr.imageData, null, "the image is not kept");
-assertEqual(ocr.previewSubtitle, "截图识字 · 17 字", "subtitle reports the recognized length");
+assertEqual(ocr.previewSubtitle, "截图识字 · 已识字 17 字", "subtitle reports the recognized length");
 assertEqual(ocr.sourceAppName, "截图识字", "source label marks it as recognized text");
 assertTrue(!ocr.hasThumbnail, "no thumbnail without an image");
 assertTrue(searchableText(ocr).includes("好用的"), "searchable by the recognized words");
@@ -191,6 +225,34 @@ assertEqual(textPayload("region", "短句").contentType, "text", "a short line i
 
 assertEqual(hudDetail("安静好用"), "已识别 4 字，文字已复制", "a result reports its length");
 assertEqual(hudDetail(null), "未识别到文字", "an empty result says so and saves nothing");
+assertEqual(hudDetail("Hi", "en"), "Recognized 2 characters, copied", "English HUD copies the recognized count");
+assertEqual(hudDetail(null, "zh-Hant"), "未辨識到文字", "Traditional empty OCR HUD");
+assertEqual(
+  payload("region", { width: 800, height: 600, bytes: 10 }, "en").previewTitle,
+  "Screenshot 800×600",
+  "English capture titles stay in English"
+);
+assertEqual(
+  payload("window", { width: 10, height: 10, bytes: 10 }, "zh-Hant").previewSubtitle,
+  "視窗截圖",
+  "Traditional window subtitle"
+);
+assertEqual(
+  payload("fullScreen", { width: 10, height: 10, bytes: 10 }, "en").imageCopied === undefined
+    ? payload("fullScreen", { width: 10, height: 10, bytes: 10 }, "en").previewSubtitle
+    : "",
+  "Full-screen screenshot",
+  "English full-screen subtitle"
+);
+for (const lang of ["zh-Hans", "zh-Hant", "en"]) {
+  const shotLang = payload("region", { width: 100, height: 80, bytes: 8 }, lang);
+  const ocrLang = textPayload("region", "hello", lang);
+  const hay = searchableText(shotLang, lang);
+  assertTrue(hay.includes(L10N[lang].screenshot), `${lang} captures are searchable in that language`);
+  assertTrue(!hay.includes(lang === "en" ? "截图 " : "Screenshot "), `${lang} capture chrome is not mixed with another language`);
+  assertTrue(ocrLang.previewSubtitle.includes(L10N[lang].ocr), `${lang} OCR subtitle stays in ${lang}`);
+  assertEqual(hudDetail(null, lang), L10N[lang].noText, `${lang} empty OCR HUD`);
+}
 
 assertEqual(pasteboardTypes("image"), ["tiff", "png"], "a plain capture offers the image");
 assertEqual(pasteboardTypes("text"), ["string"], "a 识字 capture offers only the text");
@@ -198,10 +260,10 @@ assertEqual(pasteboardTypes("text"), ["string"], "a 识字 capture offers only t
 // --- 下载截图: file naming -----------------------------------------------------
 // Mirrors ScreenshotService.downloadFileName and uniqueURL: a timestamped PNG in
 // 下载, and a numeric suffix rather than an overwrite when the name is taken.
-function downloadFileName(date) {
+function downloadFileName(date, lang = "zh-Hans") {
   const p = (n) => String(n).padStart(2, "0");
   const stamp = `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())} ${p(date.getHours())}.${p(date.getMinutes())}.${p(date.getSeconds())}`;
-  return `PasteNest 截图 ${stamp}.png`;
+  return `${L10N[lang].downloadPrefix} ${stamp}.png`;
 }
 function uniqueName(existing, name) {
   const dot = name.lastIndexOf(".");

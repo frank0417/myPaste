@@ -43,7 +43,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
                 let image = NSImage(systemSymbolName: "square.stack.3d.up.fill", accessibilityDescription: "PasteNest")
                 image?.isTemplate = true
                 button.image = image
-                button.toolTip = "PasteNest — 常驻后台（\(appState.hotkeyDisplay) 唤出）"
+                button.toolTip = PanelL10n.statusTooltip(appState.hotkeyDisplay)
                 button.target = self
                 button.action = #selector(statusItemClicked(_:))
                 button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -58,7 +58,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
 
     /// Keeps the status-item tooltip in sync after the user changes the shortcut.
     func refreshHotkeyHint(_ display: String) {
-        statusItem?.button?.toolTip = "PasteNest — 常驻后台（\(display) 唤出）"
+        statusItem?.button?.toolTip = PanelL10n.statusTooltip(display)
     }
 
     /// `ScreenshotService` hides the shelf (and the main window) before a capture.
@@ -93,18 +93,18 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         let menu = NSMenu()
         let panelHint = appState.map { "（\($0.hotkeyDisplay)）" } ?? ""
         let windowHint = appState.map { "（\($0.mainWindowHotkeyDisplay)）" } ?? ""
-        menu.addItem(withTitle: "显示剪贴板面板\(panelHint)", action: #selector(menuShowPanel), keyEquivalent: "")
-        menu.addItem(withTitle: "显示主窗口\(windowHint)", action: #selector(menuShowMainWindow), keyEquivalent: "")
-        menu.addItem(withTitle: "隐藏面板", action: #selector(menuHidePanel), keyEquivalent: "")
+        menu.addItem(withTitle: PanelL10n.showPanel(panelHint), action: #selector(menuShowPanel), keyEquivalent: "")
+        menu.addItem(withTitle: PanelL10n.showMainWindow(windowHint), action: #selector(menuShowMainWindow), keyEquivalent: "")
+        menu.addItem(withTitle: PanelL10n.hidePanel, action: #selector(menuHidePanel), keyEquivalent: "")
         menu.addItem(NSMenuItem.separator())
         let shotHint = appState.map { "（\($0.screenshotHotkeyDisplay)）" } ?? ""
-        menu.addItem(withTitle: "截取区域\(shotHint)", action: #selector(menuCaptureRegion), keyEquivalent: "")
-        menu.addItem(withTitle: "截取窗口", action: #selector(menuCaptureWindow), keyEquivalent: "")
-        menu.addItem(withTitle: "截取整屏", action: #selector(menuCaptureFullScreen), keyEquivalent: "")
+        menu.addItem(withTitle: PanelL10n.captureRegion(shotHint), action: #selector(menuCaptureRegion), keyEquivalent: "")
+        menu.addItem(withTitle: PanelL10n.captureWindow, action: #selector(menuCaptureWindow), keyEquivalent: "")
+        menu.addItem(withTitle: PanelL10n.captureFullScreen, action: #selector(menuCaptureFullScreen), keyEquivalent: "")
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(withTitle: "设置…", action: #selector(menuOpenSettings), keyEquivalent: ",")
+        menu.addItem(withTitle: PanelL10n.settingsEllipsis, action: #selector(menuOpenSettings), keyEquivalent: ",")
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(withTitle: "退出 PasteNest", action: #selector(menuQuit), keyEquivalent: "q")
+        menu.addItem(withTitle: PanelL10n.quitPasteNest, action: #selector(menuQuit), keyEquivalent: "q")
         for item in menu.items {
             item.target = self
         }
@@ -174,18 +174,18 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         let menu = NSMenu()
         let shotHint = appState.map { "（\($0.screenshotHotkeyDisplay)）" } ?? ""
         let windowHint = appState.map { "（\($0.mainWindowHotkeyDisplay)）" } ?? ""
-        let monitoringTitle = (appState?.isMonitoringEnabled == false) ? "恢复监听" : "暂停监听"
+        let monitoringTitle = (appState?.isMonitoringEnabled == false) ? PanelL10n.resumeMonitoring : PanelL10n.pauseMonitoring
 
-        addMenuItem(menu, title: "截取区域\(shotHint)", action: #selector(menuCaptureRegion))
+        addMenuItem(menu, title: PanelL10n.captureRegion(shotHint), action: #selector(menuCaptureRegion))
         menu.addItem(NSMenuItem.separator())
         addMenuItem(menu, title: monitoringTitle, action: #selector(menuToggleMonitoring))
         menu.addItem(NSMenuItem.separator())
-        addMenuItem(menu, title: "打开主窗口\(windowHint)", action: #selector(menuShowMainWindow))
+        addMenuItem(menu, title: PanelL10n.openMainWindow(windowHint), action: #selector(menuShowMainWindow))
         menu.addItem(NSMenuItem.separator())
-        addMenuItem(menu, title: "打开设置…", action: #selector(menuOpenSettings))
-        addMenuItem(menu, title: "隐藏面板", action: #selector(menuHidePanel))
+        addMenuItem(menu, title: PanelL10n.openSettings, action: #selector(menuOpenSettings))
+        addMenuItem(menu, title: PanelL10n.hidePanel, action: #selector(menuHidePanel))
         menu.addItem(NSMenuItem.separator())
-        addMenuItem(menu, title: "退出 PasteNest", action: #selector(menuQuit))
+        addMenuItem(menu, title: PanelL10n.quitPasteNest, action: #selector(menuQuit))
         menu.addItem(NSMenuItem.separator())
         let version = NSMenuItem(title: AppVersion.menuTitle, action: nil, keyEquivalent: "")
         version.isEnabled = false
@@ -234,7 +234,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         if window.identifier?.rawValue == Self.settingsWindowIdentifier { return true }
         let identifier = window.identifier?.rawValue ?? ""
         if identifier.localizedCaseInsensitiveContains("settings") { return true }
-        return window.title == "设置" || window.title == "Settings"
+        return window.title == PanelL10n.settings || window.title == "Settings"
     }
 
     private func makeSettingsWindow() -> NSWindow? {
@@ -244,7 +244,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
             .modelContainer(container)
         let hosting = NSHostingController(rootView: root)
         let window = NSWindow(contentViewController: hosting)
-        window.title = "设置"
+        window.title = PanelL10n.settings
         window.styleMask = [.titled, .closable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
         window.backgroundColor = NSColor(srgbRed: 247 / 255, green: 244 / 255, blue: 238 / 255, alpha: 1)

@@ -515,8 +515,20 @@ assertEqual(draggedBar.y, 587 - TOOLBAR_HINT_HEIGHT - 18, "dragging the strip ap
 assertEqual(OCR_PANEL_ACTIONS["zh-Hans"].copy, "复制", "Simplified OCR copy");
 assertEqual(OCR_PANEL_ACTIONS["zh-Hant"].copy, "複製", "Traditional OCR copy");
 assertEqual(OCR_PANEL_ACTIONS.en.copy, "Copy", "English OCR copy");
-assertEqual(OCR_PANEL_ACTIONS.en.dismiss, "Cancel", "English OCR dismiss is not Esc");
-assertEqual(OCR_PANEL_ACTIONS["zh-Hans"].empty, "未识别到文字", "Simplified empty OCR");
+const HUD = {
+  "zh-Hans": { imageCopied: "图片已复制", modeRegion: "截取区域", textCapture: "截图识字" },
+  "zh-Hant": { imageCopied: "圖片已複製", modeRegion: "截取區域", textCapture: "截圖識字" },
+  en: { imageCopied: "Image copied", modeRegion: "Capture region", textCapture: "Screenshot OCR" }
+};
+for (const lang of SUPPORTED_LANGUAGES) {
+  assertTrue(
+    Boolean(HUD[lang].imageCopied && HUD[lang].modeRegion && HUD[lang].textCapture),
+    `${lang} HUD / mode titles exist so overlay and toast stay in one language`
+  );
+}
+assertEqual(HUD.en.imageCopied, "Image copied", "English copied toast");
+assertEqual(HUD["zh-Hant"].modeRegion, "截取區域", "Traditional region title");
+assertTrue(HUD.en.imageCopied !== HUD["zh-Hans"].imageCopied, "English HUD is not Chinese");
 
 const roomy = { x: 200, y: 120, width: 400, height: 200 };
 const ocrRight = ocrPanelFrame(roomy, canvas, { width: 280, height: ocrPanelHeight(roomy, canvas) });

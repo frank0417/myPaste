@@ -77,7 +77,8 @@ assertTrue(/PanelL10n\.contentType/.test(read("Models/ClipboardItem.swift")), "c
 assertTrue(/PanelL10n\.autoTag/.test(read("Services/AutoTagService.swift")), "auto-tag chips follow the panel language");
 assertTrue(/PanelL10n\.keptFavorite/.test(read("Utilities/RetentionPolicy.swift")), "retention captions follow the panel language");
 
-assertTrue(/PanelL10n\.swift in Sources/.test(pbx), "Xcode target compiles PanelL10n.swift");
+assertTrue(/PanelL10n\.openSettings/.test(read("Utilities/StatusItemController.swift")), "overflow menu titles follow the panel language");
+assertTrue(/ScreenshotL10n\.string\(\.imageCopied\)/.test(read("Services/ScreenshotService.swift")), "screenshot HUD follows ScreenshotL10n");
 
 if (failed > 0) {
   console.error(`\n${failed} test(s) failed`);

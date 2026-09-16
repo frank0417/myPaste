@@ -39,7 +39,7 @@ struct PreviewPane: View {
                     Image(systemName: "eye")
                         .font(.largeTitle)
                         .foregroundStyle(.tertiary)
-                    Text("选择一条记录以预览")
+                    Text(PanelL10n.selectToPreview)
                         .foregroundStyle(.secondary)
                     Spacer()
                 }
@@ -95,7 +95,7 @@ struct PreviewPane: View {
                             .foregroundStyle(Color(hex: FavoriteTagCatalog.accentHex(for: tag)) ?? PasteTheme.accent)
                         }
                         .buttonStyle(.plain)
-                        .help("移出「\(tag)」分类")
+                        .help(PanelL10n.removeFromTag(tag))
                     }
                 }
             }
@@ -125,7 +125,7 @@ struct PreviewPane: View {
                 }
                 if let text = recognizedText(item) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Label("识别到的文字 · \(TextRecognizer.characterCount(of: text)) 字", systemImage: "text.viewfinder")
+                        Label(PanelL10n.recognizedHeadingCount(TextRecognizer.characterCount(of: text)), systemImage: "text.viewfinder")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
                         Text(text)
@@ -161,7 +161,7 @@ struct PreviewPane: View {
                     Label(item.plainText ?? "", systemImage: "arrow.up.right.square")
                         .lineLimit(3)
                 }
-                Text("点击打开链接，或直接粘贴到当前应用。")
+                Text(PanelL10n.openLinkHint)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -177,12 +177,12 @@ struct PreviewPane: View {
 
     private func metadata(_ item: ClipboardItem) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            metaRow("来源", item.sourceAppName ?? "未知应用")
-            metaRow("复制时间", item.createdAt.formatted(date: .abbreviated, time: .shortened))
-            metaRow("粘贴次数", "\(item.pasteCount)")
-            metaRow("保存策略", item.retentionStatus(days: appState.keepUnfavoritedDays))
+            metaRow(PanelL10n.source, item.sourceAppName ?? PanelL10n.unknownApp)
+            metaRow(PanelL10n.copiedAt, item.createdAt.formatted(date: .abbreviated, time: .shortened))
+            metaRow(PanelL10n.pasteCount, "\(item.pasteCount)")
+            metaRow(PanelL10n.retentionPolicy, item.retentionStatus(days: appState.keepUnfavoritedDays))
             if item.contentType == .file {
-                metaRow("路径", item.fileURLs.map(\.path).joined(separator: "\n"))
+                metaRow(PanelL10n.path, item.fileURLs.map(\.path).joined(separator: "\n"))
             }
         }
         .font(.callout)
@@ -204,7 +204,7 @@ struct PreviewPane: View {
             Button {
                 store?.paste(item)
             } label: {
-                Label("粘贴", systemImage: "return")
+                Label(PanelL10n.paste, systemImage: "return")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -213,7 +213,7 @@ struct PreviewPane: View {
             Button {
                 store?.copyOnly(item)
             } label: {
-                Label("复制", systemImage: "doc.on.doc")
+                Label(PanelL10n.copy, systemImage: "doc.on.doc")
             }
             .buttonStyle(.bordered)
 
@@ -221,27 +221,27 @@ struct PreviewPane: View {
                 Button {
                     store?.copyText(item)
                 } label: {
-                    Label("复制文字", systemImage: "text.viewfinder")
+                    Label(PanelL10n.copyText, systemImage: "text.viewfinder")
                 }
                 .buttonStyle(.bordered)
             } else if item.contentType == .image, item.imageData != nil {
                 Button {
                     store?.recognizeText(in: item)
                 } label: {
-                    Label("识别文字", systemImage: "text.viewfinder")
+                    Label(PanelL10n.recognizeText, systemImage: "text.viewfinder")
                 }
                 .buttonStyle(.bordered)
-                .help("用 Vision 在本机识别这张图片里的文字")
+                .help(PanelL10n.recognizeHelp)
             }
 
             if item.contentType == .image, item.imageData != nil {
                 Button {
                     store?.saveImage(item)
                 } label: {
-                    Label("下载", systemImage: "arrow.down.to.line")
+                    Label(PanelL10n.download, systemImage: "arrow.down.to.line")
                 }
                 .buttonStyle(.bordered)
-                .help("保存为 PNG 到「下载」")
+                .help(PanelL10n.downloadHelp)
             }
 
             Button {
@@ -250,7 +250,7 @@ struct PreviewPane: View {
                 Image(systemName: item.isFavorite ? "star.fill" : "star")
             }
             .buttonStyle(.bordered)
-            .help(item.isFavorite ? "从收藏夹移除" : "收藏，长期保存")
+            .help(item.isFavorite ? PanelL10n.unfavorite : PanelL10n.favoriteHelp)
 
             Button {
                 store?.togglePin(item)
@@ -273,17 +273,17 @@ struct PreviewPane: View {
                     }
                 }
             } label: {
-                Label(item.favoriteTags.first ?? "分类", systemImage: "tag")
+                Label(item.favoriteTags.first ?? PanelL10n.tag, systemImage: "tag")
             }
-            .help("收藏夹分类（打标签会自动收藏）")
+            .help(PanelL10n.favoriteTagHelp)
 
             Menu {
-                Button("无看板") { store?.assign(item: item, to: nil) }
+                Button(PanelL10n.noBoard) { store?.assign(item: item, to: nil) }
                 ForEach(boards) { board in
                     Button(board.name) { store?.assign(item: item, to: board) }
                 }
             } label: {
-                Label(item.board?.name ?? "看板", systemImage: "square.grid.2x2")
+                Label(item.board?.name ?? PanelL10n.board, systemImage: "square.grid.2x2")
             }
         }
         .controlSize(.large)

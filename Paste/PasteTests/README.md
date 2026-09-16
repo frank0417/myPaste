@@ -27,3 +27,5 @@ node Paste/PasteTests/settings_window.test.mjs
 | `performance_cache.test.mjs` | `KeywordScorer` field memoization, excess-only history trim, capture coalescing |
 | `memory_budget.test.mjs` | Image storage/cache budgets, lazy embeddings, panel unload, TIFF compaction walk |
 | `settings_window.test.mjs` | Panel overflow uses NSMenu; Settings is an owned window, not `showSettingsWindow:` |
+| `panel_typography.test.mjs` | Shelf type ramp and PanelL10n zh-Hans / zh-Hant / en chrome |
+| `chrome_l10n.test.mjs` | Overlay HUD, menus, settings, and preview chrome share one language per locale |

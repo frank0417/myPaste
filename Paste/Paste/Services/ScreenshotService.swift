@@ -17,13 +17,7 @@ enum ScreenshotMode: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var title: String {
-        switch self {
-        case .region: return "截取区域"
-        case .window: return "截取窗口"
-        case .fullScreen: return "截取整屏"
-        }
-    }
+    var title: String { ScreenshotL10n.modeTitle(self) }
 
     var systemImage: String {
         switch self {
@@ -34,13 +28,7 @@ enum ScreenshotMode: String, CaseIterable, Identifiable {
     }
 
     /// Shown under the preview title in the history.
-    var subtitle: String {
-        switch self {
-        case .region: return "区域截图"
-        case .window: return "窗口截图"
-        case .fullScreen: return "整屏截图"
-        }
-    }
+    var subtitle: String { ScreenshotL10n.modeSubtitle(self) }
 
     /// Flags for `/usr/sbin/screencapture`. The interactive modes draw the system
     /// crosshair / window picker, so Esc cancels and Space switches modes as usual.
@@ -263,7 +251,7 @@ final class ScreenshotService: ObservableObject {
             // and download, since that path has no annotation toolbar.
             ScreenshotActionBar.shared.show(
                 thumbnail: thumbnail,
-                title: "\(payload.previewTitle) · 已复制",
+                title: ScreenshotL10n.copiedTitle(payload.previewTitle),
                 anchor: NSEvent.mouseLocation,
                 actions: .init(
                     recognizeText: { [self] in recognizeLastCapture() },
@@ -271,7 +259,7 @@ final class ScreenshotService: ObservableObject {
                 )
             )
         } else {
-            ScreenshotHUD.shared.show(thumbnail: thumbnail, title: payload.previewTitle, detail: "图片已复制")
+            ScreenshotHUD.shared.show(thumbnail: thumbnail, title: payload.previewTitle, detail: ScreenshotL10n.string(.imageCopied))
         }
     }
 
@@ -291,7 +279,7 @@ final class ScreenshotService: ObservableObject {
             let text = TextRecognizer.recognize(imageData: capture.pngData)
             Task { @MainActor in
                 guard let text, !text.isEmpty else {
-                    ScreenshotHUD.shared.show(thumbnail: capture.thumbnail, title: capture.title, detail: "未识别到文字")
+                    ScreenshotHUD.shared.show(thumbnail: capture.thumbnail, title: capture.title, detail: ScreenshotL10n.string(.ocrEmpty))
                     return
                 }
                 ClipboardMonitor.shared.ignoreNextPasteboardChange()
@@ -319,7 +307,7 @@ final class ScreenshotService: ObservableObject {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd HH.mm.ss"
-        return "PasteNest 截图 \(formatter.string(from: now)).png"
+        return ScreenshotL10n.downloadFileName(stamp: formatter.string(from: now))
     }
 
     /// Shared by the action bar and the history cards' 保存图片 action.
@@ -328,7 +316,7 @@ final class ScreenshotService: ObservableObject {
         if let downloads {
             let target = uniqueURL(in: downloads, name: suggestedName)
             if (try? pngData.write(to: target, options: .atomic)) != nil {
-                ScreenshotHUD.shared.show(thumbnail: thumbnail, title: target.lastPathComponent, detail: "已保存到「下载」")
+                ScreenshotHUD.shared.show(thumbnail: thumbnail, title: target.lastPathComponent, detail: ScreenshotL10n.string(.savedToDownloads))
                 return
             }
         }
@@ -339,7 +327,7 @@ final class ScreenshotService: ObservableObject {
         NSApp.activate(ignoringOtherApps: true)
         guard panel.runModal() == .OK, let url = panel.url else { return }
         if (try? pngData.write(to: url, options: .atomic)) != nil {
-            ScreenshotHUD.shared.show(thumbnail: thumbnail, title: url.lastPathComponent, detail: "已保存")
+            ScreenshotHUD.shared.show(thumbnail: thumbnail, title: url.lastPathComponent, detail: ScreenshotL10n.string(.saved))
         }
     }
 
@@ -362,7 +350,7 @@ final class ScreenshotService: ObservableObject {
         guard let text, !text.isEmpty else {
             restoreWindows(panel: restorePanel, main: restoreMain)
             if !restorePanel && !restoreMain {
-                ScreenshotHUD.shared.show(thumbnail: nil, title: "截图识字", detail: "未识别到文字")
+                ScreenshotHUD.shared.show(thumbnail: nil, title: ScreenshotL10n.string(.textCapture), detail: ScreenshotL10n.string(.ocrEmpty))
             }
             return
         }
@@ -376,7 +364,7 @@ final class ScreenshotService: ObservableObject {
         if !restorePanel && !restoreMain {
             ScreenshotHUD.shared.show(
                 thumbnail: nil,
-                title: "截图识字",
+                title: ScreenshotL10n.string(.textCapture),
                 detail: Self.hudDetail(text: text)
             )
         }
@@ -392,8 +380,8 @@ final class ScreenshotService: ObservableObject {
     }
 
     static func hudDetail(text: String?) -> String {
-        guard let text else { return "未识别到文字" }
-        return "已识别 \(TextRecognizer.characterCount(of: text)) 字，文字已复制"
+        guard let text else { return ScreenshotL10n.string(.ocrEmpty) }
+        return ScreenshotL10n.hudRecognizedCopied(TextRecognizer.characterCount(of: text))
     }
 
     /// macOS gates screen capture behind 屏幕录制 (TCC), including captures made by
@@ -417,10 +405,10 @@ final class ScreenshotService: ObservableObject {
     private func presentPermissionAlert() {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "需要「屏幕录制」权限"
-        alert.informativeText = "macOS 要求截图前先授权。请在「系统设置 → 隐私与安全性 → 屏幕录制」中勾选 PasteNest，然后重新启动 PasteNest。"
-        alert.addButton(withTitle: "打开系统设置")
-        alert.addButton(withTitle: "稍后")
+        alert.messageText = ScreenshotL10n.string(.permissionTitle)
+        alert.informativeText = ScreenshotL10n.string(.permissionBody)
+        alert.addButton(withTitle: ScreenshotL10n.string(.openSystemSettings))
+        alert.addButton(withTitle: ScreenshotL10n.string(.later))
         NSApp.activate(ignoringOtherApps: true)
         if alert.runModal() == .alertFirstButtonReturn {
             Self.openScreenRecordingSettings()
@@ -430,11 +418,9 @@ final class ScreenshotService: ObservableObject {
     private func presentFailureAlert(status: Int32) {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "截图失败"
-        alert.informativeText = status == 0
-            ? "无法读取屏幕画面。请确认已允许「屏幕录制」权限后重试，或用系统快捷键 ⇧⌘4 截图后由 PasteNest 自动收录。"
-            : "无法读取屏幕画面（错误 \(status)）。请确认已允许「屏幕录制」权限后重试，或用系统快捷键 ⇧⌘4 截图后由 PasteNest 自动收录。"
-        alert.addButton(withTitle: "好")
+        alert.messageText = ScreenshotL10n.string(.captureFailed)
+        alert.informativeText = ScreenshotL10n.captureFailedBody(status: status)
+        alert.addButton(withTitle: ScreenshotL10n.string(.ok))
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
     }
@@ -495,7 +481,7 @@ final class ScreenshotService: ObservableObject {
             previewTitle: previewTitle(width: size.width, height: size.height),
             previewSubtitle: mode.subtitle,
             colorHex: nil,
-            sourceAppName: "截图",
+            sourceAppName: ScreenshotL10n.string(.sourceScreenshot),
             sourceAppBundleID: nil,
             thumbnailData: ClipboardMonitor.thumbnailData(from: image, maxSize: 240)
         )
@@ -513,16 +499,16 @@ final class ScreenshotService: ObservableObject {
             fileURLs: [],
             contentHash: ClipboardMonitor.hashString(text),
             previewTitle: ContentTypeDetector.previewTitle(for: text, type: type),
-            previewSubtitle: "截图识字 · \(TextRecognizer.characterCount(of: text)) 字",
+            previewSubtitle: ScreenshotL10n.textCaptureSubtitle(TextRecognizer.characterCount(of: text)),
             colorHex: nil,
-            sourceAppName: "截图识字",
+            sourceAppName: ScreenshotL10n.string(.textCapture),
             sourceAppBundleID: nil
         )
     }
 
     /// Searchable on its own: typing 截图 finds every capture.
     static func previewTitle(width: Int, height: Int) -> String {
-        "截图 \(width)×\(height)"
+        ScreenshotL10n.previewTitle(width: width, height: height)
     }
 
     /// `NSImage.size` is in points; the bitmap rep carries the Retina pixel count.

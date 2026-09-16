@@ -281,6 +281,9 @@ const swift = fs.readFileSync(
 assertTrue(/kVK_ANSI_X/.test(swift), "Swift screenshot default uses kVK_ANSI_X");
 assertTrue(/retiredScreenshotDefault/.test(swift), "old ⇧⌘D factory default is migrated");
 assertTrue(/kVK_ANSI_D/.test(swift), "retired default is still named so stored ⇧⌘D can be recognized");
+assertTrue(/PanelL10n\.hotkeyNeedModifier/.test(swift), "hotkey rejection reasons follow the app language");
+assertTrue(/PanelL10n\.hotkeyClash/.test(swift), "duplicate-combo messages follow the app language");
+assertTrue(/PanelL10n\.reservedSpotlight/.test(swift), "reserved combo names are localized");
 
 if (failed > 0) {
   console.error(`\n${failed} test(s) failed`);

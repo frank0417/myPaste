@@ -21,7 +21,7 @@ struct HotKeyRecorderView: View {
                     startRecording()
                 }
             } label: {
-                Text(isRecording ? "按下新快捷键…" : shortcut.display)
+                Text(isRecording ? PanelL10n.pressNewHotkey : shortcut.display)
                     .font(.system(size: 12, weight: .semibold).monospaced())
                     .foregroundStyle(PasteTheme.ink)
                     .frame(minWidth: 84)
@@ -42,7 +42,7 @@ struct HotKeyRecorderView: View {
             .buttonStyle(.plain)
 
             if shortcut != action.defaultShortcut {
-                Button("恢复默认") {
+                Button(PanelL10n.restoreDefaults) {
                     stopRecording()
                     onChange(action.defaultShortcut)
                 }

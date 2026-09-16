@@ -104,6 +104,12 @@ enum ScreenshotL10n {
         case drag, color, width, undo, download, cancel, confirm
         case textPlaceholder
         case recognizeText, close, copy, ocrEmpty, ocrDismiss
+        case modeRegion, modeWindow, modeFullScreen
+        case subtitleRegion, subtitleWindow, subtitleFullScreen
+        case imageCopied, copiedSuffix, savedToDownloads, saved
+        case textCapture, sourceScreenshot
+        case permissionTitle, permissionBody, openSystemSettings, later
+        case captureFailed, captureFailedBody, captureFailedBodyCode, ok
     }
 
     static func string(_ key: Key, language: ScreenshotLanguage = .resolve()) -> String {
@@ -123,6 +129,96 @@ enum ScreenshotL10n {
         case .mosaic: return string(.mosaic, language: language)
         case .crop: return string(.crop, language: language)
         }
+    }
+
+    static func modeTitle(_ mode: ScreenshotMode, language: ScreenshotLanguage = .resolve()) -> String {
+        switch mode {
+        case .region: return string(.modeRegion, language: language)
+        case .window: return string(.modeWindow, language: language)
+        case .fullScreen: return string(.modeFullScreen, language: language)
+        }
+    }
+
+    static func modeSubtitle(_ mode: ScreenshotMode, language: ScreenshotLanguage = .resolve()) -> String {
+        switch mode {
+        case .region: return string(.subtitleRegion, language: language)
+        case .window: return string(.subtitleWindow, language: language)
+        case .fullScreen: return string(.subtitleFullScreen, language: language)
+        }
+    }
+
+    static func previewTitle(width: Int, height: Int, language: ScreenshotLanguage = .resolve()) -> String {
+        switch language {
+        case .simplifiedChinese: return "截图 \(width)×\(height)"
+        case .traditionalChinese: return "截圖 \(width)×\(height)"
+        case .english: return "Screenshot \(width)×\(height)"
+        }
+    }
+
+    static func downloadFileName(stamp: String, language: ScreenshotLanguage = .resolve()) -> String {
+        switch language {
+        case .simplifiedChinese: return "PasteNest 截图 \(stamp).png"
+        case .traditionalChinese: return "PasteNest 截圖 \(stamp).png"
+        case .english: return "PasteNest Screenshot \(stamp).png"
+        }
+    }
+
+    static func copiedTitle(_ title: String, language: ScreenshotLanguage = .resolve()) -> String {
+        "\(title) · \(string(.copiedSuffix, language: language))"
+    }
+
+    static func hudRecognizedCopied(_ count: Int, language: ScreenshotLanguage = .resolve()) -> String {
+        switch language {
+        case .simplifiedChinese: return "已识别 \(count) 字，文字已复制"
+        case .traditionalChinese: return "已辨識 \(count) 字，文字已複製"
+        case .english: return count == 1 ? "Recognized 1 character, copied" : "Recognized \(count) characters, copied"
+        }
+    }
+
+    static func hudRecognizedMenu(_ count: Int, language: ScreenshotLanguage = .resolve()) -> String {
+        switch language {
+        case .simplifiedChinese: return "已识别 \(count) 字，右键可复制文字"
+        case .traditionalChinese: return "已辨識 \(count) 字，按右鍵可複製文字"
+        case .english: return count == 1 ? "Recognized 1 character; right-click to copy" : "Recognized \(count) characters; right-click to copy"
+        }
+    }
+
+    static func ocrAttached(_ count: Int, language: ScreenshotLanguage = .resolve()) -> String {
+        switch language {
+        case .simplifiedChinese: return "已识字 \(count) 字"
+        case .traditionalChinese: return "已識字 \(count) 字"
+        case .english: return count == 1 ? "OCR 1 char" : "OCR \(count) chars"
+        }
+    }
+
+    static func textCaptureSubtitle(_ count: Int, language: ScreenshotLanguage = .resolve()) -> String {
+        "\(string(.textCapture, language: language)) · \(ocrAttached(count, language: language))"
+    }
+
+    static func captureFailedBody(status: Int32, language: ScreenshotLanguage = .resolve()) -> String {
+        if status == 0 {
+            return string(.captureFailedBody, language: language)
+        }
+        switch language {
+        case .simplifiedChinese:
+            return "无法读取屏幕画面（错误 \(status)）。请确认已允许「屏幕录制」权限后重试，或用系统快捷键 ⇧⌘4 截图后由 PasteNest 自动收录。"
+        case .traditionalChinese:
+            return "無法讀取螢幕畫面（錯誤 \(status)）。請確認已允許「螢幕錄製」權限後重試，或用系統快捷鍵 ⇧⌘4 截圖後由 PasteNest 自動收錄。"
+        case .english:
+            return "Could not read the screen (error \(status)). Grant Screen Recording access and try again, or capture with ⇧⌘4 and PasteNest will file it."
+        }
+    }
+
+    /// Drops a previously attached OCR suffix, in any of the three languages.
+    static func stripOCRSuffix(_ subtitle: String?) -> String? {
+        guard let subtitle else { return nil }
+        let markers = [" · 已识字", " · 已識字", " · OCR "]
+        for marker in markers {
+            if let range = subtitle.range(of: marker) {
+                return String(subtitle[..<range.lowerBound])
+            }
+        }
+        return subtitle
     }
 
     private static let strings: [ScreenshotLanguage: [Key: String]] = [
@@ -149,7 +245,27 @@ enum ScreenshotL10n {
             .close: "关闭",
             .copy: "复制",
             .ocrEmpty: "未识别到文字",
-            .ocrDismiss: "取消"
+            .ocrDismiss: "取消",
+            .modeRegion: "截取区域",
+            .modeWindow: "截取窗口",
+            .modeFullScreen: "截取整屏",
+            .subtitleRegion: "区域截图",
+            .subtitleWindow: "窗口截图",
+            .subtitleFullScreen: "整屏截图",
+            .imageCopied: "图片已复制",
+            .copiedSuffix: "已复制",
+            .savedToDownloads: "已保存到「下载」",
+            .saved: "已保存",
+            .textCapture: "截图识字",
+            .sourceScreenshot: "截图",
+            .permissionTitle: "需要「屏幕录制」权限",
+            .permissionBody: "macOS 要求截图前先授权。请在「系统设置 → 隐私与安全性 → 屏幕录制」中勾选 PasteNest，然后重新启动 PasteNest。",
+            .openSystemSettings: "打开系统设置",
+            .later: "稍后",
+            .captureFailed: "截图失败",
+            .captureFailedBody: "无法读取屏幕画面。请确认已允许「屏幕录制」权限后重试，或用系统快捷键 ⇧⌘4 截图后由 PasteNest 自动收录。",
+            .captureFailedBodyCode: "无法读取屏幕画面。请确认已允许「屏幕录制」权限后重试，或用系统快捷键 ⇧⌘4 截图后由 PasteNest 自动收录。",
+            .ok: "好"
         ],
         .traditionalChinese: [
             .move: "調整選區",
@@ -174,7 +290,27 @@ enum ScreenshotL10n {
             .close: "關閉",
             .copy: "複製",
             .ocrEmpty: "未辨識到文字",
-            .ocrDismiss: "取消"
+            .ocrDismiss: "取消",
+            .modeRegion: "截取區域",
+            .modeWindow: "截取視窗",
+            .modeFullScreen: "截取整屏",
+            .subtitleRegion: "區域截圖",
+            .subtitleWindow: "視窗截圖",
+            .subtitleFullScreen: "整屏截圖",
+            .imageCopied: "圖片已複製",
+            .copiedSuffix: "已複製",
+            .savedToDownloads: "已儲存到「下載」",
+            .saved: "已儲存",
+            .textCapture: "截圖識字",
+            .sourceScreenshot: "截圖",
+            .permissionTitle: "需要「螢幕錄製」權限",
+            .permissionBody: "macOS 要求截圖前先授權。請在「系統設定 → 隱私權與安全性 → 螢幕錄製」中勾選 PasteNest，然後重新啟動 PasteNest。",
+            .openSystemSettings: "打開系統設定",
+            .later: "稍後",
+            .captureFailed: "截圖失敗",
+            .captureFailedBody: "無法讀取螢幕畫面。請確認已允許「螢幕錄製」權限後重試，或用系統快捷鍵 ⇧⌘4 截圖後由 PasteNest 自動收錄。",
+            .captureFailedBodyCode: "無法讀取螢幕畫面。請確認已允許「螢幕錄製」權限後重試，或用系統快捷鍵 ⇧⌘4 截圖後由 PasteNest 自動收錄。",
+            .ok: "好"
         ],
         .english: [
             .move: "Adjust selection",
@@ -199,7 +335,27 @@ enum ScreenshotL10n {
             .close: "Close",
             .copy: "Copy",
             .ocrEmpty: "No text found",
-            .ocrDismiss: "Cancel"
+            .ocrDismiss: "Cancel",
+            .modeRegion: "Capture region",
+            .modeWindow: "Capture window",
+            .modeFullScreen: "Capture full screen",
+            .subtitleRegion: "Region screenshot",
+            .subtitleWindow: "Window screenshot",
+            .subtitleFullScreen: "Full-screen screenshot",
+            .imageCopied: "Image copied",
+            .copiedSuffix: "Copied",
+            .savedToDownloads: "Saved to Downloads",
+            .saved: "Saved",
+            .textCapture: "Screenshot OCR",
+            .sourceScreenshot: "Screenshot",
+            .permissionTitle: "Screen Recording access needed",
+            .permissionBody: "macOS requires permission before capturing. Enable PasteNest in System Settings → Privacy & Security → Screen Recording, then restart PasteNest.",
+            .openSystemSettings: "Open System Settings",
+            .later: "Later",
+            .captureFailed: "Screenshot failed",
+            .captureFailedBody: "Could not read the screen. Grant Screen Recording access and try again, or capture with ⇧⌘4 and PasteNest will file it.",
+            .captureFailedBodyCode: "Could not read the screen. Grant Screen Recording access and try again, or capture with ⇧⌘4 and PasteNest will file it.",
+            .ok: "OK"
         ]
     ]
 }

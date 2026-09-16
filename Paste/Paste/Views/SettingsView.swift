@@ -69,10 +69,10 @@ struct SettingsView: View {
 
     private var generalTab: some View {
         VStack(alignment: .leading, spacing: 14) {
-            settingsCard("偏好") {
+            settingsCard(PanelL10n.preferences) {
                 toggleRow(
-                    title: "监听剪贴板",
-                    caption: "复制后会按类型自动打标签（图片、链接、富文本等），可在时间线或标签栏筛选。",
+                    title: PanelL10n.listenClipboard,
+                    caption: PanelL10n.listenClipboardCaption,
                     isOn: $appState.isMonitoringEnabled
                 ) { enabled in
                     appState.savePreferences()
@@ -84,8 +84,8 @@ struct SettingsView: View {
                 }
                 cardDivider
                 toggleRow(
-                    title: "登录时启动",
-                    caption: "PasteNest 常驻菜单栏后台，关掉窗口不会退出。",
+                    title: PanelL10n.launchAtLogin,
+                    caption: PanelL10n.launchAtLoginCaption,
                     isOn: $appState.launchAtLogin
                 ) { enabled in
                     appState.savePreferences()
@@ -93,67 +93,71 @@ struct SettingsView: View {
                 }
             }
 
-            settingsCard("截图") {
-                Text("截图（\(appState.screenshotHotkeyDisplay)）会冻结当前屏幕，拖出选区后可用矩形、箭头、马赛克、文字等标注，点 ✓ 后进入剪贴板与历史。之后在卡片上右键「识别文字」即可用 Vision 在本机识别画面文字（中英文）。菜单里的「截取区域并识字」则只保留文字、不存图片。")
+            settingsCard(PanelL10n.screenshot) {
+                Text(PanelL10n.screenshotSettingsHelp(appState.screenshotHotkeyDisplay))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            settingsCard("快捷键") {
+            settingsCard(PanelL10n.settingsTabHotkeys) {
                 HStack(alignment: .center, spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("全局快捷键")
+                        Text(PanelL10n.globalHotkeys)
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(PasteTheme.ink)
-                        Text("面板 \(appState.hotkeyDisplay) · 主窗口 \(appState.mainWindowHotkeyDisplay) · 截图 \(appState.screenshotHotkeyDisplay)")
+                        Text(PanelL10n.hotkeySummary(
+                            panel: appState.hotkeyDisplay,
+                            window: appState.mainWindowHotkeyDisplay,
+                            shot: appState.screenshotHotkeyDisplay
+                        ))
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 8)
-                    settingsChip("修改…") {
+                    settingsChip(PanelL10n.modifyEllipsis) {
                         appState.settingsTab = .hotkeys
                     }
                 }
-                Text("在「快捷键」页可重新录制，录下即刻生效。")
+                Text(PanelL10n.hotkeysPageHint)
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
 
-            settingsCard("权限") {
+            settingsCard(PanelL10n.permissions) {
                 permissionRow(
-                    title: "辅助功能",
+                    title: PanelL10n.accessibility,
                     allowed: AccessibilityPermission.isTrusted,
-                    caption: "自动记录复制内容不需要辅助功能。只有「一键粘贴到其他 App」才需要。若列表里没有 PasteNest，先点此按钮再刷新列表。"
+                    caption: PanelL10n.accessibilityCaption
                 ) {
-                    settingsChip("在系统设置中允许…") {
+                    settingsChip(PanelL10n.allowInSystemSettings) {
                         AccessibilityPermission.requestIfNeeded(prompt: true)
                         AccessibilityPermission.openSystemSettings()
                     }
                 }
                 cardDivider
                 permissionRow(
-                    title: "屏幕录制",
+                    title: PanelL10n.screenRecording,
                     allowed: ScreenshotService.hasScreenRecordingAccess,
-                    caption: "截图需要「屏幕录制」权限。授权后需重新启动 PasteNest 才会生效。"
+                    caption: PanelL10n.screenRecordingCaption
                 ) {
-                    settingsChip("在系统设置中允许截图…") {
+                    settingsChip(PanelL10n.allowScreenshotInSystemSettings) {
                         ScreenshotService.requestScreenRecordingAccess()
                     }
                 }
             }
 
-            Text("按 \(appState.hotkeyDisplay) 唤出底部面板，按 \(appState.mainWindowHotkeyDisplay) 唤出主窗口，也可点击右上角层叠图标。右键图标可退出。")
+            Text(PanelL10n.generalFooter(panel: appState.hotkeyDisplay, window: appState.mainWindowHotkeyDisplay))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .padding(.horizontal, 4)
 
             HStack {
-                Text("版本")
+                Text(PanelL10n.version)
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text("\(Self.appVersion)（Build \(Self.buildNumber)）")
+                Text(PanelL10n.versionBuild(Self.appVersion, build: Self.buildNumber))
                     .font(.callout.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
@@ -165,7 +169,7 @@ struct SettingsView: View {
     /// system immediately; the row shows the combo that is actually live.
     private var hotkeysTab: some View {
         VStack(alignment: .leading, spacing: 14) {
-            settingsCard("全局快捷键") {
+            settingsCard(PanelL10n.globalHotkeys) {
                 ForEach(Array(HotKeyAction.allCases.enumerated()), id: \.element.id) { index, action in
                     hotkeyRow(action)
                     if index < HotKeyAction.allCases.count - 1 {
@@ -173,7 +177,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            Text("点击组合键按钮，然后按下新的组合（需包含 ⌘ / ⌃ / ⌥ 中至少一个），按 Esc 取消。录下即刻生效，不用重启；被系统或其他 App 占用的组合会被拒绝并保留原快捷键。")
+            Text(PanelL10n.hotkeysHelp)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 4)
@@ -181,16 +185,16 @@ struct SettingsView: View {
             settingsCard {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("恢复默认")
+                        Text(PanelL10n.restoreDefaults)
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(PasteTheme.ink)
-                        Text("面板与主窗口不会同时出现：唤出其中一个会自动收起另一个。截图会冻结屏幕并进入选区标注，按 Esc 放弃本次截图；识字不需要单独的快捷键，截完在卡片上选「识别文字」即可。")
+                        Text(PanelL10n.restoreDefaultsDetail)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
-                    settingsChip("全部恢复默认") {
+                    settingsChip(PanelL10n.restoreAllDefaults) {
                         appState.resetHotkeysToDefaults()
                     }
                     .disabled(HotKeyAction.allCases.allSatisfy { appState.shortcut(for: $0) == $0.defaultShortcut })
@@ -205,12 +209,12 @@ struct SettingsView: View {
 
     private var historyTab: some View {
         VStack(alignment: .leading, spacing: 14) {
-            settingsCard("收藏与保留") {
+            settingsCard(PanelL10n.retention) {
                 Stepper(
                     value: $appState.keepUnfavoritedDays,
                     in: RetentionPolicy.minimumDays...RetentionPolicy.maximumDays
                 ) {
-                    Text("未收藏的内容保留 \(appState.keepUnfavoritedDays) 天")
+                    Text(PanelL10n.keepUnfavorited(appState.keepUnfavoritedDays))
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(PasteTheme.ink)
                 }
@@ -218,29 +222,29 @@ struct SettingsView: View {
                     appState.savePreferences()
                     NotificationCenter.default.post(name: .pasteRetentionSweepRequested, object: nil)
                 }
-                Text("收藏夹里的内容长期保存；其余记录在最后一次使用满 \(appState.keepUnfavoritedDays) 天后自动删除（置顶的也会保留）。粘贴或再次复制都会重新计时。")
+                Text(PanelL10n.retentionHelp(appState.keepUnfavoritedDays))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                settingsChip("立即清理过期内容") {
+                settingsChip(PanelL10n.sweepNow) {
                     NotificationCenter.default.post(name: .pasteRetentionSweepRequested, object: nil)
                 }
             }
 
-            settingsCard("容量") {
+            settingsCard(PanelL10n.capacity) {
                 Stepper(value: $appState.maxHistoryCount, in: 50...5000, step: 50) {
-                    Text("最多保存 \(appState.maxHistoryCount) 条")
+                    Text(PanelL10n.maxItems(appState.maxHistoryCount))
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(PasteTheme.ink)
                 }
                 .onChange(of: appState.maxHistoryCount) { _, _ in
                     appState.savePreferences()
                 }
-                Text("超出限制时会自动清理最早的记录，收藏与置顶不计入这个上限。图片按压缩格式保存（优先 PNG，过大则 JPEG），以减少内存和磁盘占用。")
+                Text(PanelL10n.capacityHelp)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                settingsChip("导出历史为 JSON…") {
+                settingsChip(PanelL10n.exportJSON) {
                     appState.requestExportJSON = true
                 }
             }
@@ -249,10 +253,10 @@ struct SettingsView: View {
 
     private var syncTab: some View {
         VStack(alignment: .leading, spacing: 14) {
-            settingsCard("iCloud") {
+            settingsCard(PanelL10n.iCloud) {
                 toggleRow(
-                    title: "通过 iCloud 同步",
-                    caption: "启用后，剪贴板历史将通过你的 iCloud 账号在多台 Mac 间同步。请确保已登录同一 Apple ID。",
+                    title: PanelL10n.iCloudSync,
+                    caption: PanelL10n.iCloudSyncCaption,
                     isOn: $appState.syncEnabled
                 ) { _ in
                     appState.savePreferences()
@@ -260,7 +264,7 @@ struct SettingsView: View {
                 }
                 cardDivider
                 HStack {
-                    Text("状态")
+                    Text(PanelL10n.status)
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(PasteTheme.ink)
                     Spacer()
@@ -282,11 +286,11 @@ struct SettingsView: View {
                     Text("PasteNest")
                         .font(.title.weight(.bold))
                         .foregroundStyle(PasteTheme.ink)
-                    Text("保存、搜索、同步你复制的一切")
+                    Text(PanelL10n.aboutTagline)
                         .foregroundStyle(.secondary)
 
                     HStack(spacing: 8) {
-                        Text("版本 \(Self.appVersion)")
+                        Text(PanelL10n.versionLabel(Self.appVersion))
                             .font(.system(size: 13, weight: .semibold).monospacedDigit())
                         Text("Build \(Self.buildNumber)")
                             .font(.caption.monospacedDigit())
@@ -298,7 +302,7 @@ struct SettingsView: View {
                                 .font(.caption)
                         }
                         .buttonStyle(.plain)
-                        .help("复制版本信息")
+                        .help(PanelL10n.copyVersion)
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
@@ -350,7 +354,7 @@ struct SettingsView: View {
             Circle()
                 .fill(live == nil ? Color.orange : Color.green)
                 .frame(width: 6, height: 6)
-            Text(live.map { "已生效 \($0.display)" } ?? "未注册")
+            Text(live.map { PanelL10n.hotkeyLive($0.display) } ?? PanelL10n.hotkeyUnregistered)
                 .font(.caption2.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
@@ -456,7 +460,7 @@ struct SettingsView: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(PasteTheme.ink)
                 Spacer()
-                Text(allowed ? "已允许" : "未允许")
+                Text(allowed ? PanelL10n.allowed : PanelL10n.notAllowed)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(allowed ? PasteTheme.accent : Color.orange)
                     .padding(.horizontal, 8)
@@ -478,11 +482,11 @@ struct SettingsView: View {
 private extension AppState.SettingsTab {
     var title: String {
         switch self {
-        case .general: return "通用"
-        case .hotkeys: return "快捷键"
-        case .history: return "历史"
-        case .sync: return "同步"
-        case .about: return "关于"
+        case .general: return PanelL10n.settingsTabGeneral
+        case .hotkeys: return PanelL10n.settingsTabHotkeys
+        case .history: return PanelL10n.settingsTabHistory
+        case .sync: return PanelL10n.settingsTabSync
+        case .about: return PanelL10n.settingsTabAbout
         }
     }
 

@@ -105,17 +105,17 @@ final class AppState: ObservableObject {
 
         var title: String {
             switch self {
-            case .all: return "全部"
-            case .text: return "文本"
-            case .link: return "链接"
-            case .image: return "图片"
-            case .file: return "文件"
-            case .code: return "代码"
-            case .richText: return "富文本"
-            case .color: return "颜色"
-            case .snippet: return "长文本"
-            case .pinned: return "置顶"
-            case .favorite: return "收藏夹"
+            case .all: return PanelL10n.all
+            case .text: return PanelL10n.contentType(.text)
+            case .link: return PanelL10n.contentType(.link)
+            case .image: return PanelL10n.contentType(.image)
+            case .file: return PanelL10n.contentType(.file)
+            case .code: return PanelL10n.contentType(.code)
+            case .richText: return PanelL10n.contentType(.richText)
+            case .color: return PanelL10n.contentType(.color)
+            case .snippet: return PanelL10n.filterSnippet
+            case .pinned: return PanelL10n.pin
+            case .favorite: return PanelL10n.favorites
             }
         }
 
@@ -231,10 +231,10 @@ final class AppState: ObservableObject {
         let fallback = action.defaultShortcut
         if stored != fallback, case .applied = GlobalHotKeyManager.shared.apply(fallback, for: action) {
             store(fallback, for: action)
-            hotkeyFeedback[action] = .rejected("原快捷键 \(stored.display) 已被占用，已恢复为 \(fallback.display)")
+            hotkeyFeedback[action] = .rejected(PanelL10n.hotkeyRestored(from: stored.display, to: fallback.display))
             return
         }
-        hotkeyFeedback[action] = .rejected("\(stored.display) 已被占用，请设置一个新组合")
+        hotkeyFeedback[action] = .rejected(PanelL10n.hotkeyTakenPleaseChange(stored.display))
     }
 
     private func store(_ shortcut: HotKeyShortcut, for action: HotKeyAction, persist: Bool = true) {
@@ -285,7 +285,7 @@ enum HotKeyFeedback: Equatable {
 
     var message: String {
         switch self {
-        case .applied(let display): return "已生效：\(display)"
+        case .applied(let display): return PanelL10n.hotkeyApplied(display)
         case .rejected(let reason): return reason
         }
     }
