@@ -62,6 +62,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ScreenshotService.shared.onCaptured = { [weak self] payload in
                 self?.clipboardStore?.ingest(payload)
             }
+            ScreenshotService.shared.onRecognized = { [weak self] hash, text in
+                self?.clipboardStore?.attachRecognizedText(text, toContentHash: hash)
+            }
             monitoringObserver = NotificationCenter.default.addObserver(
                 forName: .pasteMonitoringPreferenceChanged,
                 object: nil,

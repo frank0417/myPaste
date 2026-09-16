@@ -234,6 +234,16 @@ struct PreviewPane: View {
                 .help("用 Vision 在本机识别这张图片里的文字")
             }
 
+            if item.contentType == .image, item.imageData != nil {
+                Button {
+                    store?.saveImage(item)
+                } label: {
+                    Label("下载", systemImage: "arrow.down.to.line")
+                }
+                .buttonStyle(.bordered)
+                .help("保存为 PNG 到「下载」")
+            }
+
             Button {
                 store?.toggleFavorite(item)
             } label: {

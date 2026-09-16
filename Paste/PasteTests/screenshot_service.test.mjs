@@ -195,6 +195,55 @@ assertEqual(hudDetail(null), "未识别到文字", "an empty result says so and 
 assertEqual(pasteboardTypes("image"), ["tiff", "png"], "a plain capture offers the image");
 assertEqual(pasteboardTypes("text"), ["string"], "a 识字 capture offers only the text");
 
+// --- 下载截图: file naming -----------------------------------------------------
+// Mirrors ScreenshotService.downloadFileName and uniqueURL: a timestamped PNG in
+// 下载, and a numeric suffix rather than an overwrite when the name is taken.
+function downloadFileName(date) {
+  const p = (n) => String(n).padStart(2, "0");
+  const stamp = `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())} ${p(date.getHours())}.${p(date.getMinutes())}.${p(date.getSeconds())}`;
+  return `PasteNest 截图 ${stamp}.png`;
+}
+function uniqueName(existing, name) {
+  const dot = name.lastIndexOf(".");
+  const base = name.slice(0, dot);
+  const ext = name.slice(dot + 1);
+  let candidate = name;
+  let counter = 2;
+  while (existing.has(candidate)) {
+    candidate = `${base} ${counter}.${ext}`;
+    counter += 1;
+  }
+  return candidate;
+}
+const when = new Date(2026, 8, 16, 10, 12, 3);
+assertEqual(downloadFileName(when), "PasteNest 截图 2026-09-16 10.12.03.png", "download name carries a sortable timestamp");
+assertEqual(uniqueName(new Set(), "a.png"), "a.png", "a free name is used as is");
+assertEqual(uniqueName(new Set(["a.png"]), "a.png"), "a 2.png", "a taken name gets a suffix");
+assertEqual(uniqueName(new Set(["a.png", "a 2.png"]), "a.png"), "a 3.png", "the suffix keeps counting");
+
+// --- the action bar after a capture --------------------------------------------
+// Mirrors ScreenshotActionBar.position: hang below the anchor, clamped on screen,
+// flipping above the anchor when there is no room below.
+function positionBar({ anchor, visible, size }) {
+  let x = anchor.x - size.width / 2;
+  let y = anchor.y - size.height - 14;
+  x = Math.min(Math.max(x, visible.minX + 8), visible.maxX - size.width - 8);
+  if (y < visible.minY + 8) {
+    y = Math.min(anchor.y + 14, visible.maxY - size.height - 8);
+  }
+  return { x, y };
+}
+const screen = { minX: 0, minY: 0, maxX: 1440, maxY: 875 };
+const barSize = { width: 372, height: 58 };
+let pos = positionBar({ anchor: { x: 700, y: 400 }, visible: screen, size: barSize });
+assertEqual(pos, { x: 514, y: 328 }, "bar hangs centered below the pointer");
+pos = positionBar({ anchor: { x: 20, y: 400 }, visible: screen, size: barSize });
+assertEqual(pos.x, 8, "bar is kept inside the left edge");
+pos = positionBar({ anchor: { x: 1430, y: 400 }, visible: screen, size: barSize });
+assertEqual(pos.x, 1440 - 372 - 8, "bar is kept inside the right edge");
+pos = positionBar({ anchor: { x: 700, y: 30 }, visible: screen, size: barSize });
+assertEqual(pos.y, 44, "no room below: bar sits above the pointer");
+
 if (failed > 0) {
   console.error(`\n${failed} test(s) failed`);
   process.exit(1);

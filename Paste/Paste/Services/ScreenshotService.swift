@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import CoreGraphics
 import Foundation
+import UniformTypeIdentifiers
 
 /// Apple's capture tool. Kept outside the main-actor type so the background worker
 /// can read it.
@@ -69,8 +70,21 @@ final class ScreenshotService: ObservableObject {
     /// Set by `AppDelegate` to the store that owns pasteboard monitoring, so a
     /// screenshot lands in history exactly once.
     var onCaptured: ((CapturedClipboardPayload) -> Void)?
+    /// Set by `AppDelegate`: text read out of a capture after the fact, keyed by the
+    /// capture's content hash, so the store can attach it to the right item.
+    var onRecognized: ((_ contentHash: String, _ text: String) -> Void)?
 
     @Published private(set) var isCapturing = false
+
+    /// The most recent plain capture, kept so the action bar under the pointer can
+    /// still read its text or save it after the pipeline has moved on.
+    private struct LastCapture {
+        let contentHash: String
+        let pngData: Data
+        let title: String
+        let thumbnail: NSImage?
+    }
+    private var lastCapture: LastCapture?
 
     private let queue = DispatchQueue(label: "com.mypaste.PasteNest.screenshot")
 
@@ -155,16 +169,101 @@ final class ScreenshotService: ObservableObject {
         }
         writeImageToPasteboard(data)
         onCaptured?(payload)
+        let thumbnail = payload.thumbnailData.flatMap(NSImage.init(data:))
+        lastCapture = LastCapture(
+            contentHash: payload.contentHash,
+            pngData: data,
+            title: payload.previewTitle,
+            thumbnail: thumbnail
+        )
         if restorePanel {
             StatusItemController.shared.showPanel()
-        } else {
-            // Nothing else on screen would confirm the capture, so say what happened.
-            ScreenshotHUD.shared.show(
-                thumbnail: payload.thumbnailData.flatMap(NSImage.init(data:)),
-                title: payload.previewTitle,
-                detail: "图片已复制 · 卡片上可「识别文字」"
-            )
         }
+        // The strip under the pointer: read the text, save the file, or dismiss.
+        // The pointer sits where the selection ended, so the bar hangs just below
+        // the screenshot the user just drew.
+        ScreenshotActionBar.shared.show(
+            thumbnail: thumbnail,
+            title: "\(payload.previewTitle) · 已复制",
+            anchor: NSEvent.mouseLocation,
+            actions: .init(
+                recognizeText: { [self] in recognizeLastCapture() },
+                save: { [self] in saveLastCapture() }
+            )
+        )
+    }
+
+    /// Reads the text in the capture that just landed, puts it on the pasteboard and
+    /// hands it to the store to attach to the image item. The picture stays.
+    func recognizeLastCapture() {
+        guard let capture = lastCapture else { return }
+        queue.async { [self] in
+            let text = TextRecognizer.recognize(imageData: capture.pngData)
+            Task { @MainActor in
+                guard let text, !text.isEmpty else {
+                    ScreenshotHUD.shared.show(thumbnail: capture.thumbnail, title: capture.title, detail: "未识别到文字")
+                    return
+                }
+                ClipboardMonitor.shared.ignoreNextPasteboardChange()
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.setString(text, forType: .string)
+                self.onRecognized?(capture.contentHash, text)
+                ScreenshotHUD.shared.show(
+                    thumbnail: capture.thumbnail,
+                    title: capture.title,
+                    detail: Self.hudDetail(text: text)
+                )
+            }
+        }
+    }
+
+    /// Writes the capture to 下载 as a PNG. Sandboxed builds cannot reach the folder
+    /// directly, so they fall back to a save panel pointed there.
+    func saveLastCapture() {
+        guard let capture = lastCapture else { return }
+        Self.saveImage(capture.pngData, suggestedName: Self.downloadFileName(), thumbnail: capture.thumbnail)
+    }
+
+    static func downloadFileName(now: Date = .now) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd HH.mm.ss"
+        return "PasteNest 截图 \(formatter.string(from: now)).png"
+    }
+
+    /// Shared by the action bar and the history cards' 保存图片 action.
+    static func saveImage(_ pngData: Data, suggestedName: String, thumbnail: NSImage? = nil) {
+        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+        if let downloads {
+            let target = uniqueURL(in: downloads, name: suggestedName)
+            if (try? pngData.write(to: target, options: .atomic)) != nil {
+                ScreenshotHUD.shared.show(thumbnail: thumbnail, title: target.lastPathComponent, detail: "已保存到「下载」")
+                return
+            }
+        }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.png]
+        panel.nameFieldStringValue = suggestedName
+        panel.directoryURL = downloads
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        if (try? pngData.write(to: url, options: .atomic)) != nil {
+            ScreenshotHUD.shared.show(thumbnail: thumbnail, title: url.lastPathComponent, detail: "已保存")
+        }
+    }
+
+    /// "name.png", then "name 2.png", … so a burst of saves never overwrites.
+    static func uniqueURL(in directory: URL, name: String) -> URL {
+        let base = (name as NSString).deletingPathExtension
+        let ext = (name as NSString).pathExtension
+        var candidate = directory.appendingPathComponent(name)
+        var counter = 2
+        while FileManager.default.fileExists(atPath: candidate.path) {
+            candidate = directory.appendingPathComponent("\(base) \(counter)").appendingPathExtension(ext)
+            counter += 1
+        }
+        return candidate
     }
 
     /// A 识字 capture keeps only the words: the image is discarded, the text goes to

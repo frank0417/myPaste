@@ -144,6 +144,29 @@ final class ClipboardStore: ObservableObject {
             ScreenshotHUD.shared.show(thumbnail: nil, title: "识别文字", detail: "未识别到文字")
             return
         }
+        attach(text, to: item)
+        ScreenshotHUD.shared.show(
+            thumbnail: item.thumbnailData.flatMap(NSImage.init(data:)),
+            title: item.previewTitle,
+            detail: "已识别 \(TextRecognizer.characterCount(of: text)) 字，右键可复制文字"
+        )
+    }
+
+    /// The screenshot action bar reads text before the store hands out an item, so
+    /// it identifies the capture by content hash. The bar already reported the
+    /// result; this only records it.
+    func attachRecognizedText(_ text: String, toContentHash hash: String) {
+        guard !text.isEmpty else { return }
+        var descriptor = FetchDescriptor<ClipboardItem>(
+            predicate: #Predicate { $0.contentHash == hash },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 1
+        guard let item = try? modelContext.fetch(descriptor).first else { return }
+        attach(text, to: item)
+    }
+
+    private func attach(_ text: String, to item: ClipboardItem) {
         item.plainText = text
         let count = TextRecognizer.characterCount(of: text)
         let base = item.previewSubtitle?.components(separatedBy: " · 已识字").first ?? item.previewSubtitle
@@ -153,11 +176,20 @@ final class ClipboardStore: ObservableObject {
         item.updatedAt = .now
         try? modelContext.save()
         EmbeddingIndex.shared.upsert(id: item.id, text: item.searchableText)
-        ScreenshotHUD.shared.show(
-            thumbnail: item.thumbnailData.flatMap(NSImage.init(data:)),
-            title: item.previewTitle,
-            detail: "已识别 \(count) 字，右键可复制文字"
-        )
+    }
+
+    /// Saves an image item as a PNG in 下载 (or via a save panel when sandboxed).
+    func saveImage(_ item: ClipboardItem) {
+        guard item.contentType == .image, let data = item.imageData else { return }
+        let png = Self.pngData(from: data) ?? data
+        let name = "PasteNest \(item.previewTitle.replacingOccurrences(of: "/", with: "-")).png"
+        ScreenshotService.saveImage(png, suggestedName: name, thumbnail: item.thumbnailData.flatMap(NSImage.init(data:)))
+    }
+
+    /// Copied images arrive as TIFF or PNG; the file on disk should always be PNG.
+    private static func pngData(from data: Data) -> Data? {
+        guard let rep = NSBitmapImageRep(data: data) else { return nil }
+        return rep.representation(using: .png, properties: [:])
     }
 
     /// Copies only the text an item carries — for a screenshot, the recognized text
