@@ -90,12 +90,12 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         menu.addItem(withTitle: "隐藏面板", action: #selector(menuHidePanel), keyEquivalent: "")
         menu.addItem(NSMenuItem.separator())
         let shotHint = appState.map { "（\($0.screenshotHotkeyDisplay)）" } ?? ""
-        let ocrHint = appState.map { "（\($0.screenshotOCRHotkeyDisplay)）" } ?? ""
         menu.addItem(withTitle: "截取区域\(shotHint)", action: #selector(menuCaptureRegion), keyEquivalent: "")
         menu.addItem(withTitle: "截取窗口", action: #selector(menuCaptureWindow), keyEquivalent: "")
         menu.addItem(withTitle: "截取整屏", action: #selector(menuCaptureFullScreen), keyEquivalent: "")
-        menu.addItem(withTitle: "截取区域并识字\(ocrHint)", action: #selector(menuCaptureRegionOCR), keyEquivalent: "")
+        menu.addItem(withTitle: "截取区域并识字（只存文字）", action: #selector(menuCaptureRegionOCR), keyEquivalent: "")
         menu.addItem(NSMenuItem.separator())
+        menu.addItem(withTitle: "快捷键设置…", action: #selector(menuOpenHotkeySettings), keyEquivalent: "")
         menu.addItem(withTitle: "设置…", action: #selector(menuOpenSettings), keyEquivalent: ",")
         menu.addItem(NSMenuItem.separator())
         menu.addItem(withTitle: "退出 PasteNest", action: #selector(menuQuit), keyEquivalent: "q")
@@ -120,11 +120,18 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     @objc private func menuOpenSettings() {
         openSettings()
     }
+    @objc private func menuOpenHotkeySettings() {
+        openSettings(tab: .hotkeys)
+    }
 
     /// Bring up the SwiftUI Settings scene from an accessory (menu-bar) app.
     /// The panel is a non-activating NSPanel, so the settings window must be
     /// ordered in explicitly after the app activates, or it never appears.
-    func openSettings() {
+    /// - Parameter tab: the tab to land on; `nil` keeps whatever was showing.
+    func openSettings(tab: AppState.SettingsTab? = nil) {
+        if let tab {
+            appState?.settingsTab = tab
+        }
         hidePanel()
         // Activate first so the settings window can come to the front.
         NSApp.activate(ignoringOtherApps: true)

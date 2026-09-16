@@ -224,6 +224,14 @@ struct PreviewPane: View {
                     Label("复制文字", systemImage: "text.viewfinder")
                 }
                 .buttonStyle(.bordered)
+            } else if item.contentType == .image, item.imageData != nil {
+                Button {
+                    store?.recognizeText(in: item)
+                } label: {
+                    Label("识别文字", systemImage: "text.viewfinder")
+                }
+                .buttonStyle(.bordered)
+                .help("用 Vision 在本机识别这张图片里的文字")
             }
 
             Button {

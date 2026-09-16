@@ -119,8 +119,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 StatusItemController.shared.toggleMainWindow()
             case .screenshot:
                 ScreenshotService.shared.capture(.region)
-            case .screenshotOCR:
-                ScreenshotService.shared.capture(.region, recognizeText: true)
             }
         }
         // Bind right away so the hotkeys work even before the scene hands us AppState,

@@ -83,7 +83,7 @@ assertTrue(
   /\.fixedSize\(horizontal: false, vertical: true\)/.test(panel),
   "search pill hugs its content vertically"
 );
-const pillWidth = panel.match(/\.shelfPill\(tint: [^\n]*\)\s*\n\s*\.frame\(maxWidth: (\d+)\)/);
+const pillWidth = panel.match(/\.shadow\([^\n]*\)\s*\n\s*\.frame\(maxWidth: (\d+)\)/);
 assertTrue(
   pillWidth !== null && Number(pillWidth[1]) <= 340,
   "search pill is capped at a compact width"
@@ -95,7 +95,15 @@ const cardStart = panel.indexOf("private var panelCard: some View");
 const cardEnd = panel.indexOf("private var topBar: some View", cardStart);
 const cardBody = panel.slice(cardStart, cardEnd);
 assertTrue(cardStart > 0 && cardEnd > cardStart, "panelCard is defined");
-assertTrue(/searchRow/.test(cardBody), "search row lives inside the panel card");
+assertTrue(!/searchRow/.test(cardBody), "search row is not part of the panel card");
+
+// The focusable panel would otherwise get AppKit's accent-coloured focus ring
+// along its rectangular bounds: a hard-cornered green frame around the surface
+// that disappears only once the search field takes focus.
+assertTrue(
+  /\.focusable\(!showSearch\)[\s\S]{0,400}?\.focusEffectDisabled\(\)/.test(panel),
+  "panel focus never draws a focus ring"
+);
 assertTrue(!/searchPill/.test(panel), "the detached search pill is gone");
 
 // One surface for the whole window, drawn by the root: the card and the detail
@@ -105,6 +113,12 @@ const bodyStart = panel.indexOf("var body: some View {");
 const bodyEnd = panel.indexOf("private var isSearchFieldEditing", bodyStart);
 const rootBody = panel.slice(bodyStart, bodyEnd);
 assertTrue(/\.panelSurface\(\)/.test(rootBody), "root draws the shared panel surface");
+// The search capsule floats on the transparent window above the surface, its own
+// pill, so the panel keeps an unbroken rounded outline.
+assertTrue(
+  rootBody.indexOf("searchRow") > 0 && rootBody.indexOf("searchRow") < rootBody.indexOf(".panelSurface()"),
+  "search capsule floats above the panel surface"
+);
 assertTrue(!/\.shadow\(/.test(rootBody), "root draws no clipped shadow");
 assertTrue(
   !/\.padding\(\.horizontal, 8\)/.test(rootBody) && !/\.padding\(\.bottom, 10\)/.test(rootBody),

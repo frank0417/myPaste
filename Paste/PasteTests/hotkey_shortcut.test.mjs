@@ -7,6 +7,7 @@ const optionKey = 0x0800;
 const controlKey = 0x1000;
 
 const KEY = {
+  d: 0x02,
   v: 0x09,
   q: 0x0c,
   three: 0x14,
@@ -37,20 +38,18 @@ const RESERVED = [
   { keyCode: KEY.five, carbon: cmdKey | shiftKey, name: "⇧⌘5（截屏）" }
 ];
 
-// HotKeyAction: the two mutually exclusive surfaces plus the two capture triggers,
-// each with its own binding.
+// HotKeyAction: the two mutually exclusive surfaces plus the capture trigger, each
+// with its own binding. Text recognition is chosen on a capture, not a hotkey.
 const ACTION = {
   panel: { id: 1, shortTitle: "剪贴板面板", storageKey: "globalHotKeyShortcut" },
   mainWindow: { id: 2, shortTitle: "主窗口", storageKey: "mainWindowHotKeyShortcut" },
-  screenshot: { id: 3, shortTitle: "截图", storageKey: "screenshotHotKeyShortcut" },
-  screenshotOCR: { id: 4, shortTitle: "截图识字", storageKey: "screenshotOCRHotKeyShortcut" }
+  screenshot: { id: 3, shortTitle: "截图", storageKey: "screenshotHotKeyShortcut" }
 };
 
 const DEFAULTS = {
   panel: { keyCode: KEY.v, carbonModifiers: cmdKey | shiftKey },
   mainWindow: { keyCode: KEY.v, carbonModifiers: cmdKey | optionKey },
-  screenshot: { keyCode: KEY.four, carbonModifiers: cmdKey | shiftKey | controlKey },
-  screenshotOCR: { keyCode: KEY.five, carbonModifiers: cmdKey | shiftKey | controlKey }
+  screenshot: { keyCode: KEY.d, carbonModifiers: cmdKey | shiftKey }
 };
 
 const DEFAULT = DEFAULTS.panel;
@@ -189,9 +188,9 @@ assertTrue(
 );
 assertEqual(ACTION.panel.storageKey, "globalHotKeyShortcut", "panel keeps the legacy storage key");
 
-// The screenshot default must clear the system ⇧⌘4 it deliberately echoes.
+// The screenshot default is ⇧⌘D; the system's ⇧⌘4 stays off limits.
 assertEqual(rejectionReason(DEFAULTS.screenshot), null, "screenshot default is valid");
-assertEqual(display(DEFAULTS.screenshot, "4"), "⌃⇧⌘4", "screenshot default renders as ctrl-shift-cmd-4");
+assertEqual(display(DEFAULTS.screenshot, "D"), "⇧⌘D", "screenshot default renders as shift-cmd-D");
 assertEqual(
   rejectionReason({ keyCode: KEY.four, carbonModifiers: cmdKey | shiftKey }),
   "⇧⌘4（截屏） 已被系统占用，请换一个组合",
@@ -248,15 +247,8 @@ assertEqual(
 assertEqual(actionForHotKeyID(1), "panel", "hot key id 1 is the shelf panel");
 assertEqual(actionForHotKeyID(2), "mainWindow", "hot key id 2 is the main window");
 assertEqual(actionForHotKeyID(3), "screenshot", "hot key id 3 is the screenshot");
-assertEqual(actionForHotKeyID(4), "screenshotOCR", "hot key id 4 is the OCR capture");
-assertEqual(rejectionReason(DEFAULTS.screenshotOCR), null, "OCR default is valid");
-assertEqual(display(DEFAULTS.screenshotOCR, "5"), "⌃⇧⌘5", "OCR default renders as ctrl-shift-cmd-5");
-assertTrue(
-  !sameShortcut(DEFAULTS.screenshotOCR, DEFAULTS.screenshot)
-    && !sameShortcut(DEFAULTS.screenshotOCR, DEFAULTS.panel)
-    && !sameShortcut(DEFAULTS.screenshotOCR, DEFAULTS.mainWindow),
-  "OCR default differs from every other default"
-);
+assertEqual(actionForHotKeyID(4), null, "there is no separate OCR hotkey any more");
+assertEqual(Object.keys(ACTION).length, 3, "exactly three configurable shortcuts");
 assertEqual(actionForHotKeyID(99), null, "unknown hot key id is ignored");
 
 if (failed > 0) {

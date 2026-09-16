@@ -50,7 +50,7 @@ struct ContentView: View {
                 } primaryAction: {
                     ScreenshotService.shared.capture(.region)
                 }
-                .help("截图（\(appState.screenshotHotkeyDisplay)）只存图片；截图识字（\(appState.screenshotOCRHotkeyDisplay)）只存文字")
+                .help("截图（\(appState.screenshotHotkeyDisplay)）存图片，之后可随时对它「识别文字」；「并识字」只存识别出的文字")
                 Button {
                     appState.isMonitoringEnabled.toggle()
                     appState.savePreferences()

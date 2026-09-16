@@ -67,31 +67,43 @@ struct MenuBarPanel: View {
     }
 
     var body: some View {
-        ZStack {
-            // When detail is open, hide the shelf layer completely so nothing shows through.
-            if detailItem == nil {
-                panelCard
+        VStack(spacing: 8) {
+            // The search capsule floats on the transparent window above the surface,
+            // its own small pill, so the panel keeps an unbroken rounded outline.
+            if showSearch && detailItem == nil {
+                searchRow
                     .transition(.opacity)
             }
 
-            if let detailItem = detailItem {
-                ClipboardItemDetailOverlay(
-                    item: detailItem,
-                    retentionDays: appState.keepUnfavoritedDays,
-                    onClose: { appState.shelfDetailItemID = nil },
-                    onCopy: { copyOnlyItem(detailItem) },
-                    onCopyText: { store?.copyText(detailItem) },
-                    onPaste: { paste(detailItem) },
-                    onToggleFavorite: { store?.toggleFavorite(detailItem) }
-                )
-                .transition(.opacity)
+            ZStack {
+                // When detail is open, hide the shelf layer completely so nothing shows through.
+                if detailItem == nil {
+                    panelCard
+                        .transition(.opacity)
+                }
+
+                if let detailItem = detailItem {
+                    ClipboardItemDetailOverlay(
+                        item: detailItem,
+                        retentionDays: appState.keepUnfavoritedDays,
+                        onClose: { appState.shelfDetailItemID = nil },
+                        onCopy: { copyOnlyItem(detailItem) },
+                        onCopyText: { store?.copyText(detailItem) },
+                        onPaste: { paste(detailItem) },
+                        onToggleFavorite: { store?.toggleFavorite(detailItem) },
+                        onRecognizeText: { store?.recognizeText(in: detailItem) }
+                    )
+                    .transition(.opacity)
+                }
             }
+            // One surface for the panel. The shelf and the detail view are both
+            // content on it, so switching between them crossfades on a steady backdrop
+            // and the rounded edge never moves.
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .panelSurface()
         }
-        // One surface for the whole window. The shelf and the detail view are both
-        // content on it, so switching between them crossfades on a steady backdrop
-        // and the rounded edge never moves.
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .panelSurface()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .animation(.easeOut(duration: 0.18), value: showSearch)
         .animation(.easeOut(duration: 0.2), value: appState.shelfDetailItemID)
         .onAppear {
             if store == nil {
@@ -134,6 +146,11 @@ struct MenuBarPanel: View {
         // While the search box is up it owns first responder; making the whole
         // panel focusable at the same time steals keystrokes back from the field.
         .focusable(!showSearch)
+        // The panel takes keyboard focus for arrow navigation, and AppKit marks a
+        // focused view with an accent-coloured ring along its rectangular bounds.
+        // On a window-sized view that ring is a hard-cornered green frame around
+        // the rounded surface, so it must never draw.
+        .focusEffectDisabled()
         .onKeyPress(.leftArrow) {
             guard !isSearchFieldEditing else { return .ignored }
             moveSelection(by: -1)
@@ -193,12 +210,6 @@ struct MenuBarPanel: View {
     private var panelCard: some View {
         VStack(spacing: 0) {
             topBar
-            // The search row lives inside the surface, right under the nav bar, so it
-            // never floats detached above the panel.
-            if showSearch {
-                searchRow
-                    .transition(.opacity)
-            }
             if appState.panelViewMode == .shelf {
                 shelf
             } else if appState.panelViewMode == .favorites {
@@ -333,10 +344,13 @@ struct MenuBarPanel: View {
             Menu {
                 Button("粘贴选中项") { pasteSelected() }
                 Divider()
-                // Captures live on their hotkeys; the menu keeps a single entry so
-                // the shortcut is discoverable.
+                // Captures live on their hotkey; the menu keeps the shortcut visible
+                // and offers the text-only capture as a choice, not a second key.
                 Button("截取区域（\(appState.screenshotHotkeyDisplay)）") {
                     ScreenshotService.shared.capture(.region)
+                }
+                Button("截取区域并识字（只存文字）") {
+                    ScreenshotService.shared.capture(.region, recognizeText: true)
                 }
                 Divider()
                 Button(appState.isMonitoringEnabled ? "暂停监听" : "恢复监听") {
@@ -351,6 +365,12 @@ struct MenuBarPanel: View {
                 Divider()
                 Button("打开主窗口（\(appState.mainWindowHotkeyDisplay)）") {
                     StatusItemController.shared.showMainWindow()
+                }
+                Divider()
+                // The shortcuts shown in this menu are all rebindable; take the user
+                // straight to that tab.
+                Button("快捷键设置…") {
+                    StatusItemController.shared.openSettings(tab: .hotkeys)
                 }
                 Button("打开设置…") {
                     StatusItemController.shared.openSettings()
@@ -376,11 +396,11 @@ struct MenuBarPanel: View {
         .shelfPill()
         .padding(.horizontal, 16)
         .padding(.top, 14)
-        .padding(.bottom, showSearch ? 8 : 10)
+        .padding(.bottom, 10)
     }
 
-    /// A single-line search capsule under the nav bar, inside the surface. It keeps to
-    /// a compact width and leaves the rest of the row to a quiet hint.
+    /// A single-line search capsule floating above the panel, aligned with the nav
+    /// bar's leading edge. It is its own small surface on the transparent window.
     private var searchRow: some View {
         HStack(spacing: 12) {
             HStack(spacing: 8) {
@@ -425,18 +445,32 @@ struct MenuBarPanel: View {
             .padding(.vertical, 7)
             // One text line tall, whatever the window offers.
             .fixedSize(horizontal: false, vertical: true)
-            .shelfPill(tint: PasteTheme.accent.opacity(0.35))
+            .background {
+                Capsule(style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .overlay(Capsule(style: .continuous).fill(PasteTheme.panelFill.opacity(0.86)))
+            }
+            .clipShape(Capsule(style: .continuous))
+            .overlay(
+                Capsule(style: .continuous)
+                    .inset(by: 1)
+                    .strokeBorder(Color.white.opacity(0.7), lineWidth: 1)
+                    .allowsHitTesting(false)
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(PasteTheme.accent.opacity(0.35), lineWidth: 1)
+                    .allowsHitTesting(false)
+            )
+            // Soft and downward only, so nothing reaches the window's top edge and
+            // gets cut into a band.
+            .shadow(color: .black.opacity(0.08), radius: 6, y: 3)
             .frame(maxWidth: 320)
-
-            Text("↩ 粘贴选中 · Esc 收起")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .lineLimit(1)
 
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 18)
-        .padding(.bottom, 8)
+        .padding(.top, 4)
         .onAppear {
             // The panel rebuilds its hosting view on show / detail toggle; adopt the
             // live query so the field never disagrees with the filtered results.
@@ -588,6 +622,7 @@ struct MenuBarPanel: View {
                             onToggleFavorite: { store?.toggleFavorite(item) },
                             availableTags: favorites.favoriteTagNames,
                             onToggleTag: { tag in store?.toggleFavoriteTag(tag, for: item) },
+                            onRecognizeText: { store?.recognizeText(in: item) },
                             retentionDays: appState.keepUnfavoritedDays
                         )
                     }
@@ -912,6 +947,7 @@ struct ClipboardItemDetailOverlay: View {
     let onCopyText: () -> Void
     let onPaste: () -> Void
     var onToggleFavorite: (() -> Void)?
+    var onRecognizeText: (() -> Void)?
 
     /// Text recognized inside a screenshot, shown under the picture.
     private var recognizedText: String? {
@@ -1126,6 +1162,12 @@ struct ClipboardItemDetailOverlay: View {
                     Label("复制文字", systemImage: "text.viewfinder")
                 }
                 .buttonStyle(.bordered)
+            } else if item.contentType == .image, item.imageData != nil, let onRecognizeText {
+                Button(action: onRecognizeText) {
+                    Label("识别文字", systemImage: "text.viewfinder")
+                }
+                .buttonStyle(.bordered)
+                .help("用 Vision 在本机识别这张截图里的文字")
             }
             Button(action: onCopy) {
                 Label("复制", systemImage: "doc.on.doc")
@@ -1156,6 +1198,8 @@ struct ClipboardShelfCard: View {
     /// Categories already in use across the folder, offered by the 分类 menu.
     var availableTags: [String] = []
     var onToggleTag: ((String) -> Void)?
+    /// Reads the text in an image on demand; offered while the item has none yet.
+    var onRecognizeText: (() -> Void)?
     var retentionDays: Int = RetentionPolicy.defaultDays
 
     @State private var isHovered = false
@@ -1163,6 +1207,10 @@ struct ClipboardShelfCard: View {
     /// Only screenshots carry text on an image item.
     private var hasRecognizedText: Bool {
         item.contentType == .image && !(item.plainText ?? "").isEmpty
+    }
+
+    private var canRecognizeText: Bool {
+        onRecognizeText != nil && item.contentType == .image && item.imageData != nil && !hasRecognizedText
     }
 
     private var tagMenuOptions: [String] {
@@ -1219,6 +1267,8 @@ struct ClipboardShelfCard: View {
             Button("粘贴", action: onPaste)
             if hasRecognizedText {
                 Button("复制识别的文字", action: onCopyText)
+            } else if canRecognizeText, let onRecognizeText {
+                Button("识别文字", action: onRecognizeText)
             }
             if let onToggleFavorite {
                 Button(item.isFavorite ? "从收藏夹移除" : "收藏（长期保存）", action: onToggleFavorite)
