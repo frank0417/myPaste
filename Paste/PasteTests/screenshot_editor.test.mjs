@@ -7,6 +7,10 @@ const MIN_SELECTION = 4;
 const TOOLBAR = { width: 672, height: 48 };
 const TOOLBAR_GAP = 12;
 const TOOLBAR_HINT_HEIGHT = 28;
+const OCR_PANEL = { width: 280, height: 240 };
+const OCR_PANEL_MIN_HEIGHT = 140;
+const OCR_PANEL_MAX_HEIGHT = 420;
+const OCR_PANEL_GAP = 12;
 const SIZE_BADGE_HEIGHT = 22;
 const SIZE_BADGE_GAP = 6;
 const ARROW_HEAD_LENGTH = 14;
@@ -129,6 +133,38 @@ function toolbarFrame(selection, canvas, size = TOOLBAR, offset = { width: 0, he
     Math.max(canvas.y + 8, canvas.y + canvas.height - host.height - 8)
   );
   return { x, y, width: host.width, height: host.height };
+}
+
+function ocrPanelHeight(selection, canvas) {
+  const height = Math.min(Math.max(selection.height, OCR_PANEL_MIN_HEIGHT), OCR_PANEL_MAX_HEIGHT);
+  return Math.min(height, Math.max(OCR_PANEL_MIN_HEIGHT, canvas.height - 16));
+}
+
+function ocrPanelFrame(selection, canvas, size = OCR_PANEL) {
+  const width = size.width;
+  const height = size.height;
+  let x = selection.x + selection.width + OCR_PANEL_GAP;
+  if (x + width > canvas.x + canvas.width - 8) {
+    x = selection.x - width - OCR_PANEL_GAP;
+  }
+  x = Math.min(
+    Math.max(x, canvas.x + 8),
+    Math.max(canvas.x + 8, canvas.x + canvas.width - width - 8)
+  );
+  let y = selection.y;
+  if (y + height > canvas.y + canvas.height - 8) {
+    y = canvas.y + canvas.height - height - 8;
+  }
+  y = Math.min(
+    Math.max(y, canvas.y + 8),
+    Math.max(canvas.y + 8, canvas.y + canvas.height - height - 8)
+  );
+  return { x, y, width, height };
+}
+
+function ocrCopyText(fullText, selectedText) {
+  const selected = String(selectedText || "").trim();
+  return selected.length > 0 ? selected : fullText;
 }
 
 function sizeBadgeFrame(selection, canvas, textWidth) {
@@ -385,6 +421,11 @@ const TEXT_PLACEHOLDER = {
   "zh-Hant": "輸入文字",
   en: "Type text"
 };
+const OCR_PANEL_ACTIONS = {
+  "zh-Hans": { copy: "复制", dismiss: "取消", empty: "未识别到文字" },
+  "zh-Hant": { copy: "複製", dismiss: "取消", empty: "未辨識到文字" },
+  en: { copy: "Copy", dismiss: "Cancel", empty: "No text found" }
+};
 
 function matchScreenshotLanguage(tag) {
   const parts = tag.replace(/_/g, "-").split("-").map((p) => p.toLowerCase());
@@ -439,6 +480,10 @@ for (const lang of SUPPORTED_LANGUAGES) {
   );
   assertEqual(Object.keys(TOOLBAR_ACTION_HINTS[lang]).length, 8, `${lang} chrome controls have hover hints`);
   assertTrue(Boolean(TEXT_PLACEHOLDER[lang]), `${lang} has a text-tool placeholder`);
+  assertTrue(
+    Boolean(OCR_PANEL_ACTIONS[lang].copy && OCR_PANEL_ACTIONS[lang].dismiss && OCR_PANEL_ACTIONS[lang].empty),
+    `${lang} OCR panel has copy, cancel, and empty copy`
+  );
 }
 assertEqual(TOOL_TITLES["zh-Hans"].rect, "矩形", "Simplified rect hint");
 assertEqual(TOOL_TITLES["zh-Hant"].rect, "矩形", "Traditional rect hint");
@@ -466,6 +511,26 @@ assertTrue(Object.prototype.hasOwnProperty.call(TOOLBAR_ACTION_HINTS["zh-Hans"],
 const draggedBar = toolbarFrame(selection, canvas, TOOLBAR, { width: 40, height: -18 });
 assertEqual(draggedBar.x, 344 + 40, "dragging the strip applies the horizontal offset");
 assertEqual(draggedBar.y, 587 - TOOLBAR_HINT_HEIGHT - 18, "dragging the strip applies the vertical offset");
+
+assertEqual(OCR_PANEL_ACTIONS["zh-Hans"].copy, "复制", "Simplified OCR copy");
+assertEqual(OCR_PANEL_ACTIONS["zh-Hant"].copy, "複製", "Traditional OCR copy");
+assertEqual(OCR_PANEL_ACTIONS.en.copy, "Copy", "English OCR copy");
+assertEqual(OCR_PANEL_ACTIONS.en.dismiss, "Cancel", "English OCR dismiss is not Esc");
+assertEqual(OCR_PANEL_ACTIONS["zh-Hans"].empty, "未识别到文字", "Simplified empty OCR");
+
+const roomy = { x: 200, y: 120, width: 400, height: 200 };
+const ocrRight = ocrPanelFrame(roomy, canvas, { width: 280, height: ocrPanelHeight(roomy, canvas) });
+assertEqual(ocrRight.x, 200 + 400 + OCR_PANEL_GAP, "OCR card hangs to the right of the crop");
+assertEqual(ocrRight.y, 120, "OCR card aligns to the top of the crop");
+assertEqual(ocrRight.height, 200, "OCR card follows a medium crop height");
+
+const ocrLeft = ocrPanelFrame(selection, canvas, { width: 280, height: ocrPanelHeight(selection, canvas) });
+assertEqual(ocrLeft.x, 8, "no room on the right: OCR card flips to the left and clamps");
+assertEqual(ocrLeft.height, 420, "a tall crop is capped at the OCR max height");
+
+assertEqual(ocrCopyText("hello world", "world"), "world", "copy uses the highlighted span");
+assertEqual(ocrCopyText("hello world", ""), "hello world", "copy falls back to the whole result");
+assertEqual(ocrCopyText("hello world", "   "), "hello world", "whitespace-only selection copies everything");
 
 const badge = sizeBadgeFrame(selection, canvas, 64);
 assertEqual(badge.y, 120 - 22 - 6, "size badge sits above the top-left");

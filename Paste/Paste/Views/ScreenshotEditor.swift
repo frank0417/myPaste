@@ -103,7 +103,7 @@ enum ScreenshotL10n {
         case move, rect, ellipse, line, arrow, pen, text, pin, mosaic, crop
         case drag, color, width, undo, download, cancel, confirm
         case textPlaceholder
-        case recognizeText, close
+        case recognizeText, close, copy, ocrEmpty, ocrDismiss
     }
 
     static func string(_ key: Key, language: ScreenshotLanguage = .resolve()) -> String {
@@ -146,7 +146,10 @@ enum ScreenshotL10n {
             .confirm: "完成（Enter）",
             .textPlaceholder: "输入文字",
             .recognizeText: "识别文字",
-            .close: "关闭"
+            .close: "关闭",
+            .copy: "复制",
+            .ocrEmpty: "未识别到文字",
+            .ocrDismiss: "取消"
         ],
         .traditionalChinese: [
             .move: "調整選區",
@@ -168,7 +171,10 @@ enum ScreenshotL10n {
             .confirm: "完成（Enter）",
             .textPlaceholder: "輸入文字",
             .recognizeText: "辨識文字",
-            .close: "關閉"
+            .close: "關閉",
+            .copy: "複製",
+            .ocrEmpty: "未辨識到文字",
+            .ocrDismiss: "取消"
         ],
         .english: [
             .move: "Adjust selection",
@@ -190,7 +196,10 @@ enum ScreenshotL10n {
             .confirm: "Done (Enter)",
             .textPlaceholder: "Type text",
             .recognizeText: "Recognize text",
-            .close: "Close"
+            .close: "Close",
+            .copy: "Copy",
+            .ocrEmpty: "No text found",
+            .ocrDismiss: "Cancel"
         ]
     ]
 }
@@ -266,6 +275,11 @@ enum ScreenshotLayout {
     static let toolbarIsFullyDraggable = true
     /// Plain captures keep 识别文字 on the annotation strip.
     static let annotationToolbarIncludesOCR = true
+    /// Result card hangs to the right of the crop; flips left when it would clip.
+    static let ocrPanelSize = CGSize(width: 280, height: 240)
+    static let ocrPanelMinHeight: CGFloat = 140
+    static let ocrPanelMaxHeight: CGFloat = 420
+    static let ocrPanelGap: CGFloat = 12
     static let sizeBadgeHeight: CGFloat = 22
     static let sizeBadgeGap: CGFloat = 6
     static let mosaicBlock: CGFloat = 10
@@ -426,6 +440,33 @@ enum ScreenshotLayout {
         x = min(max(x, canvas.minX + 8), max(canvas.minX + 8, canvas.maxX - host.width - 8))
         y = min(max(y, canvas.minY + 8), max(canvas.minY + 8, canvas.maxY - host.height - 8))
         return CGRect(x: x, y: y, width: host.width, height: host.height)
+    }
+
+    static func ocrPanelHeight(for selection: CGRect, canvas: CGRect) -> CGFloat {
+        let height = min(max(selection.height, ocrPanelMinHeight), ocrPanelMaxHeight)
+        return min(height, max(ocrPanelMinHeight, canvas.height - 16))
+    }
+
+    /// Sit to the right of the selection, flip to the left when there is no room,
+    /// then clamp. Height follows the crop, within min/max.
+    static func ocrPanelFrame(
+        selection: CGRect,
+        canvas: CGRect,
+        size: CGSize = ocrPanelSize
+    ) -> CGRect {
+        let width = size.width
+        let height = size.height
+        var x = selection.maxX + ocrPanelGap
+        if x + width > canvas.maxX - 8 {
+            x = selection.minX - width - ocrPanelGap
+        }
+        x = min(max(x, canvas.minX + 8), max(canvas.minX + 8, canvas.maxX - width - 8))
+        var y = selection.minY
+        if y + height > canvas.maxY - 8 {
+            y = canvas.maxY - height - 8
+        }
+        y = min(max(y, canvas.minY + 8), max(canvas.minY + 8, canvas.maxY - height - 8))
+        return CGRect(x: x, y: y, width: width, height: height)
     }
 
     /// Dark size pill, sitting just above the top-left of the selection.

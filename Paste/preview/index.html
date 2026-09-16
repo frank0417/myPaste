@@ -667,7 +667,60 @@
       border-radius: 50%;
       border: 1px solid rgba(0,0,0,.15);
     }
-    .shot-toast {
+    .shot-ocr {
+      position: absolute;
+      display: none;
+      flex-direction: column;
+      width: 280px;
+      box-sizing: border-box;
+      background: rgba(255,255,255,.96);
+      border: 1px solid rgba(0,0,0,.08);
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.18);
+      z-index: 3;
+      overflow: hidden;
+    }
+    .shot-ocr-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748b;
+      padding: 10px 12px 6px;
+    }
+    .shot-ocr-text {
+      flex: 1;
+      margin: 0 8px;
+      padding: 8px;
+      border: 0;
+      resize: none;
+      font: 13px/1.5 ui-sans-serif, system-ui, sans-serif;
+      color: #1e293b;
+      background: transparent;
+      outline: none;
+      cursor: text;
+    }
+    .shot-ocr-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px;
+    }
+    .shot-ocr-actions button {
+      height: 28px;
+      padding: 0 14px;
+      border: 0;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .shot-ocr-actions .dismiss {
+      background: rgba(15,23,42,.06);
+      color: #334155;
+    }
+    .shot-ocr-actions .copy {
+      background: #2f80ff;
+      color: #fff;
+    }
       display: none;
       position: fixed;
       top: 16px;
@@ -890,6 +943,14 @@
       <div class="shot-palette" id="shotPalette"></div>
       <div class="shot-widths" id="shotWidths"></div>
     </div>
+    <div class="shot-ocr" id="shotOCRPanel">
+      <div class="shot-ocr-title" id="shotOCRTitle">识别文字</div>
+      <textarea class="shot-ocr-text" id="shotOCRText" readonly></textarea>
+      <div class="shot-ocr-actions">
+        <button type="button" class="dismiss" id="shotOCRDismiss">取消</button>
+        <button type="button" class="copy" id="shotOCRCopy">复制</button>
+      </div>
+    </div>
   </div>
   <div class="shot-toast" id="shotToast">截图 960 × 455 · 图片已复制</div>
 
@@ -912,21 +973,21 @@
         drag: "拖动工具条", rect: "矩形", ellipse: "圆形", line: "直线", arrow: "箭头",
         pen: "画笔", text: "文字", pin: "序号", mosaic: "马赛克", crop: "重新选区",
         color: "颜色", width: "粗细", undo: "撤销", download: "下载截图",
-        recognizeText: "识别文字",
+        recognizeText: "识别文字", copy: "复制", ocrDismiss: "取消", ocrEmpty: "未识别到文字",
         cancel: "取消（Esc）", confirm: "完成（Enter）"
       },
       "zh-Hant": {
         drag: "拖曳工具列", rect: "矩形", ellipse: "圓形", line: "直線", arrow: "箭頭",
         pen: "畫筆", text: "文字", pin: "序號", mosaic: "馬賽克", crop: "重新選區",
         color: "顏色", width: "粗細", undo: "復原", download: "下載截圖",
-        recognizeText: "辨識文字",
+        recognizeText: "辨識文字", copy: "複製", ocrDismiss: "取消", ocrEmpty: "未辨識到文字",
         cancel: "取消（Esc）", confirm: "完成（Enter）"
       },
       en: {
         drag: "Move toolbar", rect: "Rectangle", ellipse: "Ellipse", line: "Line", arrow: "Arrow",
         pen: "Pen", text: "Text", pin: "Number", mosaic: "Mosaic", crop: "Reselect",
         color: "Color", width: "Thickness", undo: "Undo", download: "Save screenshot",
-        recognizeText: "Recognize text",
+        recognizeText: "Recognize text", copy: "Copy", ocrDismiss: "Cancel", ocrEmpty: "No text found",
         cancel: "Cancel (Esc)", confirm: "Done (Enter)"
       }
     };
@@ -1145,6 +1206,8 @@
       selectionEl: document.getElementById("shotSelection"),
       badge: document.getElementById("shotBadge"),
       toolbar: document.getElementById("shotToolbar"),
+      ocrPanel: document.getElementById("shotOCRPanel"),
+      ocrText: document.getElementById("shotOCRText"),
       canvas: document.getElementById("shotCanvas"),
       toast: document.getElementById("shotToast"),
       palette: document.getElementById("shotPalette"),
@@ -1159,6 +1222,7 @@
       current: null,
       pin: 1,
       toolbarOffset: { x: 0, y: 0 },
+      ocrOpen: false,
       ctx: null
     };
     shot.swatch.style.background = shot.color;
@@ -1178,6 +1242,9 @@
         el.setAttribute("data-tip", text);
         el.setAttribute("aria-label", text);
       });
+      document.getElementById("shotOCRTitle").textContent = hints.recognizeText;
+      document.getElementById("shotOCRCopy").textContent = hints.copy;
+      document.getElementById("shotOCRDismiss").textContent = hints.ocrDismiss;
       document.querySelectorAll(".lang-switch [data-lang]").forEach((btn) => {
         const on = btn.dataset.lang === shotLang;
         btn.classList.toggle("active", on);
@@ -1201,6 +1268,8 @@
       if (!shot.rect) {
         shot.selectionEl.style.display = "none";
         shot.toolbar.style.display = "none";
+        shot.ocrPanel.style.display = "none";
+        shot.ocrOpen = false;
         shot.overlay.style.background = "";
         return;
       }
@@ -1225,6 +1294,23 @@
       ty = Math.min(Math.max(ty, 8), Math.max(8, window.innerHeight - th - hint - 8));
       tb.style.left = `${tx}px`;
       tb.style.top = `${ty}px`;
+      if (shot.ocrOpen) {
+        const panel = shot.ocrPanel;
+        const pw = 280;
+        const ph = Math.min(Math.max(h, 140), 420, Math.max(140, window.innerHeight - 16));
+        let ox = x + w + 12;
+        if (ox + pw > window.innerWidth - 8) ox = x - pw - 12;
+        ox = Math.min(Math.max(ox, 8), Math.max(8, window.innerWidth - pw - 8));
+        let oy = y;
+        if (oy + ph > window.innerHeight - 8) oy = window.innerHeight - ph - 8;
+        oy = Math.min(Math.max(oy, 8), Math.max(8, window.innerHeight - ph - 8));
+        panel.style.display = "flex";
+        panel.style.left = `${ox}px`;
+        panel.style.top = `${oy}px`;
+        panel.style.height = `${ph}px`;
+      } else {
+        shot.ocrPanel.style.display = "none";
+      }
       drawStrokes();
     }
 
@@ -1302,6 +1388,7 @@
       shot.current = null;
       shot.pin = 1;
       shot.toolbarOffset = { x: 0, y: 0 };
+      shot.ocrOpen = false;
       setTool("move");
       const dpr = window.devicePixelRatio || 1;
       shot.canvas.width = Math.round(window.innerWidth * dpr);
@@ -1356,9 +1443,27 @@
     };
     document.getElementById("shotOCR").onclick = (e) => {
       e.stopPropagation();
-      shot.toast.textContent = "已识别 12 字，文字已复制";
+      shot.ocrOpen = true;
+      shot.ocrText.value = "安静、好用的 Mac 工具。\n岸上工作室\napple.com/macos";
+      layoutShot();
+    };
+    document.getElementById("shotOCRDismiss").onclick = (e) => {
+      e.stopPropagation();
+      shot.ocrOpen = false;
+      layoutShot();
+    };
+    document.getElementById("shotOCRCopy").onclick = (e) => {
+      e.stopPropagation();
+      const field = shot.ocrText;
+      const selected = (field.value || "").substring(field.selectionStart, field.selectionEnd).trim();
+      const text = selected || field.value;
+      navigator.clipboard?.writeText(text);
+      const hints = SHOT_HINTS[shotLang] || SHOT_HINTS["zh-Hans"];
+      shot.toast.textContent = selected
+        ? `${hints.copy} · ${selected.slice(0, 24)}`
+        : `${hints.copy} · ${text.length} `;
       shot.toast.classList.add("show");
-      setTimeout(() => shot.toast.classList.remove("show"), 1900);
+      setTimeout(() => shot.toast.classList.remove("show"), 1600);
     };
     shot.toolbar.addEventListener("mousedown", (e) => {
       if (e.target.closest("button") || e.target.closest(".shot-palette") || e.target.closest(".shot-widths")) return;
@@ -1417,7 +1522,7 @@
     }
 
     shot.overlay.addEventListener("mousedown", (e) => {
-      if (e.target.closest(".shot-toolbar")) return;
+      if (e.target.closest(".shot-toolbar") || e.target.closest(".shot-ocr")) return;
       const pt = { x: e.clientX, y: e.clientY };
       if (e.detail === 2 && shot.rect) {
         confirmShot();
@@ -1458,6 +1563,7 @@
       shot.tool = "move";
       setTool("move");
       shot.toolbarOffset = { x: 0, y: 0 };
+      shot.ocrOpen = false;
       shot.drag = { kind: "new", start: pt };
       shot.rect = { x: pt.x, y: pt.y, w: 0, h: 0 };
       layoutShot();
