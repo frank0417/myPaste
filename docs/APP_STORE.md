@@ -2,6 +2,8 @@
 
 本文档汇总上架所需的全部素材与配置。标记 ✅ 的已就绪，其余需你补充。
 
+**付费买断的逐步操作**（签合同、设价格、打包上传、提交审核）见 [APP_STORE_PAID.md](APP_STORE_PAID.md)。隐私政策正文见 [PRIVACY.md](PRIVACY.md)。
+
 ## 1. 应用基本信息
 
 | 项目 | 内容 |
@@ -72,7 +74,7 @@ PasteNest 是一款常驻菜单栏的剪贴板历史管理工具。你复制的�
 
 | 项目 | 状态 | 说明 |
 |------|------|------|
-| 隐私政策 URL | ⬜ 需提供 | 必须。可托管在 GitHub Pages，要点见下文 |
+| 隐私政策 URL | ⬜ 需托管 | 正文草稿见 [PRIVACY.md](PRIVACY.md)，必须放到可公开访问的 https 地址 |
 | 技术支持 URL | ⬜ 需提供 | 可用 GitHub Issues 页面 |
 | 隐私清单 PrivacyInfo.xcprivacy | ✅ | 已包含 UserDefaults 访问声明 |
 | App 隐私问卷 | 见下文 | 在 App Store Connect 填写 |
@@ -105,8 +107,8 @@ PasteNest 是一款常驻菜单栏的剪贴板历史管理工具。你复制的�
 在已登录开发者账号的 Mac 上：
 
 ```bash
-# 归档并导出 App Store 包（自动签名）
-./scripts/package.sh --app-store
+# 归档并导出 App Store 包（必须带 Team ID；使用 Apple Distribution，不是 Developer ID）
+./scripts/package.sh --app-store --team YOUR_TEAM_ID
 
 # 产物在 dist/AppStore/，用 Transporter 或 Xcode Organizer 上传
 ```
@@ -126,6 +128,20 @@ PasteNest 是菜单栏常驻应用（无 Dock 图标）。
 - iCloud 同步为可选功能，未登录 iCloud 时应用全部本地功能正常。
 ```
 
-## 8. 定价建议
+## 8. 定价（买断）
 
-免费 + 无内购起步，或一次性买断 ¥18–30。同品类参考：Paste（订阅制）、Maccy（免费开源）、CopyClip（免费）。
+**推荐：一次性买断，不接内购。** 用户在 App Store 下载前付款，之后更新免费。无需 StoreKit。
+
+| 项目 | 建议 |
+|------|------|
+| 收费方式 | 付费应用（Paid），不是免费 + IAP |
+| 基准店面 | 中国大陆 |
+| 价格 | **¥28**（也可 ¥18 / ¥38） |
+| 其它地区 | 让苹果按汇率自动换算 |
+| 抽成 | 默认 30%；Small Business Program 下 15% |
+
+在 App Store Connect 操作：**商务 → 签署 Paid Apps 协议并填银行/税表**（状态须为 Active）→ 应用 → **价格与销售范围 → Add Pricing**。
+
+未签署 Paid Apps 协议时，Connect 只能标免费。详细点击顺序见 [APP_STORE_PAID.md](APP_STORE_PAID.md) 第 2、4 步。
+
+同品类参考：Paste（订阅制）、Maccy（免费开源）、CopyClip（免费）。

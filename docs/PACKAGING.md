@@ -31,8 +31,8 @@ make package
 #      --apple-id YOU@EMAIL --team-id TEAMID --password APP_SPECIFIC_PASSWORD
 ./scripts/package.sh --sign --pkg --notarize
 
-# 5) App Store Connect 导出
-./scripts/package.sh --app-store
+# 5) App Store Connect 导出（付费上架用这个；需要 Team ID）
+./scripts/package.sh --app-store --team YOUR_TEAM_ID
 ```
 
 ### 安装 DMG
@@ -60,13 +60,14 @@ make package
 | `CURRENT_PROJECT_VERSION` | Build 号，默认 `1` |
 | `PRODUCT_BUNDLE_IDENTIFIER` | Bundle ID |
 | `CODE_SIGN_IDENTITY` | 签名身份 |
-| `DEVELOPMENT_TEAM` | Team ID |
+| `DEVELOPMENT_TEAM` | Team ID。`--app-store` **必须** 提供（或 `--team`） |
 | `NOTARY_PROFILE` | notarytool 钥匙串配置名，默认 `PasteNestNotary` |
 
 ## 注意
 
 - 当前 Linux / Cloud Agent 环境 **无法** 真正编译 `.app`，脚本会明确提示去 Mac 或 Actions 执行。
 - 上架 Mac App Store 时请使用可区分的应用显示名（当前为 PasteNest），并配置真实 Team / iCloud 容器。
+- 付费买断步骤、合同与定价见 [APP_STORE_PAID.md](APP_STORE_PAID.md)。`--app-store` 使用自动签名 + 沙盒 entitlements，不要用 Developer ID / `--notarize` 那条站外通路。
 
 ## CI unsigned builds
 
