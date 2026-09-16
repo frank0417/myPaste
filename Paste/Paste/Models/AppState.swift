@@ -43,7 +43,7 @@ final class AppState: ObservableObject {
     /// Which Settings tab is showing; menus set it so "快捷键设置…" lands on that tab.
     @Published var settingsTab: SettingsTab = .general
 
-    enum SettingsTab: String, CaseIterable {
+    enum SettingsTab: String, CaseIterable, Hashable {
         case general
         case hotkeys
         case history
