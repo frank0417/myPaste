@@ -96,6 +96,18 @@ const cardEnd = panel.indexOf("private var topBar: some View", cardStart);
 const cardBody = panel.slice(cardStart, cardEnd);
 assertTrue(cardStart > 0 && cardEnd > cardStart, "panelCard is defined");
 assertTrue(/searchRow/.test(cardBody), "search row lives inside the panel card");
+assertTrue(
+  cardBody.indexOf("searchRow") < cardBody.indexOf("topBar"),
+  "search row sits above the nav bar"
+);
+
+// The focusable panel would otherwise get AppKit's accent-coloured focus ring
+// along its rectangular bounds: a hard-cornered green frame around the surface
+// that disappears only once the search field takes focus.
+assertTrue(
+  /\.focusable\(!showSearch\)[\s\S]{0,400}?\.focusEffectDisabled\(\)/.test(panel),
+  "panel focus never draws a focus ring"
+);
 assertTrue(!/searchPill/.test(panel), "the detached search pill is gone");
 
 // One surface for the whole window, drawn by the root: the card and the detail

@@ -134,6 +134,11 @@ struct MenuBarPanel: View {
         // While the search box is up it owns first responder; making the whole
         // panel focusable at the same time steals keystrokes back from the field.
         .focusable(!showSearch)
+        // The panel takes keyboard focus for arrow navigation, and AppKit marks a
+        // focused view with an accent-coloured ring along its rectangular bounds.
+        // On a window-sized view that ring is a hard-cornered green frame around
+        // the rounded surface, so it must never draw.
+        .focusEffectDisabled()
         .onKeyPress(.leftArrow) {
             guard !isSearchFieldEditing else { return .ignored }
             moveSelection(by: -1)
@@ -192,13 +197,13 @@ struct MenuBarPanel: View {
 
     private var panelCard: some View {
         VStack(spacing: 0) {
-            topBar
-            // The search row lives inside the surface, right under the nav bar, so it
-            // never floats detached above the panel.
+            // The search row is the first thing on the surface, above the nav bar,
+            // so it never floats detached outside the panel.
             if showSearch {
                 searchRow
                     .transition(.opacity)
             }
+            topBar
             if appState.panelViewMode == .shelf {
                 shelf
             } else if appState.panelViewMode == .favorites {
@@ -375,12 +380,12 @@ struct MenuBarPanel: View {
         .padding(.vertical, 8)
         .shelfPill()
         .padding(.horizontal, 16)
-        .padding(.top, 14)
-        .padding(.bottom, showSearch ? 8 : 10)
+        .padding(.top, showSearch ? 6 : 14)
+        .padding(.bottom, 10)
     }
 
-    /// A single-line search capsule under the nav bar, inside the surface. It keeps to
-    /// a compact width and leaves the rest of the row to a quiet hint.
+    /// A single-line search capsule at the top of the surface, above the nav bar. It
+    /// keeps to a compact width and leaves the rest of the row to a quiet hint.
     private var searchRow: some View {
         HStack(spacing: 12) {
             HStack(spacing: 8) {
@@ -436,7 +441,7 @@ struct MenuBarPanel: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 18)
-        .padding(.bottom, 8)
+        .padding(.top, 14)
         .onAppear {
             // The panel rebuilds its hosting view on show / detail toggle; adopt the
             // live query so the field never disagrees with the filtered results.
