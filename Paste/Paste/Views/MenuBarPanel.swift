@@ -91,7 +91,8 @@ struct MenuBarPanel: View {
                         onCopyText: { store?.copyText(detailItem) },
                         onPaste: { paste(detailItem) },
                         onToggleFavorite: { store?.toggleFavorite(detailItem) },
-                        onRecognizeText: { store?.recognizeText(in: detailItem) }
+                        onRecognizeText: { store?.recognizeText(in: detailItem) },
+                        onSaveImage: { store?.saveImage(detailItem) }
                     )
                     .transition(.opacity)
                 }
@@ -623,6 +624,7 @@ struct MenuBarPanel: View {
                             availableTags: favorites.favoriteTagNames,
                             onToggleTag: { tag in store?.toggleFavoriteTag(tag, for: item) },
                             onRecognizeText: { store?.recognizeText(in: item) },
+                            onSaveImage: { store?.saveImage(item) },
                             retentionDays: appState.keepUnfavoritedDays
                         )
                     }
@@ -948,6 +950,7 @@ struct ClipboardItemDetailOverlay: View {
     let onPaste: () -> Void
     var onToggleFavorite: (() -> Void)?
     var onRecognizeText: (() -> Void)?
+    var onSaveImage: (() -> Void)?
 
     /// Text recognized inside a screenshot, shown under the picture.
     private var recognizedText: String? {
@@ -1169,6 +1172,13 @@ struct ClipboardItemDetailOverlay: View {
                 .buttonStyle(.bordered)
                 .help("用 Vision 在本机识别这张截图里的文字")
             }
+            if item.contentType == .image, item.imageData != nil, let onSaveImage {
+                Button(action: onSaveImage) {
+                    Label("下载", systemImage: "arrow.down.to.line")
+                }
+                .buttonStyle(.bordered)
+                .help("保存为 PNG 到「下载」")
+            }
             Button(action: onCopy) {
                 Label("复制", systemImage: "doc.on.doc")
             }
@@ -1200,6 +1210,8 @@ struct ClipboardShelfCard: View {
     var onToggleTag: ((String) -> Void)?
     /// Reads the text in an image on demand; offered while the item has none yet.
     var onRecognizeText: (() -> Void)?
+    /// Writes an image item to disk as PNG.
+    var onSaveImage: (() -> Void)?
     var retentionDays: Int = RetentionPolicy.defaultDays
 
     @State private var isHovered = false
@@ -1269,6 +1281,9 @@ struct ClipboardShelfCard: View {
                 Button("复制识别的文字", action: onCopyText)
             } else if canRecognizeText, let onRecognizeText {
                 Button("识别文字", action: onRecognizeText)
+            }
+            if item.contentType == .image, item.imageData != nil, let onSaveImage {
+                Button("下载图片", action: onSaveImage)
             }
             if let onToggleFavorite {
                 Button(item.isFavorite ? "从收藏夹移除" : "收藏（长期保存）", action: onToggleFavorite)

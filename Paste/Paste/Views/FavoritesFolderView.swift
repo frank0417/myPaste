@@ -98,6 +98,7 @@ struct FavoritesFolderView: View {
             availableTags: favorites.favoriteTagNames,
             onToggleTag: { tag in store?.toggleFavoriteTag(tag, for: item) },
             onRecognizeText: { store?.recognizeText(in: item) },
+            onSaveImage: { store?.saveImage(item) },
             retentionDays: appState.keepUnfavoritedDays
         )
     }
