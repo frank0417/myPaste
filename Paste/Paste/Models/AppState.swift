@@ -253,6 +253,32 @@ final class AppState: ObservableObject {
     }
 }
 
+/// The version baked into the bundle at packaging time, read once and shown in
+/// Settings and the menus so a user can always tell which build they are on.
+enum AppVersion {
+    static let marketing: String =
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
+
+    static let build: String =
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
+
+    /// "1.5.5 (25)"
+    static var display: String { "\(marketing) (\(build))" }
+
+    /// "PasteNest 1.5.5 (25)" — the menu footer.
+    static var menuTitle: String { "PasteNest \(display)" }
+
+    static var systemVersion: String {
+        let v = ProcessInfo.processInfo.operatingSystemVersion
+        return v.patchVersion == 0
+            ? "\(v.majorVersion).\(v.minorVersion)"
+            : "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)"
+    }
+
+    /// One line for bug reports.
+    static var report: String { "\(menuTitle) · macOS \(systemVersion)" }
+}
+
 enum HotKeyFeedback: Equatable {
     case applied(String)
     case rejected(String)

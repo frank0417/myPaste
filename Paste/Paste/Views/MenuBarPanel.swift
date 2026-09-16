@@ -383,6 +383,9 @@ struct MenuBarPanel: View {
                 Button("退出 PasteNest", role: .destructive) {
                     NSApp.terminate(nil)
                 }
+                Divider()
+                // Which build is this? Answered without opening Settings.
+                Text(AppVersion.menuTitle)
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 13, weight: .bold))

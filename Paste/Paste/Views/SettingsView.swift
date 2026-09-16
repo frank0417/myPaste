@@ -232,7 +232,7 @@ struct SettingsView: View {
     private func copyVersionInfo() {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString("PasteNest \(Self.appVersion) (\(Self.buildNumber)) · macOS \(Self.systemVersion)", forType: .string)
+        pasteboard.setString(AppVersion.report, forType: .string)
     }
 
     private func hotkeyRow(_ action: HotKeyAction) -> some View {
@@ -276,20 +276,9 @@ struct SettingsView: View {
         }
     }
 
-    private static var appVersion: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
-    }
-
-    private static var buildNumber: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
-    }
-
-    private static var systemVersion: String {
-        let v = ProcessInfo.processInfo.operatingSystemVersion
-        return v.patchVersion == 0
-            ? "\(v.majorVersion).\(v.minorVersion)"
-            : "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)"
-    }
+    private static var appVersion: String { AppVersion.marketing }
+    private static var buildNumber: String { AppVersion.build }
+    private static var systemVersion: String { AppVersion.systemVersion }
 
     private func updateLaunchAtLogin(_ enabled: Bool) {
         do {
