@@ -102,6 +102,10 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         for item in menu.items {
             item.target = self
         }
+        menu.addItem(NSMenuItem.separator())
+        let version = NSMenuItem(title: AppVersion.menuTitle, action: nil, keyEquivalent: "")
+        version.isEnabled = false
+        menu.addItem(version)
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
         // Detach so left-click keeps toggling the panel.
