@@ -14,18 +14,7 @@ enum ClipboardContentType: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var displayName: String {
-        switch self {
-        case .text: return "文本"
-        case .richText: return "富文本"
-        case .link: return "链接"
-        case .image: return "图片"
-        case .color: return "颜色"
-        case .file: return "文件"
-        case .code: return "代码"
-        case .snippet: return "片段"
-        }
-    }
+    var displayName: String { PanelL10n.contentType(self) }
 
     var systemImage: String {
         switch self {

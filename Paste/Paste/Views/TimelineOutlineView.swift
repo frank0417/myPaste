@@ -22,13 +22,17 @@ struct TimelineOutlineView: View {
             VStack(spacing: 10) {
                 Spacer()
                 Image(systemName: appState.searchQuery.isEmpty ? "calendar.day.timeline.leading" : "magnifyingglass")
-                    .font(.system(size: 28, weight: .light))
+                    .font(.system(size: 26, weight: .light))
                     .foregroundStyle(PasteTheme.accent)
-                Text(appState.searchQuery.isEmpty ? "时间线为空" : "没有字面或相近的记录")
-                    .font(.callout.weight(.medium))
-                Text(appState.searchQuery.isEmpty ? "复制内容后会按日期出现在这里" : "试试其他关键词、口语说法或切换标签")
-                    .font(.caption)
+                Text(appState.searchQuery.isEmpty ? PanelL10n.timelineEmpty : PanelL10n.timelineEmptySearch)
+                    .font(PasteTheme.Typography.emptyTitle)
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.85)
+                Text(appState.searchQuery.isEmpty ? PanelL10n.timelineEmptyDetail : PanelL10n.timelineEmptySearchDetail)
+                    .font(PasteTheme.Typography.caption)
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.85)
                 Spacer()
             }
             .frame(maxWidth: .infinity)
@@ -72,13 +76,13 @@ struct TimelineOutlineView: View {
     private func timelineSectionHeader(_ title: String, count: Int) -> some View {
         HStack(spacing: 8) {
             Text(title)
-                .font(.caption.weight(.bold))
+                .font(PasteTheme.Typography.captionBold)
                 .foregroundStyle(PasteTheme.accent)
             Rectangle()
                 .fill(Color.primary.opacity(0.08))
                 .frame(height: 1)
             Text("\(count)")
-                .font(.caption2.monospaced())
+                .font(PasteTheme.Typography.chipBadge)
                 .foregroundStyle(.tertiary)
         }
         .padding(.vertical, 8)
@@ -117,22 +121,24 @@ struct TimelineOutlineRow: View {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
                             Text(item.updatedAt.formatted(date: .omitted, time: .shortened))
-                                .font(.caption2.monospaced())
+                                .font(PasteTheme.Typography.statusMono)
                                 .foregroundStyle(.tertiary)
                             if item.isPinned {
                                 Image(systemName: "pin.fill")
-                                    .font(.caption2)
+                                    .font(PasteTheme.Typography.iconSmall)
                                     .foregroundStyle(PasteTheme.accent)
                             }
                             if item.isFavorite {
                                 Image(systemName: "star.fill")
-                                    .font(.caption2)
+                                    .font(PasteTheme.Typography.iconSmall)
                                     .foregroundStyle(Color(hex: "#F59E0B") ?? .orange)
                             }
                             Spacer()
                             if let tag = item.primaryAutoTag {
                                 Text(tag.displayName)
-                                    .font(.caption2.weight(.medium))
+                                    .font(PasteTheme.Typography.captionBold)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.8)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
                                     .background(
@@ -143,15 +149,19 @@ struct TimelineOutlineRow: View {
                             }
                         }
                         Text(item.previewTitle)
-                            .font(.system(size: 13, weight: .medium))
+                            .font(PasteTheme.Typography.bodyEmphasis)
+                            .tracking(PasteTheme.Typography.tracking(for: item.previewTitle))
+                            .lineSpacing(PasteTheme.Typography.lineSpacing(for: item.previewTitle))
                             .foregroundStyle(.primary)
                             .lineLimit(2)
+                            .minimumScaleFactor(0.88)
                             .multilineTextAlignment(.leading)
                         if let sub = item.previewSubtitle ?? item.sourceAppName {
                             Text(sub)
-                                .font(.caption)
+                                .font(PasteTheme.Typography.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
+                                .minimumScaleFactor(0.85)
                         }
                     }
                     if isHovered || isSelected {
@@ -175,14 +185,14 @@ struct TimelineOutlineRow: View {
             .onHover { isHovered = $0 }
             .simultaneousGesture(TapGesture(count: 2).onEnded { onOpenDetail() })
             .contextMenu {
-                Button("查看详情", action: onOpenDetail)
-                Button("粘贴", action: onPaste)
+                Button(PanelL10n.details, action: onOpenDetail)
+                Button(PanelL10n.paste, action: onPaste)
                 if let onToggleFavorite {
-                    Button(item.isFavorite ? "从收藏夹移除" : "收藏（长期保存）", action: onToggleFavorite)
+                    Button(item.isFavorite ? PanelL10n.unfavorite : PanelL10n.favorite, action: onToggleFavorite)
                 }
-                Button(item.isPinned ? "取消置顶" : "置顶", action: onPin)
+                Button(item.isPinned ? PanelL10n.unpin : PanelL10n.pin, action: onPin)
                 Divider()
-                Button("删除", role: .destructive, action: onDelete)
+                Button(PanelL10n.delete, role: .destructive, action: onDelete)
             }
         }
         .padding(.bottom, 2)
@@ -196,7 +206,7 @@ struct TimelineOutlineRow: View {
                 .fill((Color(hex: tag?.accentHex ?? item.contentType.accentHex) ?? PasteTheme.accent).opacity(0.14))
                 .frame(width: 32, height: 32)
             Image(systemName: tag?.systemImage ?? item.contentType.systemImage)
-                .font(.system(size: 13, weight: .semibold))
+                .font(PasteTheme.Typography.icon)
                 .foregroundStyle(Color(hex: tag?.accentHex ?? item.contentType.accentHex) ?? PasteTheme.accent)
         }
     }
@@ -204,9 +214,9 @@ struct TimelineOutlineRow: View {
     private func smallAction(_ symbol: String, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 10, weight: .semibold))
+                .font(PasteTheme.Typography.iconSmall)
                 .frame(width: 22, height: 22)
-                .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 5))
+                .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -220,20 +230,19 @@ enum TimelineGrouper {
 
     private static let weekdayFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh-Hans")
         formatter.dateFormat = "EEEE"
         return formatter
     }()
 
     private static let dayFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh-Hans")
         formatter.dateFormat = "yyyy年M月d日"
         return formatter
     }()
 
     static func sections(from items: [ClipboardItem]) -> [TimelineSection] {
         var hasher = Hasher()
+        hasher.combine(PanelL10n.language.rawValue)
         hasher.combine(items.count)
         for item in items {
             hasher.combine(item.id)
@@ -267,8 +276,11 @@ enum TimelineGrouper {
     }
 
     private static func sectionTitle(for day: Date, calendar: Calendar) -> String {
-        if calendar.isDateInToday(day) { return "今天" }
-        if calendar.isDateInYesterday(day) { return "昨天" }
+        weekdayFormatter.locale = PanelL10n.locale
+        dayFormatter.locale = PanelL10n.locale
+        dayFormatter.dateFormat = PanelL10n.dayFormat
+        if calendar.isDateInToday(day) { return PanelL10n.today }
+        if calendar.isDateInYesterday(day) { return PanelL10n.yesterday }
         if let weekAgo = calendar.date(byAdding: .day, value: -7, to: calendar.startOfDay(for: .now)),
            day >= weekAgo {
             return weekdayFormatter.string(from: day)
@@ -298,7 +310,7 @@ struct AutoTagFilterBar: View {
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: compact ? 6 : 8) {
-                tagChip(title: "全部", systemImage: "square.stack.3d.up", count: items.count, tagRaw: nil)
+                tagChip(title: PanelL10n.all, systemImage: "square.stack.3d.up", count: items.count, tagRaw: nil)
 
                 ForEach(tagCounts, id: \.0.id) { tag, count in
                     tagChip(
@@ -332,15 +344,19 @@ struct AutoTagFilterBar: View {
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: systemImage)
-                    .font(.caption2)
+                    .font(PasteTheme.Typography.iconSmall)
                 Text(title)
-                    .font(compact ? .caption2.weight(.medium) : .caption.weight(.medium))
+                    .font(compact ? PasteTheme.Typography.caption : PasteTheme.Typography.chip)
+                    .tracking(PasteTheme.Typography.chipTracking)
+                    .lineLimit(1)
+                    .minimumScaleFactor(PasteTheme.Typography.chipMinimumScale)
+                    .allowsTightening(true)
                 Text("\(count)")
-                    .font(.caption2.monospaced())
+                    .font(PasteTheme.Typography.chipBadge)
                     .foregroundStyle(.tertiary)
             }
-            .padding(.horizontal, compact ? 8 : 10)
-            .padding(.vertical, compact ? 4 : 6)
+            .padding(.horizontal, compact ? 8 : PasteTheme.Typography.chipHorizontalPadding)
+            .padding(.vertical, compact ? 4 : PasteTheme.Typography.chipVerticalPadding)
             .background(
                 selected ? accent.opacity(0.16) : Color.primary.opacity(0.05),
                 in: Capsule()
