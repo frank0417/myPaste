@@ -45,7 +45,7 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
         case .mainWindow:
             return HotKeyShortcut(keyCode: UInt32(kVK_ANSI_V), carbonModifiers: UInt32(cmdKey | optionKey))
         case .screenshot:
-            return HotKeyShortcut(keyCode: UInt32(kVK_ANSI_D), carbonModifiers: UInt32(cmdKey | shiftKey))
+            return HotKeyShortcut(keyCode: UInt32(kVK_ANSI_X), carbonModifiers: UInt32(cmdKey | shiftKey))
         }
     }
 
