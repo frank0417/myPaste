@@ -344,10 +344,9 @@ struct MenuBarPanel: View {
             }
 
             // SwiftUI `Menu` inside this non-activating NSPanel highlights items
-            // but often never fires their actions — "快捷键设置…" looked dead.
-            // A real NSMenu popped from this button does run them.
+            // but often never fires their actions. A real NSMenu does run them.
             Button {
-                StatusItemController.shared.popPanelOverflowMenu(pasteSelected: pasteSelected)
+                StatusItemController.shared.popPanelOverflowMenu()
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 13, weight: .bold))

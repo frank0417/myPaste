@@ -40,7 +40,7 @@ final class AppState: ObservableObject {
     @Published var embeddingRevision: Int = 0
     @Published var panelViewMode: PanelViewMode = .shelf
     @Published var mainHistoryMode: MainHistoryMode = .list
-    /// Which Settings tab is showing; menus set it so "快捷键设置…" lands on that tab.
+    /// Which Settings tab is showing; Settings' 「修改…」 sets it so the window lands on that tab.
     @Published var settingsTab: SettingsTab = .general
 
     enum SettingsTab: String, CaseIterable, Hashable {

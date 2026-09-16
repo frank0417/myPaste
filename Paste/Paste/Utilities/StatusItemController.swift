@@ -28,9 +28,6 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     /// is a no-op in an LSUIElement accessory app, so the menu items appeared to do
     /// nothing. This window is created on demand and reused.
     private var settingsWindow: NSWindow?
-    /// Captured when the overflow menu is popped so "粘贴选中项" can call back
-    /// into the panel without stuffing a Swift closure into `representedObject`.
-    private var panelMenuPasteSelected: (() -> Void)?
 
     private override init() {
         super.init()
@@ -104,9 +101,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         menu.addItem(withTitle: "截取区域\(shotHint)", action: #selector(menuCaptureRegion), keyEquivalent: "")
         menu.addItem(withTitle: "截取窗口", action: #selector(menuCaptureWindow), keyEquivalent: "")
         menu.addItem(withTitle: "截取整屏", action: #selector(menuCaptureFullScreen), keyEquivalent: "")
-        menu.addItem(withTitle: "截取区域并识字（只存文字）", action: #selector(menuCaptureRegionOCR), keyEquivalent: "")
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(withTitle: "快捷键设置…", action: #selector(menuOpenHotkeySettings), keyEquivalent: "")
         menu.addItem(withTitle: "设置…", action: #selector(menuOpenSettings), keyEquivalent: ",")
         menu.addItem(NSMenuItem.separator())
         menu.addItem(withTitle: "退出 PasteNest", action: #selector(menuQuit), keyEquivalent: "q")
@@ -131,20 +126,16 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     @objc private func menuCaptureRegion() { ScreenshotService.shared.capture(.region) }
     @objc private func menuCaptureWindow() { ScreenshotService.shared.capture(.window) }
     @objc private func menuCaptureFullScreen() { ScreenshotService.shared.capture(.fullScreen) }
-    @objc private func menuCaptureRegionOCR() { ScreenshotService.shared.capture(.region, recognizeText: true) }
     @objc private func menuOpenSettings() {
         openSettings()
-    }
-    @objc private func menuOpenHotkeySettings() {
-        openSettings(tab: .hotkeys)
     }
 
     /// Bring up Settings from an accessory (menu-bar) app.
     ///
     /// `NSApp.sendAction(showSettingsWindow:)` does not present a window while the
-    /// app is `LSUIElement` / `.accessory`, so both "快捷键设置…" and "打开设置…"
-    /// used to look like dead menu items. We host `SettingsView` in our own
-    /// `NSWindow` and order it front after activating.
+    /// app is `LSUIElement` / `.accessory`, so "打开设置…" used to look like a dead
+    /// menu item. We host `SettingsView` in our own `NSWindow` and order it front
+    /// after activating.
     /// - Parameter tab: the tab to land on; `nil` keeps whatever was showing.
     func openSettings(tab: AppState.SettingsTab? = nil) {
         if let tab {
@@ -168,8 +159,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     ///
     /// SwiftUI `Menu` inside a non-activating `NSPanel` draws and highlights items,
     /// but the item actions frequently never run — which is exactly "点击没反应".
-    func popPanelOverflowMenu(pasteSelected: @escaping () -> Void) {
-        panelMenuPasteSelected = pasteSelected
+    func popPanelOverflowMenu() {
         let menu = makePanelOverflowMenu()
         if let panel, let view = panel.contentView {
             let windowPoint = panel.mouseLocationOutsideOfEventStream
@@ -186,17 +176,12 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         let windowHint = appState.map { "（\($0.mainWindowHotkeyDisplay)）" } ?? ""
         let monitoringTitle = (appState?.isMonitoringEnabled == false) ? "恢复监听" : "暂停监听"
 
-        addMenuItem(menu, title: "粘贴选中项", action: #selector(runPanelPasteSelected))
-        menu.addItem(NSMenuItem.separator())
-
         addMenuItem(menu, title: "截取区域\(shotHint)", action: #selector(menuCaptureRegion))
-        addMenuItem(menu, title: "截取区域并识字（只存文字）", action: #selector(menuCaptureRegionOCR))
         menu.addItem(NSMenuItem.separator())
         addMenuItem(menu, title: monitoringTitle, action: #selector(menuToggleMonitoring))
         menu.addItem(NSMenuItem.separator())
         addMenuItem(menu, title: "打开主窗口\(windowHint)", action: #selector(menuShowMainWindow))
         menu.addItem(NSMenuItem.separator())
-        addMenuItem(menu, title: "快捷键设置…", action: #selector(menuOpenHotkeySettings))
         addMenuItem(menu, title: "打开设置…", action: #selector(menuOpenSettings))
         addMenuItem(menu, title: "隐藏面板", action: #selector(menuHidePanel))
         menu.addItem(NSMenuItem.separator())
@@ -212,10 +197,6 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.target = self
         menu.addItem(item)
-    }
-
-    @objc private func runPanelPasteSelected() {
-        panelMenuPasteSelected?()
     }
 
     @objc private func menuToggleMonitoring() {
