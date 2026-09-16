@@ -66,6 +66,17 @@ enum ScreenshotTool: String, CaseIterable, Identifiable {
     }
 }
 
+/// Hover captions for chrome on the annotation strip (not drawing tools).
+enum ScreenshotToolbarHintText {
+    static let drag = "拖动工具条"
+    static let color = "颜色"
+    static let width = "粗细"
+    static let undo = "撤销"
+    static let download = "下载截图"
+    static let cancel = "取消（Esc）"
+    static let confirm = "完成（Enter）"
+}
+
 enum ScreenshotHandle: String, CaseIterable {
     case nw, n, ne, e, se, s, sw, w, move
 }
@@ -126,14 +137,16 @@ enum ScreenshotLayout {
     static let handleHitRadius: CGFloat = 10
     static let minSelection: CGFloat = 4
     static let toolbarSize = CGSize(width: 638, height: 48)
+    /// Extra host height above the capsule so icon hover hints are not clipped.
+    static let toolbarHintHeight: CGFloat = 28
     static let toolbarGap: CGFloat = 12
     static let sizeBadgeHeight: CGFloat = 22
     static let sizeBadgeGap: CGFloat = 6
     static let mosaicBlock: CGFloat = 10
     static let arrowHeadLength: CGFloat = 14
     static let arrowHeadAngle: CGFloat = .pi / 6
-    /// Overlay canvas is flipped (origin top-left). NSImage must be drawn with
-    /// `respectFlipped: true` or the freeze appears upside down.
+    /// Overlay canvas is flipped (origin top-left). The freeze is blitted as a
+    /// native-pixel CGImage with a Y flip so it stays upright and sharp.
     static let imageDrawRespectsFlipped = true
     /// Composite paints the CGImage before flipping the context for strokes.
     static let compositeDrawsImageBeforeFlip = true
@@ -270,20 +283,23 @@ enum ScreenshotLayout {
     }
 
     /// Hang below the selection, flip above when there is no room, then clamp.
+    /// The returned rect is the hosting view: capsule plus hint space above it.
     static func toolbarFrame(
         selection: CGRect,
         canvas: CGRect,
         size: CGSize = toolbarSize,
         offset: CGSize = .zero
     ) -> CGRect {
-        var x = selection.midX - size.width / 2 + offset.width
-        var y = selection.maxY + toolbarGap + offset.height
-        if y + size.height > canvas.maxY - 8 {
-            y = selection.minY - size.height - toolbarGap + offset.height
+        let host = CGSize(width: size.width, height: size.height + toolbarHintHeight)
+        var x = selection.midX - host.width / 2 + offset.width
+        var capsuleY = selection.maxY + toolbarGap + offset.height
+        if capsuleY + size.height > canvas.maxY - 8 {
+            capsuleY = selection.minY - size.height - toolbarGap + offset.height
         }
-        x = min(max(x, canvas.minX + 8), max(canvas.minX + 8, canvas.maxX - size.width - 8))
-        y = min(max(y, canvas.minY + 8), max(canvas.minY + 8, canvas.maxY - size.height - 8))
-        return CGRect(x: x, y: y, width: size.width, height: size.height)
+        var y = capsuleY - toolbarHintHeight
+        x = min(max(x, canvas.minX + 8), max(canvas.minX + 8, canvas.maxX - host.width - 8))
+        y = min(max(y, canvas.minY + 8), max(canvas.minY + 8, canvas.maxY - host.height - 8))
+        return CGRect(x: x, y: y, width: host.width, height: host.height)
     }
 
     /// Dark size pill, sitting just above the top-left of the selection.

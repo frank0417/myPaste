@@ -393,14 +393,58 @@
       display: none;
       align-items: center;
       gap: 2px;
+      box-sizing: border-box;
+      height: 76px;
+      padding: 28px 10px 0;
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      z-index: 2;
+      cursor: default;
+      overflow: visible;
+    }
+    .shot-toolbar::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
       height: 48px;
-      padding: 0 10px;
       background: rgba(255,255,255,.94);
       border: 1px solid rgba(0,0,0,.08);
       border-radius: 999px;
       box-shadow: 0 8px 24px rgba(0,0,0,.18);
-      z-index: 2;
-      cursor: default;
+      pointer-events: none;
+    }
+    .shot-toolbar > *:not(.shot-palette):not(.shot-widths) {
+      position: relative;
+      z-index: 1;
+    }
+    .shot-toolbar [data-tip] {
+      position: relative;
+      z-index: 1;
+    }
+    .shot-toolbar [data-tip]::after {
+      content: attr(data-tip);
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 14px);
+      transform: translateX(-50%);
+      background: rgba(0,0,0,.78);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 22px;
+      padding: 0 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      z-index: 4;
+    }
+    .shot-toolbar [data-tip]:hover::after {
+      opacity: 1;
     }
     .shot-toolbar button {
       width: 32px;
@@ -420,6 +464,8 @@
     .shot-toolbar button.cancel { color: #f5222d; }
     .shot-toolbar .grip {
       width: 22px;
+      height: 32px;
+      line-height: 32px;
       color: #94a3b8;
       letter-spacing: -1px;
       font-size: 11px;
@@ -442,7 +488,7 @@
       display: none;
       position: absolute;
       left: 50%;
-      bottom: calc(100% + 8px);
+      bottom: 56px;
       transform: translateX(-50%);
       background: #fff;
       border-radius: 10px;
@@ -537,25 +583,25 @@
       <span class="handle sw"></span><span class="handle s"></span><span class="handle se"></span>
     </div>
     <div class="shot-toolbar" id="shotToolbar">
-      <div class="grip" title="拖动工具条">⋮⋮</div>
-      <button data-tool="rect" title="矩形">▢</button>
-      <button data-tool="ellipse" title="圆形">○</button>
-      <button data-tool="line" title="直线">╱</button>
-      <button data-tool="arrow" title="箭头">↗</button>
-      <button data-tool="pen" title="画笔">✎</button>
-      <button data-tool="text" title="文字">T</button>
-      <button data-tool="pin" title="序号">#</button>
-      <button data-tool="mosaic" title="马赛克">▦</button>
-      <button data-tool="crop" title="重新选区">✂</button>
+      <div class="grip" data-tip="拖动工具条" aria-label="拖动工具条">⋮⋮</div>
+      <button data-tool="rect" data-tip="矩形" aria-label="矩形">▢</button>
+      <button data-tool="ellipse" data-tip="圆形" aria-label="圆形">○</button>
+      <button data-tool="line" data-tip="直线" aria-label="直线">╱</button>
+      <button data-tool="arrow" data-tip="箭头" aria-label="箭头">↗</button>
+      <button data-tool="pen" data-tip="画笔" aria-label="画笔">✎</button>
+      <button data-tool="text" data-tip="文字" aria-label="文字">T</button>
+      <button data-tool="pin" data-tip="序号" aria-label="序号">#</button>
+      <button data-tool="mosaic" data-tip="马赛克" aria-label="马赛克">▦</button>
+      <button data-tool="crop" data-tip="重新选区" aria-label="重新选区">✂</button>
       <div class="divider"></div>
-      <button id="shotColor" title="颜色"><span class="swatch" id="shotSwatch"></span></button>
-      <button id="shotWidth" title="粗细">≡</button>
+      <button id="shotColor" data-tip="颜色" aria-label="颜色"><span class="swatch" id="shotSwatch"></span></button>
+      <button id="shotWidth" data-tip="粗细" aria-label="粗细">≡</button>
       <div class="divider"></div>
-      <button id="shotUndo" title="撤销">↺</button>
-      <button id="shotDownload" title="下载截图">⇩</button>
+      <button id="shotUndo" data-tip="撤销" aria-label="撤销">↺</button>
+      <button id="shotDownload" data-tip="下载截图" aria-label="下载截图">⇩</button>
       <div class="divider"></div>
-      <button class="cancel" id="shotCancel" title="取消（Esc）">✕</button>
-      <button class="ok" id="shotConfirm" title="完成（Enter）">✓</button>
+      <button class="cancel" id="shotCancel" data-tip="取消（Esc）" aria-label="取消（Esc）">✕</button>
+      <button class="ok" id="shotConfirm" data-tip="完成（Enter）" aria-label="完成（Enter）">✓</button>
       <div class="shot-palette" id="shotPalette"></div>
       <div class="shot-widths" id="shotWidths"></div>
     </div>
@@ -816,11 +862,13 @@
       tb.style.display = "flex";
       const tw = tb.offsetWidth || 638;
       const th = 48;
+      const hint = 28;
       let tx = x + w / 2 - tw / 2;
       let ty = y + h + 12;
       if (ty + th > window.innerHeight - 8) ty = y - th - 12;
+      ty -= hint;
       tx = Math.min(Math.max(tx, 8), Math.max(8, window.innerWidth - tw - 8));
-      ty = Math.min(Math.max(ty, 8), Math.max(8, window.innerHeight - th - 8));
+      ty = Math.min(Math.max(ty, 8), Math.max(8, window.innerHeight - th - hint - 8));
       tb.style.left = `${tx}px`;
       tb.style.top = `${ty}px`;
       drawStrokes();

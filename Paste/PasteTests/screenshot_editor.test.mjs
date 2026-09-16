@@ -6,6 +6,7 @@ const HANDLE_HIT = 10;
 const MIN_SELECTION = 4;
 const TOOLBAR = { width: 638, height: 48 };
 const TOOLBAR_GAP = 12;
+const TOOLBAR_HINT_HEIGHT = 28;
 const SIZE_BADGE_HEIGHT = 22;
 const SIZE_BADGE_GAP = 6;
 const ARROW_HEAD_LENGTH = 14;
@@ -112,20 +113,22 @@ function snapEnd(from, to, tool, shift) {
 }
 
 function toolbarFrame(selection, canvas, size = TOOLBAR, offset = { width: 0, height: 0 }) {
-  let x = selection.x + selection.width / 2 - size.width / 2 + offset.width;
-  let y = selection.y + selection.height + TOOLBAR_GAP + offset.height;
-  if (y + size.height > canvas.y + canvas.height - 8) {
-    y = selection.y - size.height - TOOLBAR_GAP + offset.height;
+  const host = { width: size.width, height: size.height + TOOLBAR_HINT_HEIGHT };
+  let x = selection.x + selection.width / 2 - host.width / 2 + offset.width;
+  let capsuleY = selection.y + selection.height + TOOLBAR_GAP + offset.height;
+  if (capsuleY + size.height > canvas.y + canvas.height - 8) {
+    capsuleY = selection.y - size.height - TOOLBAR_GAP + offset.height;
   }
+  let y = capsuleY - TOOLBAR_HINT_HEIGHT;
   x = Math.min(
     Math.max(x, canvas.x + 8),
-    Math.max(canvas.x + 8, canvas.x + canvas.width - size.width - 8)
+    Math.max(canvas.x + 8, canvas.x + canvas.width - host.width - 8)
   );
   y = Math.min(
     Math.max(y, canvas.y + 8),
-    Math.max(canvas.y + 8, canvas.y + canvas.height - size.height - 8)
+    Math.max(canvas.y + 8, canvas.y + canvas.height - host.height - 8)
   );
-  return { x, y, width: size.width, height: size.height };
+  return { x, y, width: host.width, height: host.height };
 }
 
 function sizeBadgeFrame(selection, canvas, textWidth) {
@@ -306,14 +309,50 @@ assertEqual(
 );
 assertEqual(snapEnd({ x: 0, y: 0 }, { x: 80, y: 20 }, "rect", false), { x: 80, y: 20 }, "no shift, no snap");
 
+const TOOL_TITLES = {
+  move: "调整选区",
+  rect: "矩形",
+  ellipse: "圆形",
+  line: "直线",
+  arrow: "箭头",
+  pen: "画笔",
+  text: "文字",
+  pin: "序号",
+  mosaic: "马赛克",
+  crop: "重新选区"
+};
+const TOOLBAR_ACTION_HINTS = {
+  drag: "拖动工具条",
+  color: "颜色",
+  width: "粗细",
+  undo: "撤销",
+  download: "下载截图",
+  cancel: "取消（Esc）",
+  confirm: "完成（Enter）"
+};
+
 let bar = toolbarFrame(selection, canvas);
-assertEqual(bar, { x: 361, y: 587, width: 638, height: 48 }, "toolbar hangs centered below the selection");
+assertEqual(
+  bar,
+  { x: 361, y: 587 - TOOLBAR_HINT_HEIGHT, width: 638, height: 48 + TOOLBAR_HINT_HEIGHT },
+  "toolbar host hangs below the selection with hint space above the capsule"
+);
+assertEqual(bar.height - TOOLBAR.height, TOOLBAR_HINT_HEIGHT, "host is taller than the capsule so hints are not clipped");
 bar = toolbarFrame({ x: 200, y: 820, width: 400, height: 60 }, canvas);
-assertTrue(bar.y < 820, "no room below: toolbar flips above the selection");
+assertTrue(bar.y + TOOLBAR_HINT_HEIGHT + TOOLBAR.height <= 820, "no room below: toolbar capsule flips above the selection");
 bar = toolbarFrame({ x: 20, y: 120, width: 80, height: 40 }, canvas);
 assertEqual(bar.x, 8, "toolbar is kept inside the left edge");
 bar = toolbarFrame({ x: 1400, y: 120, width: 30, height: 40 }, canvas);
 assertEqual(bar.x, 1440 - 638 - 8, "toolbar is kept inside the right edge");
+assertTrue(
+  TOOLBAR_TOOLS.every((tool) => Boolean(TOOL_TITLES[tool])),
+  "every toolbar icon has a hover hint"
+);
+assertEqual(TOOL_TITLES.rect, "矩形", "rect hint");
+assertEqual(TOOL_TITLES.mosaic, "马赛克", "mosaic hint");
+assertEqual(TOOLBAR_ACTION_HINTS.download, "下载截图", "download hint");
+assertEqual(TOOLBAR_ACTION_HINTS.cancel, "取消（Esc）", "cancel hint");
+assertEqual(Object.keys(TOOLBAR_ACTION_HINTS).length, 7, "chrome controls have hover hints");
 
 const badge = sizeBadgeFrame(selection, canvas, 64);
 assertEqual(badge.y, 120 - 22 - 6, "size badge sits above the top-left");

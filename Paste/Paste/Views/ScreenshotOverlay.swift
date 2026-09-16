@@ -285,6 +285,7 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
             onLayout: { [weak self] in self?.positionToolbar() }
         ))
         toolbar.frame = .zero
+        toolbar.clipsToBounds = false
         addSubview(toolbar)
         toolbarHost = toolbar
         positionToolbar()
@@ -617,6 +618,7 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
             return
         }
         toolbarHost.isHidden = false
+        toolbarHost.clipsToBounds = false
         let size = session.recognizeText
             ? CGSize(width: 220, height: ScreenshotLayout.toolbarSize.height)
             : ScreenshotLayout.toolbarSize
@@ -774,92 +776,99 @@ private struct ScreenshotToolbarView: View {
     @State private var isDraggingToolbar = false
 
     var body: some View {
-        HStack(spacing: 2) {
-            dragHandle
-            if !session.recognizeText {
-                ForEach(ScreenshotTool.toolbarTools) { tool in
-                    toolButton(tool)
+        VStack(spacing: 0) {
+            Color.clear
+                .frame(height: ScreenshotLayout.toolbarHintHeight)
+                .allowsHitTesting(false)
+            HStack(spacing: 2) {
+                dragHandle
+                if !session.recognizeText {
+                    ForEach(ScreenshotTool.toolbarTools) { tool in
+                        toolButton(tool)
+                    }
+                    divider
+                    colorButton
+                    widthButton
+                    divider
+                    iconButton(ScreenshotToolbarHintText.undo, systemImage: "arrow.uturn.backward", action: onUndo)
+                        .disabled(session.strokes.isEmpty && session.current == nil)
+                    iconButton(ScreenshotToolbarHintText.download, systemImage: "arrow.down.to.line", action: onDownload)
+                    divider
                 }
-                divider
-                colorButton
-                widthButton
-                divider
-                iconButton("撤销", systemImage: "arrow.uturn.backward", action: onUndo)
-                    .disabled(session.strokes.isEmpty && session.current == nil)
-                iconButton("下载截图", systemImage: "arrow.down.to.line", action: onDownload)
-                divider
+                Button(action: onCancel) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color(hex: "#F5222D") ?? .red)
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.plain)
+                .screenshotToolbarHint(ScreenshotToolbarHintText.cancel)
+                Button(action: onConfirm) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(Color(hex: "#52C41A") ?? .green)
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.plain)
+                .screenshotToolbarHint(ScreenshotToolbarHintText.confirm)
             }
-            Button(action: onCancel) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Color(hex: "#F5222D") ?? .red)
-                    .frame(width: 32, height: 32)
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity)
+            .frame(height: ScreenshotLayout.toolbarSize.height)
+            .background {
+                Capsule(style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .overlay(Capsule(style: .continuous).fill(Color.white.opacity(0.92)))
             }
-            .buttonStyle(.plain)
-            .help("取消（Esc）")
-            Button(action: onConfirm) {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(Color(hex: "#52C41A") ?? .green)
-                    .frame(width: 32, height: 32)
-            }
-            .buttonStyle(.plain)
-            .help("完成（Enter）")
-        }
-        .padding(.horizontal, 10)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background {
-            Capsule(style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(Capsule(style: .continuous).fill(Color.white.opacity(0.92)))
-        }
-        .overlay(
-            Capsule(style: .continuous)
-                .strokeBorder(Color.black.opacity(0.08), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
-        .popover(isPresented: $session.showColorPicker, arrowEdge: .top) {
-            HStack(spacing: 8) {
-                ForEach(ScreenshotLayout.palette, id: \.self) { hex in
-                    Button {
-                        session.colorHex = hex
-                        session.showColorPicker = false
-                    } label: {
-                        Circle()
-                            .fill(Color(hex: hex) ?? .red)
-                            .frame(width: 18, height: 18)
-                            .overlay(
-                                Circle().strokeBorder(
-                                    session.colorHex == hex ? Color.primary : Color.black.opacity(0.15),
-                                    lineWidth: session.colorHex == hex ? 2 : 1
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(Color.black.opacity(0.08), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
+            .popover(isPresented: $session.showColorPicker, arrowEdge: .top) {
+                HStack(spacing: 8) {
+                    ForEach(ScreenshotLayout.palette, id: \.self) { hex in
+                        Button {
+                            session.colorHex = hex
+                            session.showColorPicker = false
+                        } label: {
+                            Circle()
+                                .fill(Color(hex: hex) ?? .red)
+                                .frame(width: 18, height: 18)
+                                .overlay(
+                                    Circle().strokeBorder(
+                                        session.colorHex == hex ? Color.primary : Color.black.opacity(0.15),
+                                        lineWidth: session.colorHex == hex ? 2 : 1
+                                    )
                                 )
-                            )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(10)
-        }
-        .popover(isPresented: $session.showWidthPicker, arrowEdge: .top) {
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(ScreenshotLayout.lineWidths, id: \.self) { width in
-                    Button {
-                        session.lineWidth = width
-                        session.showWidthPicker = false
-                    } label: {
-                        HStack {
-                            Capsule().frame(width: 72, height: width)
-                            if session.lineWidth == width {
-                                Image(systemName: "checkmark").font(.caption)
-                            }
                         }
-                        .foregroundStyle(Color.primary)
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
+                .padding(10)
             }
-            .padding(10)
+            .popover(isPresented: $session.showWidthPicker, arrowEdge: .top) {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(ScreenshotLayout.lineWidths, id: \.self) { width in
+                        Button {
+                            session.lineWidth = width
+                            session.showWidthPicker = false
+                        } label: {
+                            HStack {
+                                Capsule().frame(width: 72, height: width)
+                                if session.lineWidth == width {
+                                    Image(systemName: "checkmark").font(.caption)
+                                }
+                            }
+                            .foregroundStyle(Color.primary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(10)
+            }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
 
     private var dragHandle: some View {
@@ -886,7 +895,7 @@ private struct ScreenshotToolbarView: View {
                         toolbarDragStart = session.toolbarOffset
                     }
             )
-            .help("拖动工具条")
+            .screenshotToolbarHint(ScreenshotToolbarHintText.drag)
     }
 
     private func toolButton(_ tool: ScreenshotTool) -> some View {
@@ -904,7 +913,7 @@ private struct ScreenshotToolbarView: View {
                 )
         }
         .buttonStyle(.plain)
-        .help(tool.title)
+        .screenshotToolbarHint(tool.title)
     }
 
     private func iconButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
@@ -915,7 +924,7 @@ private struct ScreenshotToolbarView: View {
                 .frame(width: 32, height: 32)
         }
         .buttonStyle(.plain)
-        .help(title)
+        .screenshotToolbarHint(title)
     }
 
     private var colorButton: some View {
@@ -930,7 +939,7 @@ private struct ScreenshotToolbarView: View {
                 .frame(width: 32, height: 32)
         }
         .buttonStyle(.plain)
-        .help("颜色")
+        .screenshotToolbarHint(ScreenshotToolbarHintText.color)
     }
 
     private var widthButton: some View {
@@ -944,7 +953,7 @@ private struct ScreenshotToolbarView: View {
                 .frame(width: 32, height: 32)
         }
         .buttonStyle(.plain)
-        .help("粗细")
+        .screenshotToolbarHint(ScreenshotToolbarHintText.width)
     }
 
     private var divider: some View {
@@ -952,5 +961,46 @@ private struct ScreenshotToolbarView: View {
             .fill(Color.primary.opacity(0.1))
             .frame(width: 1, height: 18)
             .padding(.horizontal, 4)
+    }
+}
+
+/// Immediate hover caption above a toolbar icon. Native `.help()` is kept for
+/// VoiceOver, but screen-saver overlay panels often never show that tooltip.
+private struct ScreenshotToolbarHintModifier: ViewModifier {
+    let title: String
+    @State private var hovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .onHover { hovering = $0 }
+            .overlay(alignment: .top) {
+                Text(title)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .frame(height: 22)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(Color.black.opacity(0.78))
+                    )
+                    .fixedSize()
+                    .offset(y: hintOffset)
+                    .opacity(hovering ? 1 : 0)
+                    .allowsHitTesting(false)
+            }
+            .zIndex(hovering ? 1 : 0)
+            .help(title)
+    }
+
+    /// Place the 22pt bubble in the host's hint band, 6pt above the capsule.
+    private var hintOffset: CGFloat {
+        let buttonInset = (ScreenshotLayout.toolbarSize.height - 32) / 2
+        return -(buttonInset + ScreenshotLayout.toolbarHintHeight)
+    }
+}
+
+private extension View {
+    func screenshotToolbarHint(_ title: String) -> some View {
+        modifier(ScreenshotToolbarHintModifier(title: title))
     }
 }
