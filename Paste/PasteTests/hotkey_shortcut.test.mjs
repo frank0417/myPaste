@@ -1,6 +1,10 @@
 // Mirrors HotKeyShortcut validation/display rules so CI / Linux agents can check them
 // without Xcode. Key codes and modifier masks come from Carbon.HIToolbox.
 
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 const cmdKey = 0x0100;
 const shiftKey = 0x0200;
 const optionKey = 0x0800;
@@ -8,6 +12,7 @@ const controlKey = 0x1000;
 
 const KEY = {
   d: 0x02,
+  x: 0x07,
   v: 0x09,
   q: 0x0c,
   three: 0x14,
@@ -49,7 +54,7 @@ const ACTION = {
 const DEFAULTS = {
   panel: { keyCode: KEY.v, carbonModifiers: cmdKey | shiftKey },
   mainWindow: { keyCode: KEY.v, carbonModifiers: cmdKey | optionKey },
-  screenshot: { keyCode: KEY.d, carbonModifiers: cmdKey | shiftKey }
+  screenshot: { keyCode: KEY.x, carbonModifiers: cmdKey | shiftKey }
 };
 
 const DEFAULT = DEFAULTS.panel;
@@ -188,9 +193,9 @@ assertTrue(
 );
 assertEqual(ACTION.panel.storageKey, "globalHotKeyShortcut", "panel keeps the legacy storage key");
 
-// The screenshot default is ⇧⌘D; the system's ⇧⌘4 stays off limits.
+// The screenshot default is ⇧⌘X; the system's ⇧⌘4 stays off limits.
 assertEqual(rejectionReason(DEFAULTS.screenshot), null, "screenshot default is valid");
-assertEqual(display(DEFAULTS.screenshot, "D"), "⇧⌘D", "screenshot default renders as shift-cmd-D");
+assertEqual(display(DEFAULTS.screenshot, "X"), "⇧⌘X", "screenshot default renders as shift-cmd-X");
 assertEqual(
   rejectionReason({ keyCode: KEY.four, carbonModifiers: cmdKey | shiftKey }),
   "⇧⌘4（截屏） 已被系统占用，请换一个组合",
@@ -199,6 +204,24 @@ assertEqual(
 assertTrue(
   !sameShortcut(DEFAULTS.screenshot, DEFAULTS.panel) && !sameShortcut(DEFAULTS.screenshot, DEFAULTS.mainWindow),
   "screenshot default differs from both window defaults"
+);
+
+const RETIRED_SCREENSHOT = { keyCode: KEY.d, carbonModifiers: cmdKey | shiftKey };
+function loadScreenshot(stored) {
+  if (!stored) return DEFAULTS.screenshot;
+  if (sameShortcut(stored, RETIRED_SCREENSHOT)) return DEFAULTS.screenshot;
+  return stored;
+}
+assertEqual(loadScreenshot(null), DEFAULTS.screenshot, "missing storage uses ⇧⌘X");
+assertEqual(
+  loadScreenshot(RETIRED_SCREENSHOT),
+  DEFAULTS.screenshot,
+  "a still-stored ⇧⌘D factory default upgrades to ⇧⌘X"
+);
+assertEqual(
+  loadScreenshot({ keyCode: KEY.v, carbonModifiers: cmdKey | controlKey }),
+  { keyCode: KEY.v, carbonModifiers: cmdKey | controlKey },
+  "a custom screenshot combo is kept"
 );
 
 // A rejected combo must not clear the working shortcut.
@@ -250,6 +273,14 @@ assertEqual(actionForHotKeyID(3), "screenshot", "hot key id 3 is the screenshot"
 assertEqual(actionForHotKeyID(4), null, "there is no separate OCR hotkey any more");
 assertEqual(Object.keys(ACTION).length, 3, "exactly three configurable shortcuts");
 assertEqual(actionForHotKeyID(99), null, "unknown hot key id is ignored");
+
+const swift = fs.readFileSync(
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../Paste/Utilities/HotKey.swift"),
+  "utf8"
+);
+assertTrue(/kVK_ANSI_X/.test(swift), "Swift screenshot default uses kVK_ANSI_X");
+assertTrue(/retiredScreenshotDefault/.test(swift), "old ⇧⌘D factory default is migrated");
+assertTrue(/kVK_ANSI_D/.test(swift), "retired default is still named so stored ⇧⌘D can be recognized");
 
 if (failed > 0) {
   console.error(`\n${failed} test(s) failed`);
