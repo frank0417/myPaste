@@ -133,12 +133,28 @@ assertTrue(
   "AppState has a hotkeys settings tab"
 );
 assertTrue(
-  /tabItem \{ Label\("快捷键"/.test(settings),
+  /case \.hotkeys: return "快捷键"/.test(settings),
   "SettingsView still has a 快捷键 tab"
 );
 assertTrue(
-  /\.tag\(AppState\.SettingsTab\.hotkeys\)/.test(settings),
-  "快捷键 tab is tagged so Settings 修改… can select it"
+  /appState\.settingsTab = tab/.test(settings),
+  "custom tab bar writes settingsTab so menus can select 快捷键"
+);
+assertTrue(
+  /PasteTheme\.backgroundGradient/.test(settings),
+  "settings use the same warm gradient as the main panel"
+);
+assertTrue(
+  /shelfPill\(\)/.test(settings),
+  "settings tabs sit in a shelf pill like the panel nav"
+);
+assertTrue(
+  /titlebarAppearsTransparent = true/.test(controller),
+  "settings window chrome is transparent so the panel gradient shows through"
+);
+assertTrue(
+  /setContentSize\(NSSize\(width: 560, height: 560\)\)/.test(controller),
+  "settings window is sized for the card layout"
 );
 
 if (failed > 0) {

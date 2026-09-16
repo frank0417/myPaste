@@ -245,10 +245,13 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         let hosting = NSHostingController(rootView: root)
         let window = NSWindow(contentViewController: hosting)
         window.title = "设置"
-        window.styleMask = [.titled, .closable]
+        window.styleMask = [.titled, .closable, .fullSizeContentView]
+        window.titlebarAppearsTransparent = true
+        window.backgroundColor = NSColor(srgbRed: 247 / 255, green: 244 / 255, blue: 238 / 255, alpha: 1)
+        window.isOpaque = true
         window.isReleasedWhenClosed = false
         window.identifier = NSUserInterfaceItemIdentifier(Self.settingsWindowIdentifier)
-        window.setContentSize(NSSize(width: 520, height: 400))
+        window.setContentSize(NSSize(width: 560, height: 560))
         window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         window.center()
         return window
