@@ -46,12 +46,12 @@ enum RetentionPolicy {
         days: Int,
         now: Date
     ) -> String {
-        if isFavorite { return "已收藏 · 长期保存" }
-        if isPinned { return "已置顶 · 长期保存" }
+        if isFavorite { return PanelL10n.keptFavorite }
+        if isPinned { return PanelL10n.keptPinned }
         let remaining = expiry(lastUsed: lastUsed, days: days).timeIntervalSince(now)
-        if remaining <= 0 { return "已过期 · 即将自动清理" }
-        if remaining < day { return "不到 1 天后自动清理，收藏可长期保存" }
-        return "\(Int(remaining / day)) 天后自动清理，收藏可长期保存"
+        if remaining <= 0 { return PanelL10n.expired }
+        if remaining < day { return PanelL10n.expiresUnderOneDay }
+        return PanelL10n.expiresInDays(Int(remaining / day))
     }
 
     /// Cards flag only the last day, where losing the item is imminent.

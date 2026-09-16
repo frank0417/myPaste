@@ -107,14 +107,17 @@ struct FavoritesFolderView: View {
         VStack(spacing: 10) {
             Spacer(minLength: 0)
             Image(systemName: searching ? "magnifyingglass" : "star")
-                .font(.system(size: 30, weight: .light))
+                .font(.system(size: 28, weight: .light))
                 .foregroundStyle(PasteTheme.accent)
             Text(emptyTitle)
-                .font(.callout.weight(.medium))
+                .font(PasteTheme.Typography.emptyTitle)
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.85)
             Text(emptyDetail)
-                .font(.caption)
+                .font(PasteTheme.Typography.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.85)
                 .frame(maxWidth: 320)
             Spacer(minLength: 0)
         }
@@ -127,23 +130,23 @@ struct FavoritesFolderView: View {
     }
 
     private var emptyTitle: String {
-        if searching { return "收藏夹里没有匹配的内容" }
+        if searching { return PanelL10n.favoritesEmptySearch }
         switch appState.favoriteScope {
-        case .all: return "收藏夹还是空的"
-        case .untagged: return "所有收藏都已分类"
-        case .tag(let name): return "「\(name)」分类下还没有内容"
+        case .all: return PanelL10n.favoritesEmpty
+        case .untagged: return PanelL10n.favoritesAllTagged
+        case .tag(let name): return PanelL10n.favoritesEmptyTag(name)
         }
     }
 
     private var emptyDetail: String {
-        if searching { return "换个关键词，或切回「全部收藏」" }
+        if searching { return PanelL10n.favoritesEmptySearchDetail }
         switch appState.favoriteScope {
         case .all:
-            return "收藏的内容长期保存；未收藏的只保留 \(appState.keepUnfavoritedDays) 天。右键任意卡片选择「收藏」即可放进来。"
+            return PanelL10n.favoritesEmptyDetail(appState.keepUnfavoritedDays)
         case .untagged:
-            return "右键收藏卡片 →「分类」可以随时调整标签。"
+            return PanelL10n.favoritesUntaggedDetail
         case .tag:
-            return "右键收藏卡片 →「分类」把内容打上这个标签。"
+            return PanelL10n.favoritesTagDetail
         }
     }
 }
@@ -172,7 +175,7 @@ struct FavoriteTagBar: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: compact ? 6 : 8) {
                 chip(
-                    title: "全部收藏",
+                    title: PanelL10n.allFavorites,
                     systemImage: "star.fill",
                     count: favorites.count,
                     accent: PasteTheme.accent,
@@ -192,7 +195,7 @@ struct FavoriteTagBar: View {
                         appState.showFavorites(scope: .tag(tag.name))
                     }
                     .contextMenu {
-                        Button("删除分类「\(tag.name)」", role: .destructive) {
+                        Button(PanelL10n.deleteTag(tag.name), role: .destructive) {
                             store?.deleteFavoriteTag(tag.name)
                             if appState.favoriteScope == .tag(tag.name) {
                                 appState.showFavorites(scope: .all)
@@ -220,15 +223,17 @@ struct FavoriteTagBar: View {
                         isAddingTag = true
                         tagFieldFocused = true
                     } label: {
-                        Label("分类", systemImage: "plus")
-                            .font(.caption.weight(.medium))
+                        Label(PanelL10n.tag, systemImage: "plus")
+                            .font(PasteTheme.Typography.caption)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
                             .background(Color.primary.opacity(0.05), in: Capsule())
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
-                    .help("新建分类并应用到选中的收藏")
+                    .help(PanelL10n.newTagHelp)
                 }
             }
             .padding(.horizontal, compact ? 14 : 16)
@@ -239,12 +244,12 @@ struct FavoriteTagBar: View {
     private var newTagField: some View {
         HStack(spacing: 6) {
             Image(systemName: "tag")
-                .font(.caption)
+                .font(PasteTheme.Typography.caption)
                 .foregroundStyle(.secondary)
-            TextField(targetItem == nil ? "先选中一条收藏" : "分类名称，回车确认", text: $draftTag)
+            TextField(targetItem == nil ? PanelL10n.pickFavoriteFirst : PanelL10n.tagPlaceholder, text: $draftTag)
                 .textFieldStyle(.plain)
-                .font(.caption)
-                .frame(width: 130)
+                .font(PasteTheme.Typography.caption)
+                .frame(minWidth: 96, maxWidth: 168)
                 .focused($tagFieldFocused)
                 .disabled(targetItem == nil)
                 .onSubmit(commitTag)
@@ -293,13 +298,11 @@ struct FavoriteTagBar: View {
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: systemImage)
-                    .font(.caption2)
+                    .font(PasteTheme.Typography.iconSmall)
                 Text(title)
-                    .font(.caption.weight(.medium))
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
+                    .shelfChipLabel()
                 Text("\(count)")
-                    .font(.caption2.monospacedDigit())
+                    .font(PasteTheme.Typography.chipBadge)
                     .foregroundStyle(.tertiary)
             }
             .padding(.horizontal, 10)

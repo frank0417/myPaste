@@ -11,6 +11,47 @@ enum PasteTheme {
     static let coral = Color(hex: "#E07A5F") ?? .orange
     static let panelFill = Color(hex: "#F4F6F8") ?? Color(nsColor: .windowBackgroundColor)
 
+    /// A single type ramp for the shelf. CJK sits a quarter-point larger than Latin
+    /// at the same optical weight; Latin tightens tracking so longer English labels
+    /// still fit the same chips. Clipboard previews pick spacing from the text itself.
+    enum Typography {
+        static var usesCJKLayout: Bool { PanelL10n.language != .en }
+
+        static var icon: Font { .system(size: 12.5, weight: .semibold) }
+        static var iconSmall: Font { .system(size: 11, weight: .semibold) }
+        static var chip: Font {
+            .system(size: usesCJKLayout ? 12 : 11.5, weight: .semibold)
+        }
+        static var chipBadge: Font { .system(size: 10, weight: .medium).monospacedDigit() }
+        static var status: Font { .system(size: usesCJKLayout ? 11 : 10.5, weight: .medium) }
+        static var statusMono: Font { .system(size: 10.5, weight: .medium, design: .monospaced) }
+        static var caption: Font { .system(size: usesCJKLayout ? 11 : 10.5, weight: .medium) }
+        static var captionBold: Font { .system(size: usesCJKLayout ? 11 : 10.5, weight: .semibold) }
+        static var button: Font { .system(size: usesCJKLayout ? 12 : 11.5, weight: .semibold) }
+        static var title: Font { .system(size: usesCJKLayout ? 15 : 14.5, weight: .semibold) }
+        static var headline: Font { .system(size: usesCJKLayout ? 13.5 : 13, weight: .semibold) }
+        static var emptyTitle: Font { .system(size: usesCJKLayout ? 13.5 : 13, weight: .medium) }
+        static var preview: Font { .system(size: usesCJKLayout ? 12.5 : 12, weight: .regular) }
+        static var previewMono: Font { .system(size: 12, weight: .regular, design: .monospaced) }
+        static var body: Font { .system(size: usesCJKLayout ? 13 : 12.5, weight: .regular) }
+        static var bodyEmphasis: Font { .system(size: usesCJKLayout ? 13 : 12.5, weight: .medium) }
+
+        static var chipTracking: CGFloat { usesCJKLayout ? 0.15 : -0.2 }
+        static var chipMinimumScale: CGFloat { usesCJKLayout ? 0.88 : 0.75 }
+
+        static func containsCJK(_ text: String) -> Bool {
+            text.contains(where: \.isCJK)
+        }
+
+        static func lineSpacing(for text: String) -> CGFloat {
+            containsCJK(text) ? 3.5 : 1.5
+        }
+
+        static func tracking(for text: String) -> CGFloat {
+            containsCJK(text) ? 0.1 : -0.15
+        }
+    }
+
     /// One corner language for the whole shelf: the window surface, the cards inside
     /// it, and the smaller controls step down together so nothing reads as a box.
     static let panelCornerRadius: CGFloat = 28
@@ -126,6 +167,72 @@ extension View {
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+            )
+    }
+
+    /// Chip / tab labels: one line, slight tracking, shrinks for long English words.
+    func shelfChipLabel() -> some View {
+        self
+            .font(PasteTheme.Typography.chip)
+            .tracking(PasteTheme.Typography.chipTracking)
+            .lineLimit(1)
+            .minimumScaleFactor(PasteTheme.Typography.chipMinimumScale)
+            .allowsTightening(true)
+    }
+
+    func shelfCaption() -> some View {
+        self
+            .font(PasteTheme.Typography.caption)
+            .lineLimit(1)
+            .minimumScaleFactor(0.82)
+            .allowsTightening(true)
+    }
+
+    func shelfStatusLabel() -> some View {
+        self
+            .font(PasteTheme.Typography.status)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .allowsTightening(true)
+    }
+}
+
+/// Filled capsule used for the primary action on the shelf (启用 / 粘贴).
+struct ShelfAccentButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(PasteTheme.Typography.button)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .allowsTightening(true)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(PasteTheme.accent.opacity(configuration.isPressed ? 0.82 : 1))
+            )
+    }
+}
+
+/// Hairline capsule for secondary actions (复制 / 识别文字 / 下载).
+struct ShelfQuietButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(PasteTheme.Typography.button)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .allowsTightening(true)
+            .foregroundStyle(PasteTheme.ink.opacity(0.78))
+            .padding(.horizontal, 11)
+            .padding(.vertical, 6)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(Color.primary.opacity(configuration.isPressed ? 0.10 : 0.055))
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
             )
     }
 }

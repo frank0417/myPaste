@@ -8,7 +8,7 @@ enum FavoriteScope: Equatable, Hashable {
 
     var title: String {
         switch self {
-        case .all: return "全部收藏"
+        case .all: return PanelL10n.allFavorites
         case .untagged: return FavoriteTagCatalog.untaggedTitle
         case .tag(let name): return name
         }
@@ -31,7 +31,7 @@ struct FavoriteTagCount: Identifiable, Equatable {
 /// Free-form categories the user puts on favorites. Kept as plain strings on the item
 /// so the folder grows with whatever the user types, instead of a fixed board list.
 enum FavoriteTagCatalog {
-    static let untaggedTitle = "未分类"
+    static var untaggedTitle: String { PanelL10n.untagged }
     static let suggestions = ["工作", "灵感", "代码", "资料", "待办"]
     static let maxTagsPerItem = 5
     static let maxNameLength = 12

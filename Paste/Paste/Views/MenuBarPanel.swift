@@ -255,93 +255,98 @@ struct MenuBarPanel: View {
                 }
             } label: {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(PasteTheme.Typography.icon)
                     .foregroundStyle(showSearch ? PasteTheme.accent : .secondary)
                     .frame(width: 26, height: 26)
                     .background(
                         Circle().fill(showSearch ? PasteTheme.accent.opacity(0.14) : .clear)
                     )
+                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .help(showSearch ? "收起搜索" : "搜索")
+            .help(showSearch ? PanelL10n.collapseSearch : PanelL10n.search)
 
             Button {
                 ScreenshotService.shared.capture(.region)
             } label: {
                 Image(systemName: "camera.viewfinder")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(PasteTheme.Typography.icon)
                     .foregroundStyle(.secondary)
                     .frame(width: 26, height: 26)
+                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .help("截图（\(appState.screenshotHotkeyDisplay)）冻结屏幕并标注，结果存入历史")
+            .help(PanelL10n.captureHelp(appState.screenshotHotkeyDisplay))
 
-            boardTab(
-                title: "剪贴板",
-                systemImage: "clock.arrow.circlepath",
-                selected: appState.panelViewMode == .shelf && appState.selectedAutoTag == nil,
-                dot: Color.primary.opacity(0.45)
-            ) {
-                appState.panelViewMode = .shelf
-                appState.selectedAutoTag = nil
-                appState.selectedFilter = .all
-                appState.showOnlyPinned = false
-                appState.leaveFavorites()
-            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 4) {
+                    boardTab(
+                        title: PanelL10n.clipboard,
+                        systemImage: "clock.arrow.circlepath",
+                        selected: appState.panelViewMode == .shelf && appState.selectedAutoTag == nil,
+                        dot: Color.primary.opacity(0.45)
+                    ) {
+                        appState.panelViewMode = .shelf
+                        appState.selectedAutoTag = nil
+                        appState.selectedFilter = .all
+                        appState.showOnlyPinned = false
+                        appState.leaveFavorites()
+                    }
 
-            boardTab(
-                title: "收藏夹",
-                systemImage: "star.fill",
-                selected: appState.panelViewMode == .favorites,
-                dot: Color(hex: "#F59E0B") ?? .orange,
-                badge: favorites.isEmpty ? nil : favorites.count
-            ) {
-                appState.panelViewMode = .favorites
-                appState.showFavorites(scope: .all)
-            }
+                    boardTab(
+                        title: PanelL10n.favorites,
+                        systemImage: "star.fill",
+                        selected: appState.panelViewMode == .favorites,
+                        dot: Color(hex: "#F59E0B") ?? .orange,
+                        badge: favorites.isEmpty ? nil : favorites.count
+                    ) {
+                        appState.panelViewMode = .favorites
+                        appState.showFavorites(scope: .all)
+                    }
 
-            boardTab(
-                title: "时间线",
-                systemImage: "calendar.day.timeline.leading",
-                selected: appState.panelViewMode == .timeline,
-                dot: Color(hex: "#EF4444") ?? .red
-            ) {
-                appState.panelViewMode = .timeline
-                appState.leaveFavorites()
-            }
+                    boardTab(
+                        title: PanelL10n.timeline,
+                        systemImage: "calendar.day.timeline.leading",
+                        selected: appState.panelViewMode == .timeline,
+                        dot: Color(hex: "#EF4444") ?? .red
+                    ) {
+                        appState.panelViewMode = .timeline
+                        appState.leaveFavorites()
+                    }
 
-            // Auto-tag boards styled like Paste collections
-            ForEach(topTagCounts, id: \.0.id) { tag, count in
-                boardTab(
-                    title: "\(tag.displayName)",
-                    systemImage: nil,
-                    selected: appState.selectedAutoTag == tag.rawValue && appState.panelViewMode == .shelf,
-                    dot: Color(hex: tag.accentHex) ?? PasteTheme.accent,
-                    badge: count
-                ) {
-                    appState.panelViewMode = .shelf
-                    appState.selectedFilter = .all
-                    appState.showOnlyPinned = false
-                    appState.leaveFavorites()
-                    appState.selectedAutoTag = tag.rawValue
+                    ForEach(topTagCounts, id: \.0.id) { tag, count in
+                        boardTab(
+                            title: tag.displayName,
+                            systemImage: nil,
+                            selected: appState.selectedAutoTag == tag.rawValue && appState.panelViewMode == .shelf,
+                            dot: Color(hex: tag.accentHex) ?? PasteTheme.accent,
+                            badge: count
+                        ) {
+                            appState.panelViewMode = .shelf
+                            appState.selectedFilter = .all
+                            appState.showOnlyPinned = false
+                            appState.leaveFavorites()
+                            appState.selectedAutoTag = tag.rawValue
+                        }
+                    }
                 }
             }
-
-            Spacer(minLength: 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 6) {
                 Circle()
                     .fill(appState.isMonitoringEnabled ? Color.green.opacity(0.9) : Color.orange.opacity(0.9))
                     .frame(width: 6, height: 6)
-                Text(appState.isMonitoringEnabled ? "后台监听中" : "已暂停")
-                    .font(.caption2)
+                Text(appState.isMonitoringEnabled ? PanelL10n.listening : PanelL10n.paused)
+                    .shelfStatusLabel()
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
                 Text(appState.hotkeyDisplay)
-                    .font(.caption2.monospaced())
+                    .font(PasteTheme.Typography.statusMono)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
+            .layoutPriority(-1)
 
             // SwiftUI `Menu` inside this non-activating NSPanel highlights items
             // but often never fires their actions. A real NSMenu does run them.
@@ -349,15 +354,14 @@ struct MenuBarPanel: View {
                 StatusItemController.shared.popPanelOverflowMenu()
             } label: {
                 Image(systemName: "ellipsis")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(PasteTheme.Typography.icon)
                     .foregroundStyle(.secondary)
                     .frame(width: 26, height: 26)
-                    .contentShape(Rectangle())
+                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .help("菜单")
+            .help(PanelL10n.menu)
         }
-        .lineLimit(1)
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .shelfPill()
@@ -372,11 +376,11 @@ struct MenuBarPanel: View {
         HStack(spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(PasteTheme.Typography.iconSmall)
                     .foregroundStyle(PasteTheme.accent)
                 PanelSearchField(
                     text: $draftQuery,
-                    placeholder: "搜索剪贴板…",
+                    placeholder: PanelL10n.searchPlaceholder,
                     shouldFocus: true,
                     field: $searchField,
                     onSubmit: pasteSelected
@@ -390,7 +394,7 @@ struct MenuBarPanel: View {
                 }
                 if !draftQuery.isEmpty {
                     Text("\(filtered.count)")
-                        .font(.caption2.monospacedDigit())
+                        .font(PasteTheme.Typography.chipBadge)
                         .foregroundStyle(.tertiary)
                 }
                 Button {
@@ -401,12 +405,12 @@ struct MenuBarPanel: View {
                     }
                 } label: {
                     Image(systemName: draftQuery.isEmpty ? "xmark" : "xmark.circle.fill")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(PasteTheme.Typography.iconSmall)
                         .foregroundStyle(.tertiary)
                         .frame(width: 16, height: 16)
                 }
                 .buttonStyle(.plain)
-                .help(draftQuery.isEmpty ? "收起搜索" : "清空")
+                .help(draftQuery.isEmpty ? PanelL10n.collapseSearch : PanelL10n.clearSearch)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
@@ -514,19 +518,17 @@ struct MenuBarPanel: View {
             HStack(spacing: 6) {
                 if let systemImage {
                     Image(systemName: systemImage)
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(PasteTheme.Typography.iconSmall)
                 } else {
                     Circle()
                         .fill(dot)
                         .frame(width: 7, height: 7)
                 }
                 Text(title)
-                    .font(.system(size: 12, weight: .semibold))
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
+                    .shelfChipLabel()
                 if let badge {
                     Text("\(badge)")
-                        .font(.caption2.monospacedDigit())
+                        .font(PasteTheme.Typography.chipBadge)
                         .foregroundStyle(.tertiary)
                 }
             }
@@ -549,9 +551,9 @@ struct MenuBarPanel: View {
                 if shouldShowLaunchCard {
                     onboardingCard(
                         icon: "power",
-                        title: "登录时打开",
-                        detail: "重启 Mac 后自动启动 PasteNest，保持常驻后台。",
-                        actionTitle: "启用"
+                        title: PanelL10n.launchTitle,
+                        detail: PanelL10n.launchDetail,
+                        actionTitle: PanelL10n.enable
                     ) {
                         enableLaunchAtLogin()
                     }
@@ -560,9 +562,9 @@ struct MenuBarPanel: View {
                 if !acknowledgedBackgroundTip {
                     onboardingCard(
                         icon: "waveform.path.ecg",
-                        title: "常驻后台",
-                        detail: "关闭面板不会退出。按 \(appState.hotkeyDisplay) 随时唤出。",
-                        actionTitle: "知道了"
+                        title: PanelL10n.backgroundTitle,
+                        detail: PanelL10n.backgroundDetail(appState.hotkeyDisplay),
+                        actionTitle: PanelL10n.gotIt
                     ) {
                         acknowledgedBackgroundTip = true
                         UserDefaults.standard.set(true, forKey: "acknowledgedBackgroundTip")
@@ -611,14 +613,17 @@ struct MenuBarPanel: View {
         let searching = !appState.searchQuery.trimmingCharacters(in: .whitespaces).isEmpty
         return VStack(spacing: 10) {
             Image(systemName: searching ? "magnifyingglass" : "doc.on.clipboard")
-                .font(.system(size: 28, weight: .light))
+                .font(.system(size: 26, weight: .light))
                 .foregroundStyle(PasteTheme.accent)
-            Text(searching ? "没有匹配「\(appState.searchQuery)」的内容" : "复制任意内容后会出现在这里")
-                .font(.callout.weight(.medium))
-            Text(searching ? "换个关键词，或试试更口语的说法" : "面板可随时关闭，App 继续在菜单栏后台运行")
-                .font(.caption)
+            Text(searching ? PanelL10n.emptySearchTitle(appState.searchQuery) : PanelL10n.emptyTitle)
+                .font(PasteTheme.Typography.emptyTitle)
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.85)
+            Text(searching ? PanelL10n.emptySearchDetail : PanelL10n.emptyDetail)
+                .font(PasteTheme.Typography.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.85)
         }
         .padding(16)
         .frame(width: 236, height: 236)
@@ -638,24 +643,25 @@ struct MenuBarPanel: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 22, weight: .semibold))
+                .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .frame(width: 36, height: 36)
                 .background(Color.primary.opacity(0.06), in: PasteTheme.controlShape)
 
             Text(title)
-                .font(.headline)
+                .font(PasteTheme.Typography.headline)
+                .lineLimit(2)
+                .minimumScaleFactor(0.85)
             Text(detail)
-                .font(.caption)
+                .font(PasteTheme.Typography.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+                .minimumScaleFactor(0.85)
 
             Spacer(minLength: 0)
 
             Button(actionTitle, action: action)
-                .buttonStyle(.borderedProminent)
-                .tint(PasteTheme.accent)
-                .controlSize(.small)
+                .buttonStyle(ShelfAccentButtonStyle())
         }
         .padding(16)
         // Same height as a shelf card so the row reads as one line of tiles.
@@ -714,7 +720,7 @@ struct MenuBarPanel: View {
 /// background accessor, not above it). A representable `NSTextField` is the
 /// field, so it can be made first responder and Chinese IME composes correctly.
 private struct PanelSearchField: NSViewRepresentable {
-    /// One line of 13pt system text plus the editor's insets.
+    /// One line of 12–12.5pt system text plus the editor's insets.
     static let fieldHeight: CGFloat = 20
 
     @Binding var text: String
@@ -843,7 +849,10 @@ private final class PanelSearchFieldHost: NSView {
         textField.isEditable = true
         textField.isSelectable = true
         textField.focusRingType = .none
-        textField.font = .systemFont(ofSize: 13)
+        textField.font = .systemFont(
+            ofSize: PasteTheme.Typography.usesCJKLayout ? 12.5 : 12,
+            weight: .regular
+        )
         textField.lineBreakMode = .byClipping
         textField.cell?.wraps = false
         textField.cell?.isScrollable = true
@@ -947,7 +956,9 @@ struct ClipboardItemDetailOverlay: View {
     private var detailHeader: some View {
         HStack(spacing: 12) {
             Label(item.contentType.displayName, systemImage: item.contentType.systemImage)
-                .font(.caption.weight(.semibold))
+                .font(PasteTheme.Typography.captionBold)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .background(
@@ -958,17 +969,21 @@ struct ClipboardItemDetailOverlay: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.previewTitle)
-                    .font(.headline)
+                    .font(PasteTheme.Typography.headline)
+                    .tracking(PasteTheme.Typography.tracking(for: item.previewTitle))
                     .lineLimit(1)
+                    .minimumScaleFactor(0.85)
                 HStack(spacing: 6) {
                     if let source = item.sourceAppName {
                         Text(source)
-                            .font(.caption)
+                            .shelfCaption()
                             .foregroundStyle(.secondary)
                     }
                     ForEach(item.favoriteTags, id: \.self) { tag in
                         Text(tag)
-                            .font(.caption2.weight(.semibold))
+                            .font(PasteTheme.Typography.captionBold)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(
@@ -985,21 +1000,25 @@ struct ClipboardItemDetailOverlay: View {
             if let onToggleFavorite {
                 Button(action: onToggleFavorite) {
                     Image(systemName: item.isFavorite ? "star.fill" : "star")
-                        .font(.title3)
+                        .font(PasteTheme.Typography.icon)
                         .foregroundStyle(item.isFavorite ? Color(hex: "#F59E0B") ?? .yellow : .secondary)
+                        .frame(width: 26, height: 26)
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .help(item.isFavorite ? "从收藏夹移除" : "收藏，长期保存")
+                .help(item.isFavorite ? PanelL10n.unfavorite : PanelL10n.favoriteHelp)
             }
 
             Button(action: onClose) {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.title3)
+                    .font(PasteTheme.Typography.icon)
                     .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(.secondary)
+                    .frame(width: 26, height: 26)
+                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .help("关闭 (Esc)")
+            .help(PanelL10n.closeEsc)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
@@ -1017,7 +1036,8 @@ struct ClipboardItemDetailOverlay: View {
                         .frame(maxWidth: .infinity)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 } else {
-                    Text("无法预览图片")
+                    Text(PanelL10n.imageUnavailable)
+                        .font(PasteTheme.Typography.body)
                         .foregroundStyle(.secondary)
                 }
                 if let recognizedText {
@@ -1031,14 +1051,15 @@ struct ClipboardItemDetailOverlay: View {
                 .frame(height: 140)
                 .overlay(alignment: .bottomLeading) {
                     Text(item.colorHex ?? item.plainText ?? "")
-                        .font(.system(.title3, design: .monospaced).weight(.medium))
+                        .font(.system(size: 16, weight: .medium, design: .monospaced))
                         .foregroundStyle(.white)
                         .shadow(radius: 2)
                         .padding(14)
                 }
         case .code:
             Text(item.plainText ?? "")
-                .font(.system(.body, design: .monospaced))
+                .font(PasteTheme.Typography.previewMono)
+                .lineSpacing(PasteTheme.Typography.lineSpacing(for: item.plainText ?? ""))
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
@@ -1048,19 +1069,22 @@ struct ClipboardItemDetailOverlay: View {
                 if let urlString = item.plainText, let url = URL(string: urlString) {
                     Link(destination: url) {
                         Label(urlString, systemImage: "arrow.up.right.square")
-                            .font(.body.weight(.medium))
+                            .font(PasteTheme.Typography.bodyEmphasis)
+                            .lineLimit(3)
+                            .minimumScaleFactor(0.85)
                             .multilineTextAlignment(.leading)
                     }
                     Text(url.host ?? urlString)
-                        .font(.caption)
+                        .font(PasteTheme.Typography.caption)
                         .foregroundStyle(.secondary)
                 } else {
                     Text(item.plainText ?? item.previewTitle)
-                        .font(.body)
+                        .font(PasteTheme.Typography.body)
+                        .lineSpacing(PasteTheme.Typography.lineSpacing(for: item.plainText ?? item.previewTitle))
                         .textSelection(.enabled)
                 }
                 Text(item.plainText ?? "")
-                    .font(.system(.callout, design: .monospaced))
+                    .font(PasteTheme.Typography.previewMono)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(14)
@@ -1071,14 +1095,16 @@ struct ClipboardItemDetailOverlay: View {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(item.fileURLs, id: \.absoluteString) { url in
                     Label(url.path, systemImage: "doc")
-                        .font(.callout)
+                        .font(PasteTheme.Typography.body)
                         .textSelection(.enabled)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         default:
             Text(item.plainText ?? item.previewTitle)
-                .font(.body)
+                .font(PasteTheme.Typography.body)
+                .lineSpacing(PasteTheme.Typography.lineSpacing(for: item.plainText ?? item.previewTitle))
+                .tracking(PasteTheme.Typography.tracking(for: item.plainText ?? item.previewTitle))
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
@@ -1089,22 +1115,22 @@ struct ClipboardItemDetailOverlay: View {
     private func recognizedTextSection(_ text: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Label("识别到的文字", systemImage: "text.viewfinder")
-                    .font(.caption.weight(.semibold))
+                Label(PanelL10n.recognizedHeading, systemImage: "text.viewfinder")
+                    .font(PasteTheme.Typography.captionBold)
                     .foregroundStyle(.secondary)
-                Text("\(TextRecognizer.characterCount(of: text)) 字")
-                    .font(.caption2.monospacedDigit())
+                Text(PanelL10n.recognizedCount(TextRecognizer.characterCount(of: text)))
+                    .font(PasteTheme.Typography.chipBadge)
                     .foregroundStyle(.tertiary)
                 Spacer(minLength: 0)
                 Button(action: onCopyText) {
-                    Label("复制文字", systemImage: "doc.on.clipboard")
-                        .font(.caption)
+                    Label(PanelL10n.copyText, systemImage: "doc.on.clipboard")
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .buttonStyle(ShelfQuietButtonStyle())
             }
             Text(text)
-                .font(.system(size: 12.5))
+                .font(PasteTheme.Typography.preview)
+                .lineSpacing(PasteTheme.Typography.lineSpacing(for: text))
+                .tracking(PasteTheme.Typography.tracking(for: text))
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(12)
@@ -1116,44 +1142,45 @@ struct ClipboardItemDetailOverlay: View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.updatedAt.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption)
+                    .font(PasteTheme.Typography.caption)
                     .foregroundStyle(.secondary)
                 Label(
                     item.retentionStatus(days: retentionDays),
                     systemImage: item.isRetentionProtected ? "star.fill" : "clock"
                 )
-                .font(.caption2)
+                .font(PasteTheme.Typography.caption)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
                 .foregroundStyle(item.isRetentionProtected ? Color(hex: "#F59E0B") ?? .orange : Color.secondary)
             }
             Spacer()
             if recognizedText != nil {
                 Button(action: onCopyText) {
-                    Label("复制文字", systemImage: "text.viewfinder")
+                    Label(PanelL10n.copyText, systemImage: "text.viewfinder")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(ShelfQuietButtonStyle())
             } else if item.contentType == .image, item.imageData != nil, let onRecognizeText {
                 Button(action: onRecognizeText) {
-                    Label("识别文字", systemImage: "text.viewfinder")
+                    Label(PanelL10n.recognizeText, systemImage: "text.viewfinder")
                 }
-                .buttonStyle(.bordered)
-                .help("用 Vision 在本机识别这张截图里的文字")
+                .buttonStyle(ShelfQuietButtonStyle())
+                .help(PanelL10n.recognizeHelp)
             }
             if item.contentType == .image, item.imageData != nil, let onSaveImage {
                 Button(action: onSaveImage) {
-                    Label("下载", systemImage: "arrow.down.to.line")
+                    Label(PanelL10n.download, systemImage: "arrow.down.to.line")
                 }
-                .buttonStyle(.bordered)
-                .help("保存为 PNG 到「下载」")
+                .buttonStyle(ShelfQuietButtonStyle())
+                .help(PanelL10n.downloadHelp)
             }
             Button(action: onCopy) {
-                Label("复制", systemImage: "doc.on.doc")
+                Label(PanelL10n.copy, systemImage: "doc.on.doc")
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(ShelfQuietButtonStyle())
             Button(action: onPaste) {
-                Label("粘贴", systemImage: "return")
+                Label(PanelL10n.paste, systemImage: "return")
             }
-            .buttonStyle(.borderedProminent)
-            .tint(PasteTheme.accent)
+            .buttonStyle(ShelfAccentButtonStyle())
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
@@ -1213,7 +1240,7 @@ struct ClipboardShelfCard: View {
 
     private var footerMeta: String {
         if let imagePixelSize { return imagePixelSize }
-        return "\(characterCount) 个字符"
+        return PanelL10n.characterCount(characterCount)
     }
 
     var body: some View {
@@ -1241,21 +1268,21 @@ struct ClipboardShelfCard: View {
         }
         .simultaneousGesture(TapGesture(count: 2).onEnded { onOpenDetail() })
         .contextMenu {
-            Button("查看详情", action: onOpenDetail)
-            Button("粘贴", action: onPaste)
+            Button(PanelL10n.details, action: onOpenDetail)
+            Button(PanelL10n.paste, action: onPaste)
             if hasRecognizedText {
-                Button("复制识别的文字", action: onCopyText)
+                Button(PanelL10n.copyRecognized, action: onCopyText)
             } else if canRecognizeText, let onRecognizeText {
-                Button("识别文字", action: onRecognizeText)
+                Button(PanelL10n.recognizeText, action: onRecognizeText)
             }
             if item.contentType == .image, item.imageData != nil, let onSaveImage {
-                Button("下载图片", action: onSaveImage)
+                Button(PanelL10n.downloadImage, action: onSaveImage)
             }
             if let onToggleFavorite {
-                Button(item.isFavorite ? "从收藏夹移除" : "收藏（长期保存）", action: onToggleFavorite)
+                Button(item.isFavorite ? PanelL10n.unfavorite : PanelL10n.favorite, action: onToggleFavorite)
             }
             if let onToggleTag {
-                Menu("分类") {
+                Menu(PanelL10n.tag) {
                     ForEach(tagMenuOptions, id: \.self) { tag in
                         Button {
                             onToggleTag(tag)
@@ -1270,9 +1297,9 @@ struct ClipboardShelfCard: View {
                     }
                 }
             }
-            Button(item.isPinned ? "取消置顶" : "置顶", action: onPin)
+            Button(item.isPinned ? PanelL10n.unpin : PanelL10n.pin, action: onPin)
             Divider()
-            Button("删除", role: .destructive, action: onDelete)
+            Button(PanelL10n.delete, role: .destructive, action: onDelete)
         }
         .scaleEffect(isSelected ? 1.015 : 1.0)
         .animation(.spring(response: 0.28, dampingFraction: 0.86), value: isSelected)
@@ -1282,20 +1309,24 @@ struct ClipboardShelfCard: View {
         HStack(alignment: .center, spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.contentType.displayName)
-                    .font(.caption.weight(.bold))
+                    .font(PasteTheme.Typography.captionBold)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                 Text(item.updatedAt, style: .relative)
-                    .font(.caption2)
+                    .font(PasteTheme.Typography.caption)
                     .opacity(0.85)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             Spacer(minLength: 4)
             if let onToggleFavorite, isHovered || isSelected || item.isFavorite {
                 Button(action: onToggleFavorite) {
                     Image(systemName: item.isFavorite ? "star.fill" : "star")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(PasteTheme.Typography.iconSmall)
                         .foregroundStyle(item.isFavorite ? Color(hex: "#F59E0B") ?? .yellow : .white.opacity(0.85))
                 }
                 .buttonStyle(.plain)
-                .help(item.isFavorite ? "从收藏夹移除" : "收藏，长期保存")
+                .help(item.isFavorite ? PanelL10n.unfavorite : PanelL10n.favoriteHelp)
             }
             sourceAppIcon
                 .frame(width: 22, height: 22)
@@ -1315,8 +1346,8 @@ struct ClipboardShelfCard: View {
                 .padding(10)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             if hasRecognizedText {
-                Label("文字", systemImage: "text.viewfinder")
-                    .font(.caption2.weight(.semibold))
+                Label(PanelL10n.textBadge, systemImage: "text.viewfinder")
+                    .font(PasteTheme.Typography.captionBold)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)
@@ -1336,8 +1367,9 @@ struct ClipboardShelfCard: View {
         HStack(spacing: 4) {
             ForEach(item.favoriteTags.prefix(2), id: \.self) { tag in
                 Text(tag)
-                    .font(.caption2.weight(.semibold))
+                    .font(PasteTheme.Typography.captionBold)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(
@@ -1348,7 +1380,7 @@ struct ClipboardShelfCard: View {
             }
             if item.favoriteTags.count > 2 {
                 Text("+\(item.favoriteTags.count - 2)")
-                    .font(.caption2.monospacedDigit())
+                    .font(PasteTheme.Typography.chipBadge)
                     .foregroundStyle(.secondary)
             }
         }
@@ -1359,26 +1391,27 @@ struct ClipboardShelfCard: View {
     private var cardFooter: some View {
         HStack(spacing: 6) {
             Text(footerMeta)
-                .font(.caption2)
+                .font(PasteTheme.Typography.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+                .minimumScaleFactor(0.8)
             Spacer(minLength: 4)
             if item.isExpiringSoon(days: retentionDays) {
                 Image(systemName: "clock.badge.exclamationmark")
-                    .font(.caption2)
+                    .font(PasteTheme.Typography.iconSmall)
                     .foregroundStyle(Color(hex: "#EE6C4D") ?? .orange)
-                    .help("未收藏，不到 1 天后自动清理")
+                    .help(PanelL10n.expiringSoonHelp)
             }
             if item.isPinned {
                 Image(systemName: "pin.fill")
-                    .font(.caption2)
+                    .font(PasteTheme.Typography.iconSmall)
                     .foregroundStyle(PasteTheme.cardHeader)
             }
             Image(systemName: "line.3.horizontal")
-                .font(.caption2)
+                .font(PasteTheme.Typography.iconSmall)
                 .foregroundStyle(.tertiary)
             Text("\(index)")
-                .font(.caption.monospaced().weight(.semibold))
+                .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
                 .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 12)
@@ -1408,15 +1441,19 @@ struct ClipboardShelfCard: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay(alignment: .bottomLeading) {
                     Text(hex)
-                        .font(.caption2.monospaced())
+                        .font(PasteTheme.Typography.statusMono)
                         .foregroundStyle(.white)
                         .padding(8)
                 }
         } else {
-            Text(item.plainText ?? item.previewTitle)
-                .font(.system(size: 12.5, weight: .regular))
+            let preview = item.plainText ?? item.previewTitle
+            Text(preview)
+                .font(PasteTheme.Typography.preview)
+                .lineSpacing(PasteTheme.Typography.lineSpacing(for: preview))
+                .tracking(PasteTheme.Typography.tracking(for: preview))
                 .foregroundStyle(.primary)
                 .lineLimit(7)
+                .minimumScaleFactor(0.88)
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
@@ -1431,12 +1468,12 @@ struct ClipboardShelfCard: View {
                 .scaledToFit()
         } else if let name = item.sourceAppName, !name.isEmpty {
             Image(systemName: "app.fill")
-                .font(.system(size: 12, weight: .semibold))
+                .font(PasteTheme.Typography.iconSmall)
                 .foregroundStyle(.white.opacity(0.95))
                 .help(name)
         } else {
             Image(systemName: item.contentType.systemImage)
-                .font(.system(size: 11, weight: .semibold))
+                .font(PasteTheme.Typography.iconSmall)
                 .foregroundStyle(.white.opacity(0.95))
         }
     }
