@@ -57,7 +57,32 @@
       color: var(--muted);
       font-size: 1.05rem;
     }
-    .cta-row { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+    .cta-row { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; align-items: center; }
+    .lang-switch {
+      display: inline-flex;
+      gap: 4px;
+      margin-left: auto;
+      padding: 3px;
+      background: rgba(255,255,255,.55);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+    .lang-switch button {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 10px;
+      border-radius: 9px;
+      cursor: pointer;
+    }
+    .lang-switch button.active {
+      background: #fff;
+      color: var(--ink);
+      box-shadow: 0 1px 4px rgba(15,23,42,.08);
+    }
     .btn {
       border: 0;
       border-radius: 12px;
@@ -529,6 +554,11 @@
         <button class="btn btn-primary" id="simulateCopy">模拟复制一条</button>
         <button class="btn btn-ghost" id="simulateShot">模拟截图</button>
         <button class="btn btn-ghost" id="clearSearch">清空搜索</button>
+        <div class="lang-switch" role="radiogroup" aria-label="Screenshot toolbar language">
+          <button type="button" class="active" data-lang="zh-Hans" aria-pressed="true">简体</button>
+          <button type="button" data-lang="zh-Hant" aria-pressed="false">繁體</button>
+          <button type="button" data-lang="en" aria-pressed="false">EN</button>
+        </div>
       </div>
     </header>
 
@@ -583,25 +613,25 @@
       <span class="handle sw"></span><span class="handle s"></span><span class="handle se"></span>
     </div>
     <div class="shot-toolbar" id="shotToolbar">
-      <div class="grip" data-tip="拖动工具条" aria-label="拖动工具条">⋮⋮</div>
-      <button data-tool="rect" data-tip="矩形" aria-label="矩形">▢</button>
-      <button data-tool="ellipse" data-tip="圆形" aria-label="圆形">○</button>
-      <button data-tool="line" data-tip="直线" aria-label="直线">╱</button>
-      <button data-tool="arrow" data-tip="箭头" aria-label="箭头">↗</button>
-      <button data-tool="pen" data-tip="画笔" aria-label="画笔">✎</button>
-      <button data-tool="text" data-tip="文字" aria-label="文字">T</button>
-      <button data-tool="pin" data-tip="序号" aria-label="序号">#</button>
-      <button data-tool="mosaic" data-tip="马赛克" aria-label="马赛克">▦</button>
-      <button data-tool="crop" data-tip="重新选区" aria-label="重新选区">✂</button>
+      <div class="grip" data-tip-key="drag" data-tip="拖动工具条" aria-label="拖动工具条">⋮⋮</div>
+      <button data-tool="rect" data-tip-key="rect" data-tip="矩形" aria-label="矩形">▢</button>
+      <button data-tool="ellipse" data-tip-key="ellipse" data-tip="圆形" aria-label="圆形">○</button>
+      <button data-tool="line" data-tip-key="line" data-tip="直线" aria-label="直线">╱</button>
+      <button data-tool="arrow" data-tip-key="arrow" data-tip="箭头" aria-label="箭头">↗</button>
+      <button data-tool="pen" data-tip-key="pen" data-tip="画笔" aria-label="画笔">✎</button>
+      <button data-tool="text" data-tip-key="text" data-tip="文字" aria-label="文字">T</button>
+      <button data-tool="pin" data-tip-key="pin" data-tip="序号" aria-label="序号">#</button>
+      <button data-tool="mosaic" data-tip-key="mosaic" data-tip="马赛克" aria-label="马赛克">▦</button>
+      <button data-tool="crop" data-tip-key="crop" data-tip="重新选区" aria-label="重新选区">✂</button>
       <div class="divider"></div>
-      <button id="shotColor" data-tip="颜色" aria-label="颜色"><span class="swatch" id="shotSwatch"></span></button>
-      <button id="shotWidth" data-tip="粗细" aria-label="粗细">≡</button>
+      <button id="shotColor" data-tip-key="color" data-tip="颜色" aria-label="颜色"><span class="swatch" id="shotSwatch"></span></button>
+      <button id="shotWidth" data-tip-key="width" data-tip="粗细" aria-label="粗细">≡</button>
       <div class="divider"></div>
-      <button id="shotUndo" data-tip="撤销" aria-label="撤销">↺</button>
-      <button id="shotDownload" data-tip="下载截图" aria-label="下载截图">⇩</button>
+      <button id="shotUndo" data-tip-key="undo" data-tip="撤销" aria-label="撤销">↺</button>
+      <button id="shotDownload" data-tip-key="download" data-tip="下载截图" aria-label="下载截图">⇩</button>
       <div class="divider"></div>
-      <button class="cancel" id="shotCancel" data-tip="取消（Esc）" aria-label="取消（Esc）">✕</button>
-      <button class="ok" id="shotConfirm" data-tip="完成（Enter）" aria-label="完成（Enter）">✓</button>
+      <button class="cancel" id="shotCancel" data-tip-key="cancel" data-tip="取消（Esc）" aria-label="取消（Esc）">✕</button>
+      <button class="ok" id="shotConfirm" data-tip-key="confirm" data-tip="完成（Enter）" aria-label="完成（Enter）">✓</button>
       <div class="shot-palette" id="shotPalette"></div>
       <div class="shot-widths" id="shotWidths"></div>
     </div>
@@ -622,6 +652,50 @@
       text: "文本", link: "链接", image: "图片", code: "代码",
       color: "颜色", snippet: "片段", file: "文件"
     };
+    const SHOT_HINTS = {
+      "zh-Hans": {
+        drag: "拖动工具条", rect: "矩形", ellipse: "圆形", line: "直线", arrow: "箭头",
+        pen: "画笔", text: "文字", pin: "序号", mosaic: "马赛克", crop: "重新选区",
+        color: "颜色", width: "粗细", undo: "撤销", download: "下载截图",
+        cancel: "取消（Esc）", confirm: "完成（Enter）"
+      },
+      "zh-Hant": {
+        drag: "拖曳工具列", rect: "矩形", ellipse: "圓形", line: "直線", arrow: "箭頭",
+        pen: "畫筆", text: "文字", pin: "序號", mosaic: "馬賽克", crop: "重新選區",
+        color: "顏色", width: "粗細", undo: "復原", download: "下載截圖",
+        cancel: "取消（Esc）", confirm: "完成（Enter）"
+      },
+      en: {
+        drag: "Move toolbar", rect: "Rectangle", ellipse: "Ellipse", line: "Line", arrow: "Arrow",
+        pen: "Pen", text: "Text", pin: "Number", mosaic: "Mosaic", crop: "Reselect",
+        color: "Color", width: "Thickness", undo: "Undo", download: "Save screenshot",
+        cancel: "Cancel (Esc)", confirm: "Done (Enter)"
+      }
+    };
+
+    function matchScreenshotLanguage(tag) {
+      const parts = String(tag || "").replace(/_/g, "-").split("-").map((p) => p.toLowerCase());
+      const first = parts[0];
+      if (first === "zh") {
+        const rest = parts.slice(1).join("-");
+        if (rest.startsWith("hant") || rest.startsWith("tw") || rest.startsWith("hk") || rest.startsWith("mo")) {
+          return "zh-Hant";
+        }
+        return "zh-Hans";
+      }
+      if (first === "en") return "en";
+      return null;
+    }
+
+    function resolveScreenshotLanguage(preferred) {
+      for (const tag of preferred) {
+        const match = matchScreenshotLanguage(tag);
+        if (match) return match;
+      }
+      return "zh-Hans";
+    }
+
+    let shotLang = resolveScreenshotLanguage(navigator.languages || [navigator.language]);
 
     let filter = "all";
     let query = "";
@@ -835,6 +909,27 @@
     shot.widths.innerHTML = [2, 3, 5].map((w) =>
       `<button type="button" data-w="${w}" style="width:72px;height:${w}px;background:#1b2a2f;border-radius:99px"></button>`
     ).join("");
+
+    function applyShotHints(lang) {
+      shotLang = SHOT_HINTS[lang] ? lang : "zh-Hans";
+      const hints = SHOT_HINTS[shotLang];
+      shot.toolbar.querySelectorAll("[data-tip-key]").forEach((el) => {
+        const text = hints[el.dataset.tipKey];
+        if (!text) return;
+        el.setAttribute("data-tip", text);
+        el.setAttribute("aria-label", text);
+      });
+      document.querySelectorAll(".lang-switch [data-lang]").forEach((btn) => {
+        const on = btn.dataset.lang === shotLang;
+        btn.classList.toggle("active", on);
+        btn.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+    }
+
+    applyShotHints(shotLang);
+    document.querySelectorAll(".lang-switch [data-lang]").forEach((btn) => {
+      btn.onclick = () => applyShotHints(btn.dataset.lang);
+    });
 
     function setTool(tool) {
       shot.tool = shot.tool === tool ? "move" : tool;

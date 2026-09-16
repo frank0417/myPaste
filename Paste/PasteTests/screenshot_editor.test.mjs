@@ -309,27 +309,101 @@ assertEqual(
 );
 assertEqual(snapEnd({ x: 0, y: 0 }, { x: 80, y: 20 }, "rect", false), { x: 80, y: 20 }, "no shift, no snap");
 
+const SUPPORTED_LANGUAGES = ["zh-Hans", "zh-Hant", "en"];
 const TOOL_TITLES = {
-  move: "调整选区",
-  rect: "矩形",
-  ellipse: "圆形",
-  line: "直线",
-  arrow: "箭头",
-  pen: "画笔",
-  text: "文字",
-  pin: "序号",
-  mosaic: "马赛克",
-  crop: "重新选区"
+  "zh-Hans": {
+    move: "调整选区",
+    rect: "矩形",
+    ellipse: "圆形",
+    line: "直线",
+    arrow: "箭头",
+    pen: "画笔",
+    text: "文字",
+    pin: "序号",
+    mosaic: "马赛克",
+    crop: "重新选区"
+  },
+  "zh-Hant": {
+    move: "調整選區",
+    rect: "矩形",
+    ellipse: "圓形",
+    line: "直線",
+    arrow: "箭頭",
+    pen: "畫筆",
+    text: "文字",
+    pin: "序號",
+    mosaic: "馬賽克",
+    crop: "重新選區"
+  },
+  en: {
+    move: "Adjust selection",
+    rect: "Rectangle",
+    ellipse: "Ellipse",
+    line: "Line",
+    arrow: "Arrow",
+    pen: "Pen",
+    text: "Text",
+    pin: "Number",
+    mosaic: "Mosaic",
+    crop: "Reselect"
+  }
 };
 const TOOLBAR_ACTION_HINTS = {
-  drag: "拖动工具条",
-  color: "颜色",
-  width: "粗细",
-  undo: "撤销",
-  download: "下载截图",
-  cancel: "取消（Esc）",
-  confirm: "完成（Enter）"
+  "zh-Hans": {
+    drag: "拖动工具条",
+    color: "颜色",
+    width: "粗细",
+    undo: "撤销",
+    download: "下载截图",
+    cancel: "取消（Esc）",
+    confirm: "完成（Enter）"
+  },
+  "zh-Hant": {
+    drag: "拖曳工具列",
+    color: "顏色",
+    width: "粗細",
+    undo: "復原",
+    download: "下載截圖",
+    cancel: "取消（Esc）",
+    confirm: "完成（Enter）"
+  },
+  en: {
+    drag: "Move toolbar",
+    color: "Color",
+    width: "Thickness",
+    undo: "Undo",
+    download: "Save screenshot",
+    cancel: "Cancel (Esc)",
+    confirm: "Done (Enter)"
+  }
 };
+const TEXT_PLACEHOLDER = {
+  "zh-Hans": "输入文字",
+  "zh-Hant": "輸入文字",
+  en: "Type text"
+};
+
+function matchScreenshotLanguage(tag) {
+  const parts = tag.replace(/_/g, "-").split("-").map((p) => p.toLowerCase());
+  const first = parts[0];
+  if (first === "zh") {
+    const rest = parts.slice(1).join("-");
+    if (rest.startsWith("hant") || rest.startsWith("tw") || rest.startsWith("hk") || rest.startsWith("mo")) {
+      return "zh-Hant";
+    }
+    return "zh-Hans";
+  }
+  if (first === "en") return "en";
+  return null;
+}
+
+function resolveScreenshotLanguage(preferred = []) {
+  for (const tag of preferred) {
+    const match = matchScreenshotLanguage(tag);
+    if (match) return match;
+  }
+  return "zh-Hans";
+}
 
 let bar = toolbarFrame(selection, canvas);
 assertEqual(
@@ -344,15 +418,34 @@ bar = toolbarFrame({ x: 20, y: 120, width: 80, height: 40 }, canvas);
 assertEqual(bar.x, 8, "toolbar is kept inside the left edge");
 bar = toolbarFrame({ x: 1400, y: 120, width: 30, height: 40 }, canvas);
 assertEqual(bar.x, 1440 - 638 - 8, "toolbar is kept inside the right edge");
-assertTrue(
-  TOOLBAR_TOOLS.every((tool) => Boolean(TOOL_TITLES[tool])),
-  "every toolbar icon has a hover hint"
-);
-assertEqual(TOOL_TITLES.rect, "矩形", "rect hint");
-assertEqual(TOOL_TITLES.mosaic, "马赛克", "mosaic hint");
-assertEqual(TOOLBAR_ACTION_HINTS.download, "下载截图", "download hint");
-assertEqual(TOOLBAR_ACTION_HINTS.cancel, "取消（Esc）", "cancel hint");
-assertEqual(Object.keys(TOOLBAR_ACTION_HINTS).length, 7, "chrome controls have hover hints");
+
+assertEqual(SUPPORTED_LANGUAGES, ["zh-Hans", "zh-Hant", "en"], "overlay ships Simplified, Traditional, and English");
+assertEqual(resolveScreenshotLanguage(["zh-Hans"]), "zh-Hans", "Simplified Chinese is used as-is");
+assertEqual(resolveScreenshotLanguage(["zh-CN"]), "zh-Hans", "zh-CN maps to Simplified");
+assertEqual(resolveScreenshotLanguage(["zh-TW"]), "zh-Hant", "zh-TW maps to Traditional");
+assertEqual(resolveScreenshotLanguage(["zh-Hant-HK"]), "zh-Hant", "zh-Hant-HK maps to Traditional");
+assertEqual(resolveScreenshotLanguage(["en-US", "zh-Hans"]), "en", "the first supported preferred language wins");
+assertEqual(resolveScreenshotLanguage(["fr-FR", "en-GB"]), "en", "unsupported French falls through to English");
+assertEqual(resolveScreenshotLanguage(["fr-FR"]), "zh-Hans", "no supported language falls back to the development region");
+assertEqual(resolveScreenshotLanguage([]), "zh-Hans", "empty preferred list uses Simplified Chinese");
+
+for (const lang of SUPPORTED_LANGUAGES) {
+  assertTrue(
+    TOOLBAR_TOOLS.every((tool) => Boolean(TOOL_TITLES[lang][tool])),
+    `${lang} has a hover hint for every toolbar icon`
+  );
+  assertEqual(Object.keys(TOOLBAR_ACTION_HINTS[lang]).length, 7, `${lang} chrome controls have hover hints`);
+  assertTrue(Boolean(TEXT_PLACEHOLDER[lang]), `${lang} has a text-tool placeholder`);
+}
+assertEqual(TOOL_TITLES["zh-Hans"].rect, "矩形", "Simplified rect hint");
+assertEqual(TOOL_TITLES["zh-Hant"].rect, "矩形", "Traditional rect hint");
+assertEqual(TOOL_TITLES.en.rect, "Rectangle", "English rect hint");
+assertEqual(TOOL_TITLES.en.mosaic, "Mosaic", "English mosaic hint");
+assertEqual(TOOLBAR_ACTION_HINTS["zh-Hans"].download, "下载截图", "Simplified download hint");
+assertEqual(TOOLBAR_ACTION_HINTS["zh-Hant"].download, "下載截圖", "Traditional download hint");
+assertEqual(TOOLBAR_ACTION_HINTS.en.download, "Save screenshot", "English download hint");
+assertEqual(TOOLBAR_ACTION_HINTS.en.cancel, "Cancel (Esc)", "English cancel hint");
+assertTrue(TOOL_TITLES["zh-Hant"].ellipse !== TOOL_TITLES["zh-Hans"].ellipse, "Traditional ellipse uses a distinct glyph");
 
 const badge = sizeBadgeFrame(selection, canvas, 64);
 assertEqual(badge.y, 120 - 22 - 6, "size badge sits above the top-left");

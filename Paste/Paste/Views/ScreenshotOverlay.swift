@@ -592,7 +592,7 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
         field.isBordered = false
         field.isBezeled = false
         field.focusRingType = .none
-        field.placeholderString = "输入文字"
+        field.placeholderString = ScreenshotL10n.string(.textPlaceholder)
         field.delegate = self
         addSubview(field)
         textField = field
