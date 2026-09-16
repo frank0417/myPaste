@@ -434,6 +434,44 @@ final class ClipboardStore: ObservableObject {
         EmbeddingIndex.shared.remove(ids: removed)
     }
 
+    /// Rewrite oversized TIFF copies to PNG/JPEG a couple at a time so a library
+    /// built before compression does not keep 200 MB of uncompressed screenshots
+    /// in the SwiftData context. Oldest first — those are the most likely TIFFs.
+    func scheduleImageCompaction() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak self] in
+            self?.compactOversizedImages(after: nil, passes: 0)
+        }
+    }
+
+    private func compactOversizedImages(after: Date?, passes: Int) {
+        guard passes < 20 else { return }
+        let cutoff = after ?? Date.distantPast
+        var descriptor = FetchDescriptor<ClipboardItem>(
+            predicate: #Predicate { $0.contentTypeRaw == "image" && $0.createdAt > cutoff },
+            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
+        )
+        descriptor.fetchLimit = 2
+        guard let batch = try? modelContext.fetch(descriptor), !batch.isEmpty else { return }
+        var saved = false
+        for item in batch {
+            guard let data = item.imageData, ClipboardMonitor.shouldCompactStoredImage(data) else { continue }
+            guard let compacted = ClipboardMonitor.compactedImageData(data), compacted.count < data.count else {
+                continue
+            }
+            item.imageData = compacted
+            item.contentHash = ClipboardMonitor.hashData(compacted)
+            ImageCache.shared.remove(id: item.id)
+            saved = true
+        }
+        if saved {
+            try? modelContext.save()
+        }
+        guard let lastDate = batch.last?.createdAt else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            self?.compactOversizedImages(after: lastDate, passes: passes + 1)
+        }
+    }
+
     private static func simulatePasteKeystroke() {
         let source = CGEventSource(stateID: .hidSystemState)
         let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true)

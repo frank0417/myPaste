@@ -90,6 +90,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     delegate?.clipboardStore?.enforceRetention()
                 }
             }
+            AutoTagService.backfillIfNeeded(in: container.mainContext)
+            store.scheduleImageCompaction()
         }
 
         if !didInstallStatusItem {
@@ -97,7 +99,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             StatusItemController.shared.install(container: container, appState: appState)
         }
 
-        AutoTagService.backfillIfNeeded(in: container.mainContext)
         if !didPrepareSearchIndex {
             didPrepareSearchIndex = true
             EmbeddingIndex.shared.onDidUpdate = { [weak appState] in
@@ -105,8 +106,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 appState.embeddingRevision += 1
             }
             EmbeddingIndex.shared.prepare()
-            let history = (try? container.mainContext.fetch(FetchDescriptor<ClipboardItem>())) ?? []
-            EmbeddingIndex.shared.backfill(history.map { ($0.id, $0.searchableText) })
+            // Do not fetch the whole history here: that materializes every screenshot
+            // blob on the main context before the user has even opened the shelf.
+            // The panel / main window backfill once they actually load items.
         }
     }
 

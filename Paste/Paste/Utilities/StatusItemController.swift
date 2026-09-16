@@ -312,6 +312,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     func hideMainWindow() {
         guard let window = resolveMainWindow(), window.isVisible else { return }
         window.orderOut(nil)
+        ImageCache.shared.releaseMemory()
     }
 
     /// `ContentView` registers the window once it exists; fall back to a lookup when the
@@ -357,6 +358,11 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         closePanelSearch()
         isDetailExpanded = false
         panel?.orderOut(nil)
+        // Drop the SwiftUI tree (and its @Query of every clipboard blob) while the
+        // shelf is hidden. showPanel rebuilds it. Without this, a menu-bar agent
+        // keeps the whole history decoded for as long as it runs.
+        panel?.contentView = NSView()
+        ImageCache.shared.releaseMemory()
     }
 
     /// The shelf always reopens without the search field; the query would otherwise
@@ -405,10 +411,8 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         // SwiftUI draws the shelf shadow; a window shadow leaves a rectangular strip below.
         panel.hasShadow = false
         panel.delegate = self
-
-        if let container = modelContainer, let appState {
-            panel.contentView = makeHostingView(container: container, appState: appState, expanded: false)
-        }
+        // Hosting view is created on first show — installing it here would @Query
+        // the entire history the moment the status item appears.
 
         return panel
     }

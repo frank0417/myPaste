@@ -120,14 +120,16 @@ enum AutoTagService {
     }
 
     static func backfillIfNeeded(in context: ModelContext) {
-        let descriptor = FetchDescriptor<ClipboardItem>()
-        guard let items = try? context.fetch(descriptor) else { return }
-        var changed = false
-        for item in items where item.autoTags.isEmpty {
+        // Only items that never received a tag — fetching the whole table at launch
+        // would load every image blob into the main context for nothing.
+        let descriptor = FetchDescriptor<ClipboardItem>(
+            predicate: #Predicate { $0.autoTagsJSON == nil }
+        )
+        guard let items = try? context.fetch(descriptor), !items.isEmpty else { return }
+        for item in items {
             apply(to: item)
-            changed = true
         }
-        if changed { try? context.save() }
+        try? context.save()
     }
 }
 

@@ -120,6 +120,7 @@ struct MenuBarPanel: View {
             if appState.selectedItemID == nil {
                 appState.selectedItemID = filtered.first?.id
             }
+            EmbeddingIndex.shared.backfill(items.prefix(300).map { ($0.id, $0.searchableText) })
         }
         .onChange(of: appState.showOnlyFavorites) { _, only in
             // Keep the tab and the filter in step even when another surface flips it.

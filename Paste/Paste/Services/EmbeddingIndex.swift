@@ -41,10 +41,10 @@ final class EmbeddingIndex: @unchecked Sendable {
 
     func prepare() {
         embedQueue.async { [weak self] in
-            guard let self else { return }
-            self.loadFromDiskIfNeeded()
-            _ = self.warmup(.latin)
-            _ = self.warmup(.cjk)
+            // Vectors only — do not `load()` NLContextualEmbedding here. Each model
+            // is tens of MB, and warming both English and CJK at launch is why a
+            // freshly opened menu-bar agent sat at ~200 MB in Activity Monitor.
+            self?.loadFromDiskIfNeeded()
         }
     }
 
@@ -52,8 +52,14 @@ final class EmbeddingIndex: @unchecked Sendable {
         embedQueue.async { [weak self] in
             guard let self else { return }
             self.loadFromDiskIfNeeded()
-            self.pending.append(contentsOf: items)
-            self.drainPending()
+            for item in items where self.peek(item.0) == nil {
+                self.pending.append(item)
+            }
+            // Replay only if a model is already resident. Otherwise wait for the
+            // first search or the first copy so idle RAM stays low.
+            if !self.loaded.isEmpty {
+                self.drainPending()
+            }
         }
     }
 
@@ -65,6 +71,7 @@ final class EmbeddingIndex: @unchecked Sendable {
             case .written:
                 self.schedulePersist()
                 self.notify()
+                self.drainPending()
             case .alreadyFresh:
                 break
             case .deferred:
@@ -138,6 +145,7 @@ final class EmbeddingIndex: @unchecked Sendable {
                 shouldNotify = true
             }
             self.recordLock.unlock()
+            self.drainPending()
             if shouldNotify {
                 self.notify()
             }

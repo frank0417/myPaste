@@ -162,7 +162,7 @@ struct SettingsView: View {
                 Button("导出历史为 JSON…") {
                     appState.requestExportJSON = true
                 }
-                Text("超出限制时会自动清理最早的记录，收藏与置顶不计入这个上限。图片与文件会占用更多磁盘空间。")
+                Text("超出限制时会自动清理最早的记录，收藏与置顶不计入这个上限。图片按压缩格式保存（优先 PNG，过大则 JPEG），以减少内存和磁盘占用。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

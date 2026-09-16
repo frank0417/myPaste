@@ -75,6 +75,9 @@ struct ClipboardHistoryPane: View {
                 appState.mainHistoryMode = .list
             }
         }
+        .onAppear {
+            EmbeddingIndex.shared.backfill(items.prefix(300).map { ($0.id, $0.searchableText) })
+        }
     }
 
     private var historyModeBar: some View {

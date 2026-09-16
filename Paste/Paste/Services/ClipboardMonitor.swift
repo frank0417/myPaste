@@ -141,17 +141,18 @@ final class ClipboardMonitor: ObservableObject {
         }
 
         if let image = NSImage(pasteboard: pasteboard),
-           let tiff = image.tiffRepresentation {
-            let hash = hashData(tiff)
+           let stored = storedImageData(from: pasteboard, image: image) {
+            let hash = hashData(stored)
             let thumb = thumbnailData(from: image, maxSize: 240)
+            let pixels = pixelSize(of: image)
             return CapturedClipboardPayload(
                 contentType: .image,
                 plainText: nil,
-                imageData: tiff,
+                imageData: stored,
                 richTextData: nil,
                 fileURLs: [],
                 contentHash: hash,
-                previewTitle: "图片 \(Int(image.size.width))×\(Int(image.size.height))",
+                previewTitle: "图片 \(pixels.width)×\(pixels.height)",
                 previewSubtitle: sourceName,
                 colorHex: nil,
                 sourceAppName: sourceName,
@@ -209,6 +210,92 @@ final class ClipboardMonitor: ObservableObject {
         return nil
     }
 
+    /// Prefer the pasteboard's own PNG; never persist `tiffRepresentation`.
+    /// A Retina screenshot's TIFF is typically 15–40 MB, the PNG 1–4 MB.
+    nonisolated static func storedImageData(from pasteboard: NSPasteboard, image: NSImage) -> Data? {
+        if let png = pasteboard.data(forType: .png), png.count > 32 {
+            if png.count <= ClipboardImageStorage.maxPreferredPNGBytes, !exceedsMaxPixelEdge(image) {
+                return png
+            }
+            return compactImageData(from: image) ?? png
+        }
+        return compactImageData(from: image)
+    }
+
+    /// Re-encode a previously stored blob if it is an uncompressed TIFF (or just huge).
+    nonisolated static func compactedImageData(_ data: Data) -> Data? {
+        guard let image = NSImage(data: data) else { return nil }
+        guard let compacted = compactImageData(from: image) else { return nil }
+        guard compacted.count < data.count else { return nil }
+        return compacted
+    }
+
+    nonisolated static func shouldCompactStoredImage(_ data: Data) -> Bool {
+        if isTIFF(data) { return data.count >= ClipboardImageStorage.compactIfLargerThanBytes }
+        return data.count >= ClipboardImageStorage.alwaysCompactIfLargerThanBytes
+    }
+
+    nonisolated static func isTIFF(_ data: Data) -> Bool {
+        guard data.count >= 4 else { return false }
+        let b0 = data[data.startIndex]
+        let b1 = data[data.startIndex.advanced(by: 1)]
+        let b2 = data[data.startIndex.advanced(by: 2)]
+        let b3 = data[data.startIndex.advanced(by: 3)]
+        // II*\0 little-endian or MM\0* big-endian
+        return (b0 == 0x49 && b1 == 0x49 && b2 == 0x2A && b3 == 0x00)
+            || (b0 == 0x4D && b1 == 0x4D && b2 == 0x00 && b3 == 0x2A)
+    }
+
+    nonisolated static func compactImageData(from image: NSImage) -> Data? {
+        guard let rep = rasterized(image, maxEdge: ClipboardImageStorage.maxStoredPixelEdge) else { return nil }
+        if let png = rep.representation(using: .png, properties: [:]),
+           png.count <= ClipboardImageStorage.maxPreferredPNGBytes {
+            return png
+        }
+        return rep.representation(
+            using: .jpeg,
+            properties: [.compressionFactor: ClipboardImageStorage.jpegQuality]
+        ) ?? rep.representation(using: .png, properties: [:])
+    }
+
+    nonisolated static func exceedsMaxPixelEdge(_ image: NSImage) -> Bool {
+        let size = pixelSize(of: image)
+        return CGFloat(max(size.width, size.height)) > ClipboardImageStorage.maxStoredPixelEdge
+    }
+
+    nonisolated static func pixelSize(of image: NSImage) -> (width: Int, height: Int) {
+        if let rep = image.representations.first, rep.pixelsWide > 0, rep.pixelsHigh > 0 {
+            return (rep.pixelsWide, rep.pixelsHigh)
+        }
+        return (max(1, Int(image.size.width)), max(1, Int(image.size.height)))
+    }
+
+    nonisolated static func rasterized(_ image: NSImage, maxEdge: CGFloat) -> NSBitmapImageRep? {
+        let pixels = pixelSize(of: image)
+        let longest = CGFloat(max(pixels.width, pixels.height))
+        let scale = longest > maxEdge ? maxEdge / longest : 1
+        let width = max(1, Int((CGFloat(pixels.width) * scale).rounded()))
+        let height = max(1, Int((CGFloat(pixels.height) * scale).rounded()))
+        let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: width,
+            pixelsHigh: height,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        )
+        guard let rep else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        image.draw(in: NSRect(origin: .zero, size: NSSize(width: width, height: height)))
+        NSGraphicsContext.restoreGraphicsState()
+        return rep
+    }
+
     /// Shared with `ScreenshotService` so captures get the same shelf thumbnails.
     nonisolated static func thumbnailData(from image: NSImage, maxSize: CGFloat) -> Data? {
         let size = image.size
@@ -241,8 +328,8 @@ final class ClipboardMonitor: ObservableObject {
     nonisolated static func imagePasteboardItem(imageData: Data, text: String?) -> NSPasteboardItem? {
         guard let image = NSImage(data: imageData), let tiff = image.tiffRepresentation else { return nil }
         let item = NSPasteboardItem()
-        // Some apps only read tiff, so offer both image encodings. Both are derived
-        // from the decoded image: stored data is tiff for copies and png for captures.
+        // Some apps only read tiff, so offer both encodings at paste time. History
+        // stores PNG/JPEG; this TIFF is transient and not written back to the store.
         item.setData(tiff, forType: .tiff)
         if let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
             item.setData(png, forType: .png)
@@ -262,6 +349,21 @@ final class ClipboardMonitor: ObservableObject {
         let digest = SHA256.hash(data: data)
         return digest.map { String(format: "%02x", $0) }.joined()
     }
+}
+
+/// Limits for what we persist. Kept off `ClipboardMonitor` so the `@MainActor`
+/// class does not isolate the numbers from `nonisolated` capture helpers.
+enum ClipboardImageStorage {
+    /// Longest edge stored for a copied image. 5K captures still paste; they just
+    /// don't sit in RAM as a 40 MB uncompressed TIFF.
+    static let maxStoredPixelEdge: CGFloat = 2560
+    /// PNG stays lossless up to this size; larger (photos) become JPEG.
+    static let maxPreferredPNGBytes = 1_500_000
+    /// TIFF payloads this large are worth recompressing on a later sweep.
+    static let compactIfLargerThanBytes = 800_000
+    /// Any encoding this large is worth another pass, TIFF or not.
+    static let alwaysCompactIfLargerThanBytes = 3_000_000
+    static let jpegQuality: CGFloat = 0.78
 }
 
 struct CapturedClipboardPayload {
