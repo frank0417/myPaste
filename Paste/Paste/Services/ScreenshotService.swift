@@ -538,6 +538,7 @@ enum ScreenshotGrabber {
     struct Frame {
         let screen: NSScreen
         let image: NSImage
+        let cgImage: CGImage
         let scale: CGFloat
         let windows: [CGRect]
     }
@@ -547,19 +548,20 @@ enum ScreenshotGrabber {
         let kitContent = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         var frames: [Frame] = []
         for screen in NSScreen.screens {
-            let image: NSImage?
+            let cgImage: CGImage?
             if let kitContent {
-                image = try? await captureWithKit(screen: screen, content: kitContent)
+                cgImage = try? await captureWithKit(screen: screen, content: kitContent)
             } else {
-                image = nil
+                cgImage = nil
             }
-            guard let image = image ?? captureWithDisplay(screen) else { continue }
-            let pixelWidth = ScreenshotRenderer.cgImage(from: image)?.width ?? Int(screen.frame.width)
-            let scale = CGFloat(pixelWidth) / max(screen.frame.width, 1)
+            guard let cgImage = cgImage ?? CGDisplayCreateImage(screen.displayID) else { continue }
+            let image = nsImage(from: cgImage, pointSize: screen.frame.size)
+            let scale = CGFloat(cgImage.width) / max(screen.frame.width, 1)
             frames.append(
                 Frame(
                     screen: screen,
                     image: image,
+                    cgImage: cgImage,
                     scale: scale,
                     windows: windows[screen.displayID] ?? []
                 )
@@ -568,24 +570,34 @@ enum ScreenshotGrabber {
         return frames
     }
 
-    private static func captureWithKit(screen: NSScreen, content: SCShareableContent) async throws -> NSImage {
+    private static func captureWithKit(screen: NSScreen, content: SCShareableContent) async throws -> CGImage {
         guard let display = content.displays.first(where: { $0.displayID == screen.displayID }) else {
             throw NSError(domain: "PasteNest.Screenshot", code: 1, userInfo: [
                 NSLocalizedDescriptionKey: "Display not found"
             ])
         }
         let filter = SCContentFilter(display: display, excludingWindows: [])
+        let pixels = ScreenshotLayout.outputPixelSize(
+            contentRect: filter.contentRect.size,
+            pointPixelScale: CGFloat(filter.pointPixelScale),
+            screenPoints: screen.frame.size,
+            backingScale: screen.backingScaleFactor
+        )
         let config = SCStreamConfiguration()
-        config.width = display.width
-        config.height = display.height
+        config.width = pixels.width
+        config.height = pixels.height
         config.showsCursor = false
-        let cgImage = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
-        return NSImage(cgImage: cgImage, size: screen.frame.size)
+        config.scalesToFit = true
+        if #available(macOS 14.2, *) {
+            config.captureResolution = .best
+        }
+        return try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
     }
 
-    private static func captureWithDisplay(_ screen: NSScreen) -> NSImage? {
-        guard let cgImage = CGDisplayCreateImage(screen.displayID) else { return nil }
-        return NSImage(cgImage: cgImage, size: screen.frame.size)
+    private static func nsImage(from cgImage: CGImage, pointSize: CGSize) -> NSImage {
+        let image = NSImage(size: pointSize)
+        image.addRepresentation(NSBitmapImageRep(cgImage: cgImage))
+        return image
     }
 
     /// Layer-0 on-screen windows, converted into each display's flipped canvas space.

@@ -240,8 +240,8 @@ private struct ScreenshotActionBarView: View {
 
             Spacer(minLength: 6)
 
-            actionButton("识别文字", systemImage: "text.viewfinder", action: model.onRecognize)
-            actionButton("下载截图", systemImage: "arrow.down.to.line", action: model.onSave)
+            actionButton(ScreenshotL10n.string(.recognizeText), systemImage: "text.viewfinder", action: model.onRecognize)
+            actionButton(ScreenshotL10n.string(.download), systemImage: "arrow.down.to.line", action: model.onSave)
 
             Button(action: model.onClose) {
                 Image(systemName: "xmark")
@@ -250,7 +250,7 @@ private struct ScreenshotActionBarView: View {
                     .frame(width: 22, height: 22)
             }
             .buttonStyle(.plain)
-            .help("关闭")
+            .help(ScreenshotL10n.string(.close))
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)

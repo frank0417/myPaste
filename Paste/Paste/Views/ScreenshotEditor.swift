@@ -18,20 +18,7 @@ enum ScreenshotTool: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var title: String {
-        switch self {
-        case .move: return "调整选区"
-        case .rect: return "矩形"
-        case .ellipse: return "圆形"
-        case .line: return "直线"
-        case .arrow: return "箭头"
-        case .pen: return "画笔"
-        case .text: return "文字"
-        case .pin: return "序号"
-        case .mosaic: return "马赛克"
-        case .crop: return "重新选区"
-        }
-    }
+    var title: String { ScreenshotL10n.toolTitle(self) }
 
     var systemImage: String {
         switch self {
@@ -64,6 +51,147 @@ enum ScreenshotTool: String, CaseIterable, Identifiable {
     var isStamp: Bool {
         self == .text || self == .pin
     }
+}
+
+/// Hover captions for chrome on the annotation strip (not drawing tools).
+enum ScreenshotToolbarHintText {
+    static var drag: String { ScreenshotL10n.string(.drag) }
+    static var color: String { ScreenshotL10n.string(.color) }
+    static var width: String { ScreenshotL10n.string(.width) }
+    static var undo: String { ScreenshotL10n.string(.undo) }
+    static var download: String { ScreenshotL10n.string(.download) }
+    static var cancel: String { ScreenshotL10n.string(.cancel) }
+    static var confirm: String { ScreenshotL10n.string(.confirm) }
+}
+
+/// Languages the screenshot overlay localizes into. Matches Xcode `knownRegions`
+/// (`zh-Hans`, `en`) plus Traditional Chinese, which screen OCR already requests.
+enum ScreenshotLanguage: String, CaseIterable {
+    case simplifiedChinese = "zh-Hans"
+    case traditionalChinese = "zh-Hant"
+    case english = "en"
+
+    /// App development region — used when no preferred language is supported.
+    static let fallback = ScreenshotLanguage.simplifiedChinese
+
+    static func resolve(preferredLanguages: [String] = Locale.preferredLanguages) -> ScreenshotLanguage {
+        for raw in preferredLanguages {
+            let tag = raw.replacingOccurrences(of: "_", with: "-")
+            if let match = match(tag) { return match }
+        }
+        return fallback
+    }
+
+    fileprivate static func match(_ tag: String) -> ScreenshotLanguage? {
+        let parts = tag.split(separator: "-").map { $0.lowercased() }
+        guard let first = parts.first else { return nil }
+        if first == "zh" {
+            let rest = parts.dropFirst().joined(separator: "-")
+            if rest.hasPrefix("hant") || rest.hasPrefix("tw") || rest.hasPrefix("hk") || rest.hasPrefix("mo") {
+                return .traditionalChinese
+            }
+            return .simplifiedChinese
+        }
+        if first == "en" { return .english }
+        return nil
+    }
+}
+
+enum ScreenshotL10n {
+    enum Key: String, CaseIterable {
+        case move, rect, ellipse, line, arrow, pen, text, pin, mosaic, crop
+        case drag, color, width, undo, download, cancel, confirm
+        case textPlaceholder
+        case recognizeText, close
+    }
+
+    static func string(_ key: Key, language: ScreenshotLanguage = .resolve()) -> String {
+        strings[language]?[key] ?? strings[ScreenshotLanguage.fallback]![key]!
+    }
+
+    static func toolTitle(_ tool: ScreenshotTool, language: ScreenshotLanguage = .resolve()) -> String {
+        switch tool {
+        case .move: return string(.move, language: language)
+        case .rect: return string(.rect, language: language)
+        case .ellipse: return string(.ellipse, language: language)
+        case .line: return string(.line, language: language)
+        case .arrow: return string(.arrow, language: language)
+        case .pen: return string(.pen, language: language)
+        case .text: return string(.text, language: language)
+        case .pin: return string(.pin, language: language)
+        case .mosaic: return string(.mosaic, language: language)
+        case .crop: return string(.crop, language: language)
+        }
+    }
+
+    private static let strings: [ScreenshotLanguage: [Key: String]] = [
+        .simplifiedChinese: [
+            .move: "调整选区",
+            .rect: "矩形",
+            .ellipse: "圆形",
+            .line: "直线",
+            .arrow: "箭头",
+            .pen: "画笔",
+            .text: "文字",
+            .pin: "序号",
+            .mosaic: "马赛克",
+            .crop: "重新选区",
+            .drag: "拖动工具条",
+            .color: "颜色",
+            .width: "粗细",
+            .undo: "撤销",
+            .download: "下载截图",
+            .cancel: "取消（Esc）",
+            .confirm: "完成（Enter）",
+            .textPlaceholder: "输入文字",
+            .recognizeText: "识别文字",
+            .close: "关闭"
+        ],
+        .traditionalChinese: [
+            .move: "調整選區",
+            .rect: "矩形",
+            .ellipse: "圓形",
+            .line: "直線",
+            .arrow: "箭頭",
+            .pen: "畫筆",
+            .text: "文字",
+            .pin: "序號",
+            .mosaic: "馬賽克",
+            .crop: "重新選區",
+            .drag: "拖曳工具列",
+            .color: "顏色",
+            .width: "粗細",
+            .undo: "復原",
+            .download: "下載截圖",
+            .cancel: "取消（Esc）",
+            .confirm: "完成（Enter）",
+            .textPlaceholder: "輸入文字",
+            .recognizeText: "辨識文字",
+            .close: "關閉"
+        ],
+        .english: [
+            .move: "Adjust selection",
+            .rect: "Rectangle",
+            .ellipse: "Ellipse",
+            .line: "Line",
+            .arrow: "Arrow",
+            .pen: "Pen",
+            .text: "Text",
+            .pin: "Number",
+            .mosaic: "Mosaic",
+            .crop: "Reselect",
+            .drag: "Move toolbar",
+            .color: "Color",
+            .width: "Thickness",
+            .undo: "Undo",
+            .download: "Save screenshot",
+            .cancel: "Cancel (Esc)",
+            .confirm: "Done (Enter)",
+            .textPlaceholder: "Type text",
+            .recognizeText: "Recognize text",
+            .close: "Close"
+        ]
+    ]
 }
 
 enum ScreenshotHandle: String, CaseIterable {
@@ -126,12 +254,39 @@ enum ScreenshotLayout {
     static let handleHitRadius: CGFloat = 10
     static let minSelection: CGFloat = 4
     static let toolbarSize = CGSize(width: 638, height: 48)
+    /// Extra host height above the capsule so icon hover hints are not clipped.
+    static let toolbarHintHeight: CGFloat = 28
     static let toolbarGap: CGFloat = 12
     static let sizeBadgeHeight: CGFloat = 22
     static let sizeBadgeGap: CGFloat = 6
     static let mosaicBlock: CGFloat = 10
     static let arrowHeadLength: CGFloat = 14
     static let arrowHeadAngle: CGFloat = .pi / 6
+    /// Overlay canvas is flipped (origin top-left). The freeze is blitted as a
+    /// native-pixel CGImage with a Y flip so it stays upright and sharp.
+    static let imageDrawRespectsFlipped = true
+    /// Composite paints the CGImage before flipping the context for strokes.
+    static let compositeDrawsImageBeforeFlip = true
+
+    /// ScreenCaptureKit output size in pixels. `SCStreamConfiguration` defaults to
+    /// 1920×1080, which looks soft on a Retina display; always size the buffer from
+    /// the filter's point scale, and never smaller than `backingScaleFactor`.
+    static func outputPixelSize(
+        contentRect: CGSize,
+        pointPixelScale: CGFloat,
+        screenPoints: CGSize,
+        backingScale: CGFloat
+    ) -> (width: Int, height: Int) {
+        let filterScale = pointPixelScale > 0 ? pointPixelScale : 1
+        let filterWidth = Int((contentRect.width * filterScale).rounded())
+        let filterHeight = Int((contentRect.height * filterScale).rounded())
+        let screenWidth = Int((screenPoints.width * max(backingScale, 1)).rounded())
+        let screenHeight = Int((screenPoints.height * max(backingScale, 1)).rounded())
+        if filterWidth >= screenWidth && filterHeight >= screenHeight {
+            return (max(filterWidth, 1), max(filterHeight, 1))
+        }
+        return (max(screenWidth, 1), max(screenHeight, 1))
+    }
     static let defaultColorHex = "#F5222D"
     static let selectionColorHex = "#2F80FF"
     static let dimOpacity: CGFloat = 0.55
@@ -245,20 +400,23 @@ enum ScreenshotLayout {
     }
 
     /// Hang below the selection, flip above when there is no room, then clamp.
+    /// The returned rect is the hosting view: capsule plus hint space above it.
     static func toolbarFrame(
         selection: CGRect,
         canvas: CGRect,
         size: CGSize = toolbarSize,
         offset: CGSize = .zero
     ) -> CGRect {
-        var x = selection.midX - size.width / 2 + offset.width
-        var y = selection.maxY + toolbarGap + offset.height
-        if y + size.height > canvas.maxY - 8 {
-            y = selection.minY - size.height - toolbarGap + offset.height
+        let host = CGSize(width: size.width, height: size.height + toolbarHintHeight)
+        var x = selection.midX - host.width / 2 + offset.width
+        var capsuleY = selection.maxY + toolbarGap + offset.height
+        if capsuleY + size.height > canvas.maxY - 8 {
+            capsuleY = selection.minY - size.height - toolbarGap + offset.height
         }
-        x = min(max(x, canvas.minX + 8), max(canvas.minX + 8, canvas.maxX - size.width - 8))
-        y = min(max(y, canvas.minY + 8), max(canvas.minY + 8, canvas.maxY - size.height - 8))
-        return CGRect(x: x, y: y, width: size.width, height: size.height)
+        var y = capsuleY - toolbarHintHeight
+        x = min(max(x, canvas.minX + 8), max(canvas.minX + 8, canvas.maxX - host.width - 8))
+        y = min(max(y, canvas.minY + 8), max(canvas.minY + 8, canvas.maxY - host.height - 8))
+        return CGRect(x: x, y: y, width: host.width, height: host.height)
     }
 
     /// Dark size pill, sitting just above the top-left of the selection.
@@ -368,7 +526,17 @@ enum ScreenshotRenderer {
         strokes: [ScreenshotStroke]
     ) -> Data? {
         guard let source = cgImage(from: image) else { return nil }
-        let scale = CGFloat(source.width) / max(image.size.width, 1)
+        return png(cgImage: source, pointSize: image.size, selection: selection, strokes: strokes)
+    }
+
+    static func png(
+        cgImage: CGImage,
+        pointSize: CGSize,
+        selection: CGRect,
+        strokes: [ScreenshotStroke]
+    ) -> Data? {
+        let source = cgImage
+        let scale = CGFloat(source.width) / max(pointSize.width, 1)
         let crop = ScreenshotLayout.pixelCrop(
             selection,
             scale: scale,
@@ -391,11 +559,12 @@ enum ScreenshotRenderer {
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ) else { return nil }
 
-        // Flip to top-left so stroke coordinates match the overlay canvas.
+        ctx.interpolationQuality = .high
+        // Draw the bitmap in default y-up space so the PNG is right-side up, then
+        // flip so strokes can use the overlay's top-left coordinates.
+        ctx.draw(cropped, in: CGRect(x: 0, y: 0, width: width, height: height))
         ctx.translateBy(x: 0, y: CGFloat(height))
         ctx.scaleBy(x: 1, y: -1)
-        ctx.interpolationQuality = .high
-        ctx.draw(cropped, in: CGRect(x: 0, y: 0, width: width, height: height))
 
         for stroke in strokes {
             draw(stroke, in: ctx, selection: selection, scale: scale, source: cropped)
@@ -407,6 +576,10 @@ enum ScreenshotRenderer {
     }
 
     static func cgImage(from image: NSImage) -> CGImage? {
+        let bitmaps = image.representations.compactMap { $0 as? NSBitmapImageRep }
+        if let best = bitmaps.max(by: { $0.pixelsWide < $1.pixelsWide }), let cgImage = best.cgImage {
+            return cgImage
+        }
         var proposed = CGRect(origin: .zero, size: image.size)
         return image.cgImage(forProposedRect: &proposed, context: nil, hints: nil)
     }

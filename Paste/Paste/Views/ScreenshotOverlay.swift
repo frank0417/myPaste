@@ -37,6 +37,7 @@ final class ScreenshotOverlayController {
         for frame in frames {
             let session = ScreenshotSession(
                 image: frame.image,
+                cgImage: frame.cgImage,
                 scale: frame.scale,
                 canvasSize: frame.screen.frame.size,
                 windows: frame.windows,
@@ -79,14 +80,24 @@ final class ScreenshotOverlayController {
         session.commitTextIfNeeded()
         guard let selection = session.selection, selection.width >= ScreenshotLayout.minSelection else { return }
         let strokes = session.recognizeText ? [] : session.strokes
-        guard let annotated = ScreenshotRenderer.png(image: session.image, selection: selection, strokes: strokes) else {
+        guard let annotated = ScreenshotRenderer.png(
+            cgImage: session.cgImage,
+            pointSize: session.canvasSize,
+            selection: selection,
+            strokes: strokes
+        ) else {
             return
         }
         let raw: Data
         if strokes.isEmpty {
             raw = annotated
         } else {
-            raw = ScreenshotRenderer.png(image: session.image, selection: selection, strokes: []) ?? annotated
+            raw = ScreenshotRenderer.png(
+                cgImage: session.cgImage,
+                pointSize: session.canvasSize,
+                selection: selection,
+                strokes: []
+            ) ?? annotated
         }
         finish(.captured(png: annotated, rawPNG: raw))
     }
@@ -171,6 +182,7 @@ private final class ScreenshotOverlayPanel: NSPanel {
 
 final class ScreenshotSession: ObservableObject {
     let image: NSImage
+    let cgImage: CGImage
     let scale: CGFloat
     let canvasSize: CGSize
     let windows: [CGRect]
@@ -196,6 +208,7 @@ final class ScreenshotSession: ObservableObject {
 
     init(
         image: NSImage,
+        cgImage: CGImage,
         scale: CGFloat,
         canvasSize: CGSize,
         windows: [CGRect],
@@ -203,6 +216,7 @@ final class ScreenshotSession: ObservableObject {
         recognizeText: Bool
     ) {
         self.image = image
+        self.cgImage = cgImage
         self.scale = scale
         self.canvasSize = canvasSize
         self.windows = windows
@@ -271,6 +285,7 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
             onLayout: { [weak self] in self?.positionToolbar() }
         ))
         toolbar.frame = .zero
+        toolbar.clipsToBounds = false
         addSubview(toolbar)
         toolbarHost = toolbar
         positionToolbar()
@@ -314,8 +329,20 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
         }
     }
 
+    /// Blit the captured CGImage at native pixels. Going through NSImage in a
+    /// flipped view can rasterize at 1x and look soft on Retina.
+    private func drawFreeze() {
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+        ctx.saveGState()
+        ctx.interpolationQuality = .none
+        ctx.translateBy(x: 0, y: bounds.height)
+        ctx.scaleBy(x: 1, y: -1)
+        ctx.draw(session.cgImage, in: bounds)
+        ctx.restoreGState()
+    }
+
     override func draw(_ dirtyRect: NSRect) {
-        session.image.draw(in: bounds, from: .zero, operation: .copy, fraction: 1)
+        drawFreeze()
 
         let dim = NSBezierPath(rect: bounds)
         if let selection = session.selection {
@@ -565,7 +592,7 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
         field.isBordered = false
         field.isBezeled = false
         field.focusRingType = .none
-        field.placeholderString = "输入文字"
+        field.placeholderString = ScreenshotL10n.string(.textPlaceholder)
         field.delegate = self
         addSubview(field)
         textField = field
@@ -576,7 +603,8 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
         commitText()
         guard let selection = session.selection,
               let data = ScreenshotRenderer.png(
-                image: session.image,
+                cgImage: session.cgImage,
+                pointSize: session.canvasSize,
                 selection: selection,
                 strokes: session.recognizeText ? [] : session.strokes
               ) else { return }
@@ -590,6 +618,7 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
             return
         }
         toolbarHost.isHidden = false
+        toolbarHost.clipsToBounds = false
         let size = session.recognizeText
             ? CGSize(width: 220, height: ScreenshotLayout.toolbarSize.height)
             : ScreenshotLayout.toolbarSize
@@ -693,9 +722,7 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
     }
 
     private func colorAt(_ point: CGPoint) -> NSColor {
-        guard let source = ScreenshotRenderer.cgImage(from: session.image) else {
-            return .gray
-        }
+        let source = session.cgImage
         let scale = CGFloat(source.width) / max(bounds.width, 1)
         let px = min(max(Int(point.x * scale), 0), source.width - 1)
         let py = min(max(Int(point.y * scale), 0), source.height - 1)
@@ -749,92 +776,99 @@ private struct ScreenshotToolbarView: View {
     @State private var isDraggingToolbar = false
 
     var body: some View {
-        HStack(spacing: 2) {
-            dragHandle
-            if !session.recognizeText {
-                ForEach(ScreenshotTool.toolbarTools) { tool in
-                    toolButton(tool)
+        VStack(spacing: 0) {
+            Color.clear
+                .frame(height: ScreenshotLayout.toolbarHintHeight)
+                .allowsHitTesting(false)
+            HStack(spacing: 2) {
+                dragHandle
+                if !session.recognizeText {
+                    ForEach(ScreenshotTool.toolbarTools) { tool in
+                        toolButton(tool)
+                    }
+                    divider
+                    colorButton
+                    widthButton
+                    divider
+                    iconButton(ScreenshotToolbarHintText.undo, systemImage: "arrow.uturn.backward", action: onUndo)
+                        .disabled(session.strokes.isEmpty && session.current == nil)
+                    iconButton(ScreenshotToolbarHintText.download, systemImage: "arrow.down.to.line", action: onDownload)
+                    divider
                 }
-                divider
-                colorButton
-                widthButton
-                divider
-                iconButton("撤销", systemImage: "arrow.uturn.backward", action: onUndo)
-                    .disabled(session.strokes.isEmpty && session.current == nil)
-                iconButton("下载截图", systemImage: "arrow.down.to.line", action: onDownload)
-                divider
+                Button(action: onCancel) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color(hex: "#F5222D") ?? .red)
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.plain)
+                .screenshotToolbarHint(ScreenshotToolbarHintText.cancel)
+                Button(action: onConfirm) {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(Color(hex: "#52C41A") ?? .green)
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.plain)
+                .screenshotToolbarHint(ScreenshotToolbarHintText.confirm)
             }
-            Button(action: onCancel) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Color(hex: "#F5222D") ?? .red)
-                    .frame(width: 32, height: 32)
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity)
+            .frame(height: ScreenshotLayout.toolbarSize.height)
+            .background {
+                Capsule(style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .overlay(Capsule(style: .continuous).fill(Color.white.opacity(0.92)))
             }
-            .buttonStyle(.plain)
-            .help("取消（Esc）")
-            Button(action: onConfirm) {
-                Image(systemName: "checkmark")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(Color(hex: "#52C41A") ?? .green)
-                    .frame(width: 32, height: 32)
-            }
-            .buttonStyle(.plain)
-            .help("完成（Enter）")
-        }
-        .padding(.horizontal, 10)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background {
-            Capsule(style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(Capsule(style: .continuous).fill(Color.white.opacity(0.92)))
-        }
-        .overlay(
-            Capsule(style: .continuous)
-                .strokeBorder(Color.black.opacity(0.08), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
-        .popover(isPresented: $session.showColorPicker, arrowEdge: .top) {
-            HStack(spacing: 8) {
-                ForEach(ScreenshotLayout.palette, id: \.self) { hex in
-                    Button {
-                        session.colorHex = hex
-                        session.showColorPicker = false
-                    } label: {
-                        Circle()
-                            .fill(Color(hex: hex) ?? .red)
-                            .frame(width: 18, height: 18)
-                            .overlay(
-                                Circle().strokeBorder(
-                                    session.colorHex == hex ? Color.primary : Color.black.opacity(0.15),
-                                    lineWidth: session.colorHex == hex ? 2 : 1
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(Color.black.opacity(0.08), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
+            .popover(isPresented: $session.showColorPicker, arrowEdge: .top) {
+                HStack(spacing: 8) {
+                    ForEach(ScreenshotLayout.palette, id: \.self) { hex in
+                        Button {
+                            session.colorHex = hex
+                            session.showColorPicker = false
+                        } label: {
+                            Circle()
+                                .fill(Color(hex: hex) ?? .red)
+                                .frame(width: 18, height: 18)
+                                .overlay(
+                                    Circle().strokeBorder(
+                                        session.colorHex == hex ? Color.primary : Color.black.opacity(0.15),
+                                        lineWidth: session.colorHex == hex ? 2 : 1
+                                    )
                                 )
-                            )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(10)
-        }
-        .popover(isPresented: $session.showWidthPicker, arrowEdge: .top) {
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(ScreenshotLayout.lineWidths, id: \.self) { width in
-                    Button {
-                        session.lineWidth = width
-                        session.showWidthPicker = false
-                    } label: {
-                        HStack {
-                            Capsule().frame(width: 72, height: width)
-                            if session.lineWidth == width {
-                                Image(systemName: "checkmark").font(.caption)
-                            }
                         }
-                        .foregroundStyle(Color.primary)
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
+                .padding(10)
             }
-            .padding(10)
+            .popover(isPresented: $session.showWidthPicker, arrowEdge: .top) {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(ScreenshotLayout.lineWidths, id: \.self) { width in
+                        Button {
+                            session.lineWidth = width
+                            session.showWidthPicker = false
+                        } label: {
+                            HStack {
+                                Capsule().frame(width: 72, height: width)
+                                if session.lineWidth == width {
+                                    Image(systemName: "checkmark").font(.caption)
+                                }
+                            }
+                            .foregroundStyle(Color.primary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(10)
+            }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
 
     private var dragHandle: some View {
@@ -861,7 +895,7 @@ private struct ScreenshotToolbarView: View {
                         toolbarDragStart = session.toolbarOffset
                     }
             )
-            .help("拖动工具条")
+            .screenshotToolbarHint(ScreenshotToolbarHintText.drag)
     }
 
     private func toolButton(_ tool: ScreenshotTool) -> some View {
@@ -879,7 +913,7 @@ private struct ScreenshotToolbarView: View {
                 )
         }
         .buttonStyle(.plain)
-        .help(tool.title)
+        .screenshotToolbarHint(tool.title)
     }
 
     private func iconButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
@@ -890,7 +924,7 @@ private struct ScreenshotToolbarView: View {
                 .frame(width: 32, height: 32)
         }
         .buttonStyle(.plain)
-        .help(title)
+        .screenshotToolbarHint(title)
     }
 
     private var colorButton: some View {
@@ -905,7 +939,7 @@ private struct ScreenshotToolbarView: View {
                 .frame(width: 32, height: 32)
         }
         .buttonStyle(.plain)
-        .help("颜色")
+        .screenshotToolbarHint(ScreenshotToolbarHintText.color)
     }
 
     private var widthButton: some View {
@@ -919,7 +953,7 @@ private struct ScreenshotToolbarView: View {
                 .frame(width: 32, height: 32)
         }
         .buttonStyle(.plain)
-        .help("粗细")
+        .screenshotToolbarHint(ScreenshotToolbarHintText.width)
     }
 
     private var divider: some View {
@@ -927,5 +961,46 @@ private struct ScreenshotToolbarView: View {
             .fill(Color.primary.opacity(0.1))
             .frame(width: 1, height: 18)
             .padding(.horizontal, 4)
+    }
+}
+
+/// Immediate hover caption above a toolbar icon. Native `.help()` is kept for
+/// VoiceOver, but screen-saver overlay panels often never show that tooltip.
+private struct ScreenshotToolbarHintModifier: ViewModifier {
+    let title: String
+    @State private var hovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .onHover { hovering = $0 }
+            .overlay(alignment: .top) {
+                Text(title)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .frame(height: 22)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(Color.black.opacity(0.78))
+                    )
+                    .fixedSize()
+                    .offset(y: hintOffset)
+                    .opacity(hovering ? 1 : 0)
+                    .allowsHitTesting(false)
+            }
+            .zIndex(hovering ? 1 : 0)
+            .help(title)
+    }
+
+    /// Place the 22pt bubble in the host's hint band, 6pt above the capsule.
+    private var hintOffset: CGFloat {
+        let buttonInset = (ScreenshotLayout.toolbarSize.height - 32) / 2
+        return -(buttonInset + ScreenshotLayout.toolbarHintHeight)
+    }
+}
+
+private extension View {
+    func screenshotToolbarHint(_ title: String) -> some View {
+        modifier(ScreenshotToolbarHintModifier(title: title))
     }
 }
