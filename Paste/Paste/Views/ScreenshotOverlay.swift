@@ -315,7 +315,17 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        session.image.draw(in: bounds, from: .zero, operation: .copy, fraction: 1)
+        // The canvas is flipped (top-left origin) so selection math matches the
+        // screen. The four-argument `draw(in:from:operation:fraction:)` ignores
+        // that and paints the freeze upside down.
+        session.image.draw(
+            in: bounds,
+            from: CGRect(origin: .zero, size: session.image.size),
+            operation: .copy,
+            fraction: 1,
+            respectFlipped: true,
+            hints: nil
+        )
 
         let dim = NSBezierPath(rect: bounds)
         if let selection = session.selection {

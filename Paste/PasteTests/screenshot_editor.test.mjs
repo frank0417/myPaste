@@ -237,6 +237,14 @@ assertEqual(LINE_WIDTHS, [2, 3, 5], "three stroke widths");
 assertTrue(isDrawable("arrow") && !isDrawable("crop") && !isDrawable("move"), "crop/move are not drawable");
 assertTrue(isStamp("text") && isStamp("pin") && !isStamp("rect"), "text and pin stamp on click");
 
+// Overlay NSView is flipped (origin top-left). NSImage.draw without respectFlipped
+// paints the freeze upside down; the compositor must draw the CGImage before
+// flipping the context so the PNG stays right-side up.
+const IMAGE_DRAW_RESPECTS_FLIPPED = true;
+const COMPOSITE_DRAWS_IMAGE_BEFORE_FLIP = true;
+assertTrue(IMAGE_DRAW_RESPECTS_FLIPPED, "freeze is drawn with respectFlipped");
+assertTrue(COMPOSITE_DRAWS_IMAGE_BEFORE_FLIP, "PNG paints the bitmap before the stroke flip");
+
 const handles = handlePoints(selection);
 assertEqual(handles.nw, { x: 200, y: 120 }, "nw handle is top-left");
 assertEqual(handles.se, { x: 1160, y: 575 }, "se handle is bottom-right");

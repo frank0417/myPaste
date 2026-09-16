@@ -132,6 +132,11 @@ enum ScreenshotLayout {
     static let mosaicBlock: CGFloat = 10
     static let arrowHeadLength: CGFloat = 14
     static let arrowHeadAngle: CGFloat = .pi / 6
+    /// Overlay canvas is flipped (origin top-left). NSImage must be drawn with
+    /// `respectFlipped: true` or the freeze appears upside down.
+    static let imageDrawRespectsFlipped = true
+    /// Composite paints the CGImage before flipping the context for strokes.
+    static let compositeDrawsImageBeforeFlip = true
     static let defaultColorHex = "#F5222D"
     static let selectionColorHex = "#2F80FF"
     static let dimOpacity: CGFloat = 0.55
@@ -391,11 +396,12 @@ enum ScreenshotRenderer {
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ) else { return nil }
 
-        // Flip to top-left so stroke coordinates match the overlay canvas.
+        ctx.interpolationQuality = .high
+        // Draw the bitmap in default y-up space so the PNG is right-side up, then
+        // flip so strokes can use the overlay's top-left coordinates.
+        ctx.draw(cropped, in: CGRect(x: 0, y: 0, width: width, height: height))
         ctx.translateBy(x: 0, y: CGFloat(height))
         ctx.scaleBy(x: 1, y: -1)
-        ctx.interpolationQuality = .high
-        ctx.draw(cropped, in: CGRect(x: 0, y: 0, width: width, height: height))
 
         for stroke in strokes {
             draw(stroke, in: ctx, selection: selection, scale: scale, source: cropped)
