@@ -141,14 +141,14 @@ final class ClipboardStore: ObservableObject {
         descriptor.fetchLimit = 1
         guard let item = try? modelContext.fetch(descriptor).first else { return }
         guard let text, !text.isEmpty else {
-            ScreenshotHUD.shared.show(thumbnail: nil, title: "识别文字", detail: "未识别到文字")
+            ScreenshotHUD.shared.show(thumbnail: nil, title: ScreenshotL10n.string(.recognizeText), detail: ScreenshotL10n.string(.ocrEmpty))
             return
         }
         attach(text, to: item)
         ScreenshotHUD.shared.show(
             thumbnail: item.thumbnailData.flatMap(NSImage.init(data:)),
             title: item.previewTitle,
-            detail: "已识别 \(TextRecognizer.characterCount(of: text)) 字，右键可复制文字"
+            detail: ScreenshotL10n.hudRecognizedMenu(TextRecognizer.characterCount(of: text))
         )
     }
 
@@ -169,8 +169,8 @@ final class ClipboardStore: ObservableObject {
     private func attach(_ text: String, to item: ClipboardItem) {
         item.plainText = text
         let count = TextRecognizer.characterCount(of: text)
-        let base = item.previewSubtitle?.components(separatedBy: " · 已识字").first ?? item.previewSubtitle
-        item.previewSubtitle = [base, "已识字 \(count) 字"].compactMap { $0 }.joined(separator: " · ")
+        let base = ScreenshotL10n.stripOCRSuffix(item.previewSubtitle)
+        item.previewSubtitle = [base, ScreenshotL10n.ocrAttached(count)].compactMap { $0 }.joined(separator: " · ")
         // The keyword field cache and the panel memo key off updatedAt; without a bump
         // the new words would stay invisible to search until the next paste.
         item.updatedAt = .now

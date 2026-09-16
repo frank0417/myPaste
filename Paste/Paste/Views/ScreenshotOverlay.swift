@@ -16,6 +16,10 @@ final class ScreenshotOverlayController {
     private var panels: [NSPanel] = []
     private var canvases: [ScreenshotCanvasView] = []
     private var keyMonitor: Any?
+    private var mouseMonitor: Any?
+    private var globalMouseMonitor: Any?
+    private var savedActivationPolicy: NSApplication.ActivationPolicy?
+    private var lastRoutedEventNumber: Int = .min
     private var completion: ((Outcome) -> Void)?
     private var isPresenting = false
 
@@ -62,7 +66,8 @@ final class ScreenshotOverlayController {
         }
 
         installKeyMonitor()
-        NSApp.activate(ignoringOtherApps: true)
+        installMouseMonitors()
+        becomeKeyForCapture()
         let active = panels.enumerated().first { _, panel in
             panel.screen?.frame.contains(mouse) == true
         }?.offset ?? 0
@@ -124,12 +129,37 @@ final class ScreenshotOverlayController {
             NSEvent.removeMonitor(keyMonitor)
             self.keyMonitor = nil
         }
+        if let mouseMonitor {
+            NSEvent.removeMonitor(mouseMonitor)
+            self.mouseMonitor = nil
+        }
+        if let globalMouseMonitor {
+            NSEvent.removeMonitor(globalMouseMonitor)
+            self.globalMouseMonitor = nil
+        }
         for panel in panels {
             panel.orderOut(nil)
             panel.contentView = nil
         }
         panels.removeAll()
         canvases.removeAll()
+        restoreActivationPolicy()
+    }
+
+    /// Accessory menu-bar apps swallow the first click as activation. Promote to a
+    /// regular app for the overlay so the freeze is key and the first drag selects.
+    private func becomeKeyForCapture() {
+        if NSApp.activationPolicy() != .regular {
+            savedActivationPolicy = NSApp.activationPolicy()
+            NSApp.setActivationPolicy(.regular)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func restoreActivationPolicy() {
+        guard let savedActivationPolicy else { return }
+        NSApp.setActivationPolicy(savedActivationPolicy)
+        self.savedActivationPolicy = nil
     }
 
     private func installKeyMonitor() {
@@ -171,13 +201,67 @@ final class ScreenshotOverlayController {
         panel.hasShadow = false
         panel.acceptsMouseMovedEvents = true
         panel.ignoresMouseEvents = false
+        // NSPanel defaults to key-only-if-needed, so the first click would only
+        // activate the freeze instead of starting a selection.
+        panel.becomesKeyOnlyIfNeeded = false
         return panel
+    }
+
+    private func installMouseMonitors() {
+        let mask: NSEvent.EventTypeMask = [.leftMouseDown, .leftMouseDragged, .leftMouseUp]
+        mouseMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
+            self?.routeOverlayMouse(event) ?? event
+        }
+        globalMouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: mask) { [weak self] event in
+            _ = self?.routeOverlayMouse(event)
+        }
+    }
+
+    /// First-click / background-app drags never reach the canvas view. Route them
+    /// here so the freeze starts selecting immediately after the hotkey.
+    private func routeOverlayMouse(_ event: NSEvent) -> NSEvent? {
+        guard let canvas = canvas(for: event) else { return event }
+        if event.eventNumber > 0, event.eventNumber == lastRoutedEventNumber {
+            return nil
+        }
+        if canvas.shouldLetSubviewHandle(event) {
+            return event
+        }
+        if event.eventNumber > 0 {
+            lastRoutedEventNumber = event.eventNumber
+        }
+        switch event.type {
+        case .leftMouseDown:
+            canvas.mouseDown(with: event)
+        case .leftMouseDragged:
+            canvas.mouseDragged(with: event)
+        case .leftMouseUp:
+            canvas.mouseUp(with: event)
+        default:
+            return event
+        }
+        return nil
+    }
+
+    private func canvas(for event: NSEvent) -> ScreenshotCanvasView? {
+        if let window = event.window,
+           let match = canvases.first(where: { $0.window === window }) {
+            return match
+        }
+        let screenPoint: CGPoint
+        if let window = event.window {
+            screenPoint = window.convertPoint(toScreen: event.locationInWindow)
+        } else {
+            screenPoint = event.locationInWindow
+        }
+        return canvases.first { $0.window?.frame.contains(screenPoint) == true }
     }
 }
 
 private final class ScreenshotOverlayPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+    override var acceptsFirstResponder: Bool { true }
 }
 
 final class ScreenshotSession: ObservableObject {
@@ -200,6 +284,9 @@ final class ScreenshotSession: ObservableObject {
     @Published var toolbarOffset: CGSize = .zero
     @Published var showColorPicker = false
     @Published var showWidthPicker = false
+    @Published var showOCRResult = false
+    @Published var ocrResult: String?
+    @Published var isRecognizing = false
 
     var onChange: (() -> Void)?
     fileprivate weak var canvas: ScreenshotCanvasView?
@@ -244,7 +331,7 @@ final class ScreenshotSession: ObservableObject {
 }
 
 private enum DragKind {
-    case none
+    case idle
     case newSelection
     case move
     case handle(ScreenshotHandle)
@@ -257,10 +344,11 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
     var onCancel: (() -> Void)?
     var onDownload: ((Data) -> Void)?
 
-    private var dragKind: DragKind = .none
+    private var dragKind: DragKind = .idle
     private var dragStart: CGPoint = .zero
     private var selectionAtDragStart: CGRect = .zero
     private var toolbarHost: NSHostingView<ScreenshotToolbarView>?
+    private var ocrHost: NSHostingView<ScreenshotOCRPanelView>?
     private var textField: NSTextField?
     private var textOrigin: CGPoint = .zero
     private var tracking: NSTrackingArea?
@@ -273,7 +361,7 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
             guard let self else { return }
             self.needsDisplay = true
             self.window?.invalidateCursorRects(for: self)
-            self.positionToolbar()
+            self.positionChrome()
         }
         wantsLayer = true
         let toolbar = NSHostingView(rootView: ScreenshotToolbarView(
@@ -282,13 +370,24 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
             onCancel: { [weak self] in self?.onCancel?() },
             onUndo: { [weak self] in self?.session.undo() },
             onDownload: { [weak self] in self?.downloadCurrent() },
-            onLayout: { [weak self] in self?.positionToolbar() }
+            onRecognize: { [weak self] in self?.recognizeSelection() },
+            onLayout: { [weak self] in self?.positionChrome() }
         ))
         toolbar.frame = .zero
         toolbar.clipsToBounds = false
         addSubview(toolbar)
         toolbarHost = toolbar
-        positionToolbar()
+
+        let ocr = NSHostingView(rootView: ScreenshotOCRPanelView(
+            session: session,
+            onCopy: { [weak self] text in self?.copyOCRText(text) },
+            onDismiss: { [weak self] in self?.dismissOCRPanel() }
+        ))
+        ocr.frame = .zero
+        ocr.clipsToBounds = false
+        addSubview(ocr)
+        ocrHost = ocr
+        positionChrome()
     }
 
     @available(*, unavailable)
@@ -298,15 +397,33 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
     override var acceptsFirstResponder: Bool { true }
     override var isOpaque: Bool { true }
 
+    /// Without this, the first click after the hotkey only activates the freeze.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    /// Toolbar / text field keep their own clicks; a live drag stays on the canvas
+    /// even if the pointer crosses the strip.
+    func shouldLetSubviewHandle(_ event: NSEvent) -> Bool {
+        guard case .idle = dragKind else { return false }
+        let point = canvasPoint(from: event)
+        if let field = textField, field.frame.contains(point) { return true }
+        if let toolbarHost, !toolbarHost.isHidden, toolbarHost.frame.contains(point) {
+            return true
+        }
+        if let ocrHost, !ocrHost.isHidden, ocrHost.frame.contains(point) {
+            return true
+        }
+        return false
+    }
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         window?.makeFirstResponder(self)
-        positionToolbar()
+        positionChrome()
     }
 
     override func layout() {
         super.layout()
-        positionToolbar()
+        positionChrome()
     }
 
     override func updateTrackingAreas() {
@@ -327,6 +444,27 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
         if let selection = session.selection, session.tool == .move {
             addCursorRect(selection, cursor: .openHand)
         }
+        if let toolbarHost, !toolbarHost.isHidden {
+            addCursorRect(toolbarHost.frame, cursor: .openHand)
+        }
+        if let ocrHost, !ocrHost.isHidden {
+            addCursorRect(ocrHost.frame, cursor: .iBeam)
+        }
+    }
+
+    override func cursorUpdate(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        if let toolbarHost, !toolbarHost.isHidden, toolbarHost.frame.contains(point) {
+            return
+        }
+        if let ocrHost, !ocrHost.isHidden, ocrHost.frame.contains(point) {
+            return
+        }
+        if let selection = session.selection, session.tool == .move, selection.contains(point) {
+            NSCursor.openHand.set()
+            return
+        }
+        NSCursor.crosshair.set()
     }
 
     /// Blit the captured CGImage at native pixels. Going through NSImage in a
@@ -406,7 +544,8 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
         commitText()
         session.showColorPicker = false
         session.showWidthPicker = false
-        let point = convert(event.locationInWindow, from: nil)
+        session.showOCRResult = false
+        let point = canvasPoint(from: event)
         if event.clickCount == 2, session.selection?.contains(point) == true {
             onConfirm?()
             return
@@ -426,7 +565,7 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
             if handleInsideSelection(point, selection: selection) {
                 if session.tool.isStamp {
                     stamp(at: point)
-                    dragKind = .none
+                    dragKind = .idle
                     return
                 }
                 if session.tool.isDrawable {
@@ -441,7 +580,7 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
                   let hovered = ScreenshotLayout.window(at: point, windows: session.windows) {
             session.selection = hovered.intersection(bounds)
             session.hoveredWindow = nil
-            dragKind = .none
+            dragKind = .idle
             session.notify()
             return
         }
@@ -450,10 +589,10 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        let point = convert(event.locationInWindow, from: nil)
+        let point = canvasPoint(from: event)
         let shift = event.modifierFlags.contains(.shift)
         switch dragKind {
-        case .none:
+        case .idle:
             break
         case .newSelection:
             var rect = ScreenshotLayout.normalizedRect(dragStart, point)
@@ -504,9 +643,9 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
         default:
             break
         }
-        dragKind = .none
+        dragKind = .idle
         window?.invalidateCursorRects(for: self)
-        positionToolbar()
+        positionChrome()
     }
 
     override func rightMouseDown(with event: NSEvent) {
@@ -543,6 +682,9 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
         session.toolbarOffset = .zero
         session.tool = .move
         session.pinCounter = 1
+        session.showOCRResult = false
+        session.ocrResult = nil
+        session.isRecognizing = false
         dragKind = .newSelection
         session.selection = CGRect(origin: point, size: .zero)
         session.notify()
@@ -611,6 +753,69 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
         onDownload?(data)
     }
 
+    private func recognizeSelection() {
+        guard !session.isRecognizing else { return }
+        commitText()
+        guard let selection = session.selection,
+              selection.width >= ScreenshotLayout.minSelection,
+              selection.height >= ScreenshotLayout.minSelection,
+              let data = ScreenshotRenderer.png(
+                cgImage: session.cgImage,
+                pointSize: session.canvasSize,
+                selection: selection,
+                strokes: []
+              ) else { return }
+        session.isRecognizing = true
+        session.showOCRResult = true
+        session.ocrResult = nil
+        Task { [session] in
+            let text = await Task.detached(priority: .userInitiated) {
+                TextRecognizer.recognize(imageData: data)
+            }.value
+            await MainActor.run {
+                session.isRecognizing = false
+                session.ocrResult = text
+                session.showOCRResult = true
+                session.notify()
+            }
+        }
+    }
+
+    private func copyOCRText(_ text: String) {
+        let snippet = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !snippet.isEmpty else { return }
+        ClipboardMonitor.shared.ignoreNextPasteboardChange()
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(snippet, forType: .string)
+    }
+
+    private func dismissOCRPanel() {
+        session.showOCRResult = false
+        session.ocrResult = nil
+        session.isRecognizing = false
+        session.notify()
+    }
+
+    private func canvasPoint(from event: NSEvent) -> CGPoint {
+        if event.window == nil {
+            guard let window else { return .zero }
+            let windowPoint = window.convertPoint(fromScreen: event.locationInWindow)
+            return convert(windowPoint, from: nil)
+        }
+        if event.window !== window, let source = event.window, let window {
+            let screenPoint = source.convertPoint(toScreen: event.locationInWindow)
+            let windowPoint = window.convertPoint(fromScreen: screenPoint)
+            return convert(windowPoint, from: nil)
+        }
+        return convert(event.locationInWindow, from: nil)
+    }
+
+    private func positionChrome() {
+        positionToolbar()
+        positionOCRPanel()
+    }
+
     private func positionToolbar() {
         guard let toolbarHost else { return }
         guard let selection = session.selection, selection.width >= 8 else {
@@ -627,6 +832,22 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
             canvas: bounds,
             size: size,
             offset: session.toolbarOffset
+        )
+    }
+
+    private func positionOCRPanel() {
+        guard let ocrHost else { return }
+        let visible = session.showOCRResult || session.isRecognizing
+        guard visible, let selection = session.selection, selection.width >= 8 else {
+            ocrHost.isHidden = true
+            return
+        }
+        ocrHost.isHidden = false
+        let height = ScreenshotLayout.ocrPanelHeight(for: selection, canvas: bounds)
+        ocrHost.frame = ScreenshotLayout.ocrPanelFrame(
+            selection: selection,
+            canvas: bounds,
+            size: CGSize(width: ScreenshotLayout.ocrPanelSize.width, height: height)
         )
     }
 
@@ -771,6 +992,7 @@ private struct ScreenshotToolbarView: View {
     var onCancel: () -> Void
     var onUndo: () -> Void
     var onDownload: () -> Void
+    var onRecognize: () -> Void
     var onLayout: () -> Void
     @State private var toolbarDragStart: CGSize = .zero
     @State private var isDraggingToolbar = false
@@ -793,6 +1015,7 @@ private struct ScreenshotToolbarView: View {
                     iconButton(ScreenshotToolbarHintText.undo, systemImage: "arrow.uturn.backward", action: onUndo)
                         .disabled(session.strokes.isEmpty && session.current == nil)
                     iconButton(ScreenshotToolbarHintText.download, systemImage: "arrow.down.to.line", action: onDownload)
+                    recognizeButton
                     divider
                 }
                 Button(action: onCancel) {
@@ -803,6 +1026,7 @@ private struct ScreenshotToolbarView: View {
                 }
                 .buttonStyle(.plain)
                 .screenshotToolbarHint(ScreenshotToolbarHintText.cancel)
+                .screenshotToolbarPointer(.pointingHand)
                 Button(action: onConfirm) {
                     Image(systemName: "checkmark")
                         .font(.system(size: 14, weight: .bold))
@@ -811,10 +1035,12 @@ private struct ScreenshotToolbarView: View {
                 }
                 .buttonStyle(.plain)
                 .screenshotToolbarHint(ScreenshotToolbarHintText.confirm)
+                .screenshotToolbarPointer(.pointingHand)
             }
             .padding(.horizontal, 10)
             .frame(maxWidth: .infinity)
             .frame(height: ScreenshotLayout.toolbarSize.height)
+            .contentShape(Capsule())
             .background {
                 Capsule(style: .continuous)
                     .fill(.ultraThinMaterial)
@@ -825,6 +1051,7 @@ private struct ScreenshotToolbarView: View {
                     .strokeBorder(Color.black.opacity(0.08), lineWidth: 1)
             )
             .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
+            .simultaneousGesture(toolbarDragGesture)
             .popover(isPresented: $session.showColorPicker, arrowEdge: .top) {
                 HStack(spacing: 8) {
                     ForEach(ScreenshotLayout.palette, id: \.self) { hex in
@@ -843,6 +1070,7 @@ private struct ScreenshotToolbarView: View {
                                 )
                         }
                         .buttonStyle(.plain)
+                        .screenshotToolbarPointer(.pointingHand)
                     }
                 }
                 .padding(10)
@@ -863,6 +1091,7 @@ private struct ScreenshotToolbarView: View {
                             .foregroundStyle(Color.primary)
                         }
                         .buttonStyle(.plain)
+                        .screenshotToolbarPointer(.pointingHand)
                     }
                 }
                 .padding(10)
@@ -871,31 +1100,36 @@ private struct ScreenshotToolbarView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
 
+    private var toolbarDragGesture: some Gesture {
+        DragGesture(minimumDistance: 4)
+            .onChanged { value in
+                if !isDraggingToolbar {
+                    isDraggingToolbar = true
+                    toolbarDragStart = session.toolbarOffset
+                    NSCursor.closedHand.set()
+                }
+                session.toolbarOffset = CGSize(
+                    width: toolbarDragStart.width + value.translation.width,
+                    height: toolbarDragStart.height + value.translation.height
+                )
+                onLayout()
+            }
+            .onEnded { _ in
+                isDraggingToolbar = false
+                toolbarDragStart = session.toolbarOffset
+                NSCursor.openHand.set()
+            }
+    }
+
     private var dragHandle: some View {
         Image(systemName: "ellipsis")
             .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(.tertiary)
             .rotationEffect(.degrees(90))
             .frame(width: 22, height: 32)
-            .gesture(
-                DragGesture(minimumDistance: 1)
-                    .onChanged { value in
-                        if !isDraggingToolbar {
-                            isDraggingToolbar = true
-                            toolbarDragStart = session.toolbarOffset
-                        }
-                        session.toolbarOffset = CGSize(
-                            width: toolbarDragStart.width + value.translation.width,
-                            height: toolbarDragStart.height + value.translation.height
-                        )
-                        onLayout()
-                    }
-                    .onEnded { _ in
-                        isDraggingToolbar = false
-                        toolbarDragStart = session.toolbarOffset
-                    }
-            )
+            .contentShape(Rectangle())
             .screenshotToolbarHint(ScreenshotToolbarHintText.drag)
+            .screenshotToolbarPointer(.openHand)
     }
 
     private func toolButton(_ tool: ScreenshotTool) -> some View {
@@ -914,6 +1148,7 @@ private struct ScreenshotToolbarView: View {
         }
         .buttonStyle(.plain)
         .screenshotToolbarHint(tool.title)
+        .screenshotToolbarPointer(.pointingHand)
     }
 
     private func iconButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
@@ -925,6 +1160,27 @@ private struct ScreenshotToolbarView: View {
         }
         .buttonStyle(.plain)
         .screenshotToolbarHint(title)
+        .screenshotToolbarPointer(.pointingHand)
+    }
+
+    private var recognizeButton: some View {
+        Button(action: onRecognize) {
+            Group {
+                if session.isRecognizing {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: "text.viewfinder")
+                        .font(.system(size: 13, weight: .medium))
+                }
+            }
+            .foregroundStyle(Color.primary.opacity(0.78))
+            .frame(width: 32, height: 32)
+        }
+        .buttonStyle(.plain)
+        .disabled(session.isRecognizing)
+        .screenshotToolbarHint(ScreenshotToolbarHintText.recognizeText)
+        .screenshotToolbarPointer(.pointingHand)
     }
 
     private var colorButton: some View {
@@ -940,6 +1196,7 @@ private struct ScreenshotToolbarView: View {
         }
         .buttonStyle(.plain)
         .screenshotToolbarHint(ScreenshotToolbarHintText.color)
+        .screenshotToolbarPointer(.pointingHand)
     }
 
     private var widthButton: some View {
@@ -954,6 +1211,7 @@ private struct ScreenshotToolbarView: View {
         }
         .buttonStyle(.plain)
         .screenshotToolbarHint(ScreenshotToolbarHintText.width)
+        .screenshotToolbarPointer(.pointingHand)
     }
 
     private var divider: some View {
@@ -999,8 +1257,178 @@ private struct ScreenshotToolbarHintModifier: ViewModifier {
     }
 }
 
+private struct ScreenshotToolbarPointerModifier: ViewModifier {
+    let cursor: NSCursor
+
+    func body(content: Content) -> some View {
+        content.onHover { hovering in
+            if hovering {
+                cursor.set()
+            }
+        }
+    }
+}
+
 private extension View {
     func screenshotToolbarHint(_ title: String) -> some View {
         modifier(ScreenshotToolbarHintModifier(title: title))
+    }
+
+    func screenshotToolbarPointer(_ cursor: NSCursor) -> some View {
+        modifier(ScreenshotToolbarPointerModifier(cursor: cursor))
+    }
+}
+
+/// Recognized text sits to the right of the crop. The user can highlight a
+/// substring, then copy that (or the whole result) without ending the capture.
+private struct ScreenshotOCRPanelView: View {
+    @ObservedObject var session: ScreenshotSession
+    var onCopy: (String) -> Void
+    var onDismiss: () -> Void
+    @State private var selectedText = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(ScreenshotL10n.string(.recognizeText))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 12)
+                .padding(.top, 10)
+                .padding(.bottom, 6)
+
+            Group {
+                if session.isRecognizing {
+                    ProgressView()
+                        .controlSize(.small)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let text = session.ocrResult, !text.isEmpty {
+                    ScreenshotOCRTextView(text: text, selectedText: $selectedText)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    Text(ScreenshotL10n.string(.ocrEmpty))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .padding(.horizontal, 12)
+                }
+            }
+
+            HStack(spacing: 8) {
+                Button(action: onDismiss) {
+                    Text(ScreenshotL10n.string(.ocrDismiss))
+                        .font(.system(size: 12, weight: .medium))
+                        .padding(.horizontal, 12)
+                        .frame(height: 28)
+                        .background(Color.primary.opacity(0.06), in: Capsule(style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .screenshotToolbarPointer(.pointingHand)
+
+                Spacer(minLength: 0)
+
+                Button {
+                    let selected = selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    onCopy(selected.isEmpty ? (session.ocrResult ?? "") : selected)
+                } label: {
+                    Text(ScreenshotL10n.string(.copy))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .frame(height: 28)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(Color(hex: ScreenshotLayout.selectionColorHex) ?? .blue)
+                        )
+                }
+                .buttonStyle(.plain)
+                .disabled((session.ocrResult ?? "").isEmpty)
+                .opacity((session.ocrResult ?? "").isEmpty ? 0.45 : 1)
+                .screenshotToolbarPointer(.pointingHand)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 10)
+        }
+        .background {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.white.opacity(0.94))
+                )
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.black.opacity(0.08), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
+        .onChange(of: session.ocrResult) { _, _ in
+            selectedText = ""
+        }
+    }
+}
+
+private struct ScreenshotOCRTextView: NSViewRepresentable {
+    let text: String
+    @Binding var selectedText: String
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(selectedText: $selectedText)
+    }
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scroll = NSScrollView()
+        scroll.drawsBackground = false
+        scroll.hasVerticalScroller = true
+        scroll.hasHorizontalScroller = false
+        scroll.autohidesScrollers = true
+        scroll.borderType = .noBorder
+
+        let textView = NSTextView()
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.isRichText = false
+        textView.drawsBackground = false
+        textView.font = .systemFont(ofSize: 13)
+        textView.textColor = .labelColor
+        textView.textContainerInset = NSSize(width: 8, height: 4)
+        textView.minSize = NSSize(width: 0, height: 0)
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
+        textView.textContainer?.widthTracksTextView = true
+        textView.delegate = context.coordinator
+        textView.string = text
+
+        scroll.documentView = textView
+        context.coordinator.textView = textView
+        return scroll
+    }
+
+    func updateNSView(_ scroll: NSScrollView, context: Context) {
+        guard let textView = scroll.documentView as? NSTextView else { return }
+        if textView.string != text {
+            textView.string = text
+        }
+        context.coordinator.selectedText = $selectedText
+    }
+
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        var selectedText: Binding<String>
+        weak var textView: NSTextView?
+
+        init(selectedText: Binding<String>) {
+            self.selectedText = selectedText
+        }
+
+        func textViewDidChangeSelection(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else { return }
+            let range = textView.selectedRange()
+            if range.length > 0, NSMaxRange(range) <= (textView.string as NSString).length {
+                selectedText.wrappedValue = (textView.string as NSString).substring(with: range)
+            } else {
+                selectedText.wrappedValue = ""
+            }
+        }
     }
 }

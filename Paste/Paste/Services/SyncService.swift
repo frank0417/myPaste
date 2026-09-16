@@ -13,14 +13,14 @@ final class SyncService: ObservableObject {
 
         var label: String {
             switch self {
-            case .idle: return "待命"
-            case .syncing: return "同步中…"
+            case .idle: return PanelL10n.syncIdle
+            case .syncing: return PanelL10n.syncing
             case .synced(let date):
                 let formatter = RelativeDateTimeFormatter()
-                formatter.locale = Locale(identifier: "zh_CN")
-                return "已同步 · \(formatter.localizedString(for: date, relativeTo: .now))"
-            case .offline: return "离线"
-            case .error(let message): return "同步失败 · \(message)"
+                formatter.locale = PanelL10n.locale
+                return PanelL10n.syncedAgo(formatter.localizedString(for: date, relativeTo: .now))
+            case .offline: return PanelL10n.offline
+            case .error(let message): return PanelL10n.syncFailed(message)
             }
         }
     }

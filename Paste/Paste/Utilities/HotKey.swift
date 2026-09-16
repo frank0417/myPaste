@@ -14,18 +14,18 @@ enum HotKeyAction: String, CaseIterable, Identifiable {
     /// Settings row label.
     var title: String {
         switch self {
-        case .panel: return "唤出剪贴板面板"
-        case .mainWindow: return "唤出主窗口"
-        case .screenshot: return "截图（区域）"
+        case .panel: return PanelL10n.hotkeyPanel
+        case .mainWindow: return PanelL10n.hotkeyMainWindow
+        case .screenshot: return PanelL10n.hotkeyScreenshot
         }
     }
 
     /// Used inside conflict messages.
     var shortTitle: String {
         switch self {
-        case .panel: return "剪贴板面板"
-        case .mainWindow: return "主窗口"
-        case .screenshot: return "截图"
+        case .panel: return PanelL10n.hotkeyPanelShort
+        case .mainWindow: return PanelL10n.hotkeyMainWindowShort
+        case .screenshot: return PanelL10n.hotkeyScreenshotShort
         }
     }
 
@@ -120,14 +120,16 @@ struct HotKeyShortcut: Codable, Equatable {
 
     /// Combos macOS or PasteNest itself owns; registering them would silently never fire
     /// or break a core action, so reject them while recording instead.
-    private static let reserved: [(keyCode: Int, carbon: UInt32, name: String)] = [
-        (kVK_Space, UInt32(cmdKey), "⌘Space（聚焦搜索）"),
-        (kVK_Tab, UInt32(cmdKey), "⌘⇥（切换 App）"),
-        (kVK_ANSI_Q, UInt32(cmdKey), "⌘Q（退出 App）"),
-        (kVK_ANSI_3, UInt32(cmdKey | shiftKey), "⇧⌘3（截屏）"),
-        (kVK_ANSI_4, UInt32(cmdKey | shiftKey), "⇧⌘4（截屏）"),
-        (kVK_ANSI_5, UInt32(cmdKey | shiftKey), "⇧⌘5（截屏）")
-    ]
+    private static var reserved: [(keyCode: Int, carbon: UInt32, name: String)] {
+        [
+            (kVK_Space, UInt32(cmdKey), PanelL10n.reservedSpotlight),
+            (kVK_Tab, UInt32(cmdKey), PanelL10n.reservedAppSwitch),
+            (kVK_ANSI_Q, UInt32(cmdKey), PanelL10n.reservedQuit),
+            (kVK_ANSI_3, UInt32(cmdKey | shiftKey), PanelL10n.reservedShot3),
+            (kVK_ANSI_4, UInt32(cmdKey | shiftKey), PanelL10n.reservedShot4),
+            (kVK_ANSI_5, UInt32(cmdKey | shiftKey), PanelL10n.reservedShot5)
+        ]
+    }
 
     /// False while the user is still holding modifiers, so the recorder can keep listening.
     /// Shift alone doesn't count: ⇧ + letter is just typing.
@@ -140,13 +142,13 @@ struct HotKeyShortcut: Codable, Equatable {
     /// `nil` when the combo is usable as a global shortcut.
     var rejectionReason: String? {
         if Self.modifierKeyCodes.contains(Int(keyCode)) {
-            return "请在按住修饰键的同时按一个字母、数字或功能键"
+            return PanelL10n.hotkeyNeedKey
         }
         guard isComplete else {
-            return "快捷键需要包含 ⌘ / ⌃ / ⌥ 中的至少一个"
+            return PanelL10n.hotkeyNeedModifier
         }
         if let match = Self.reserved.first(where: { $0.keyCode == Int(keyCode) && $0.carbon == carbonModifiers }) {
-            return "\(match.name) 已被系统占用，请换一个组合"
+            return PanelL10n.hotkeyReserved(match.name)
         }
         return nil
     }
@@ -245,10 +247,10 @@ final class GlobalHotKeyManager {
             return .rejected(reason)
         }
         if let clash = bindings.first(where: { $0.key != action && $0.value.shortcut == shortcut }) {
-            return .rejected("与「\(clash.key.shortTitle)」快捷键相同，请换一个")
+            return .rejected(PanelL10n.hotkeyClash(clash.key.shortTitle))
         }
         guard installHandlerIfNeeded() else {
-            return .rejected("无法注册全局快捷键，请重启 PasteNest 后重试")
+            return .rejected(PanelL10n.hotkeyRegisterFailed)
         }
 
         let previous = bindings[action]?.shortcut
@@ -261,7 +263,7 @@ final class GlobalHotKeyManager {
         if let previous {
             _ = bind(previous, for: action)
         }
-        return .rejected("该组合已被其他 App 占用，请换一个")
+        return .rejected(PanelL10n.hotkeyTaken)
     }
 
     /// Stops the live hotkeys from swallowing keystrokes while the user records a new one.

@@ -82,11 +82,11 @@ struct ClipboardHistoryPane: View {
 
     private var historyModeBar: some View {
         HStack(spacing: 8) {
-            modeButton(title: "列表", systemImage: "list.bullet", mode: .list)
-            modeButton(title: "时间线", systemImage: "calendar.day.timeline.leading", mode: .timeline)
-            modeButton(title: "收藏夹", systemImage: "star.fill", mode: .favorites)
+            modeButton(title: PanelL10n.list, systemImage: "list.bullet", mode: .list)
+            modeButton(title: PanelL10n.timeline, systemImage: "calendar.day.timeline.leading", mode: .timeline)
+            modeButton(title: PanelL10n.favorites, systemImage: "star.fill", mode: .favorites)
             Spacer()
-            Text("\(filtered.count) 条")
+            Text(PanelL10n.itemCount(filtered.count))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -125,13 +125,13 @@ struct ClipboardHistoryPane: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 8) {
                 if !pinned.isEmpty {
-                    sectionHeader("置顶")
+                    sectionHeader(PanelL10n.pin)
                     ForEach(pinned) { item in
                         historyRow(item)
                     }
                 }
                 if !recent.isEmpty {
-                    sectionHeader("最近复制")
+                    sectionHeader(PanelL10n.recentlyCopied)
                     ForEach(recent) { item in
                         historyRow(item)
                     }
@@ -222,9 +222,9 @@ struct EmptyHistoryView: View {
                 .font(.system(size: 40, weight: .light))
                 .foregroundStyle(PasteTheme.accent.opacity(0.7))
                 .symbolEffect(.pulse, options: .repeating)
-            Text(hasSearch ? "没有字面或相近的内容" : "开始复制吧")
+            Text(hasSearch ? PanelL10n.emptyHistorySearch : PanelL10n.startCopying)
                 .font(.title3.weight(.semibold))
-            Text(hasSearch ? "试试其他关键词、更口语的说法，或切换标签 / 时间线筛选。" : "复制的文本、链接、图片与文件会自动打标签，并出现在时间线中。")
+            Text(hasSearch ? PanelL10n.emptyHistorySearchDetail : PanelL10n.emptyHistoryDetail)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

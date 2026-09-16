@@ -32,7 +32,9 @@ struct FavoriteTagCount: Identifiable, Equatable {
 /// so the folder grows with whatever the user types, instead of a fixed board list.
 enum FavoriteTagCatalog {
     static var untaggedTitle: String { PanelL10n.untagged }
-    static let suggestions = ["工作", "灵感", "代码", "资料", "待办"]
+    static var suggestions: [String] {
+        [PanelL10n.tagWork, PanelL10n.tagIdeas, PanelL10n.tagCode, PanelL10n.tagFiles, PanelL10n.tagTodo]
+    }
     static let maxTagsPerItem = 5
     static let maxNameLength = 12
 

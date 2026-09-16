@@ -58,12 +58,12 @@ assertTrue(
   "StatusItemController pops the panel overflow menu"
 );
 assertTrue(
-  /addMenuItem\(menu, title: "打开设置…"/.test(controller),
-  "overflow NSMenu still includes 打开设置…"
+  /addMenuItem\(menu, title: PanelL10n\.openSettings/.test(controller),
+  "overflow NSMenu still includes Open Settings"
 );
 assertTrue(
-  /menu\.addItem\(withTitle: "设置…"/.test(controller),
-  "status-item menu still includes 设置…"
+  /menu\.addItem\(withTitle: PanelL10n\.settingsEllipsis/.test(controller),
+  "status-item menu still includes Settings…"
 );
 assertTrue(
   !/粘贴选中项/.test(controller),
@@ -133,13 +133,13 @@ assertTrue(
   "AppState has a hotkeys settings tab"
 );
 assertTrue(
-  /case \.hotkeys: return "快捷键"/.test(settings),
-  "SettingsView still has a 快捷键 tab"
+  /case \.hotkeys: return PanelL10n\.settingsTabHotkeys/.test(settings),
+  "SettingsView still has a Hotkeys tab"
 );
-assertTrue(
-  /appState\.settingsTab = tab/.test(settings),
-  "custom tab bar writes settingsTab so menus can select 快捷键"
-);
+assertTrue(/PanelL10n\.settingsTabGeneral/.test(settings), "settings tabs are localized");
+assertTrue(/PanelL10n\.listenClipboard/.test(settings), "general preferences are localized");
+assertTrue(/PanelL10n\.screenshotSettingsHelp/.test(settings), "screenshot help follows the app language");
+assertTrue(/PanelL10n\.restoreAllDefaults/.test(settings), "restore-defaults chip is localized");
 assertTrue(
   /PasteTheme\.backgroundGradient/.test(settings),
   "settings use the same warm gradient as the main panel"

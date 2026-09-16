@@ -42,15 +42,15 @@ struct ContentView: View {
                         Button {
                             ScreenshotService.shared.capture(mode, recognizeText: true)
                         } label: {
-                            Label("\(mode.title)并识字", systemImage: "text.viewfinder")
+                            Label(PanelL10n.modeAndRecognize(mode.title), systemImage: "text.viewfinder")
                         }
                     }
                 } label: {
-                    Label("截图", systemImage: "camera.viewfinder")
+                    Label(PanelL10n.screenshot, systemImage: "camera.viewfinder")
                 } primaryAction: {
                     ScreenshotService.shared.capture(.region)
                 }
-                .help("截图（\(appState.screenshotHotkeyDisplay)）冻结屏幕、标注后存图片；「并识字」只存识别出的文字")
+                .help(PanelL10n.screenshotHelp(appState.screenshotHotkeyDisplay))
                 Button {
                     appState.isMonitoringEnabled.toggle()
                     appState.savePreferences()
@@ -61,14 +61,14 @@ struct ContentView: View {
                     )
                 } label: {
                     Label(
-                        appState.isMonitoringEnabled ? "监听中" : "已暂停",
+                        appState.isMonitoringEnabled ? PanelL10n.monitoringOn : PanelL10n.paused,
                         systemImage: appState.isMonitoringEnabled ? "waveform.badge.mic" : "pause.circle"
                     )
                 }
-                .help(appState.isMonitoringEnabled ? "暂停剪贴板监听" : "恢复剪贴板监听")
+                .help(appState.isMonitoringEnabled ? PanelL10n.pauseMonitoring : PanelL10n.resumeMonitoring)
             }
         }
-        .searchable(text: $appState.searchQuery, prompt: "搜索已复制的一切…")
+        .searchable(text: $appState.searchQuery, prompt: PanelL10n.searchEverything)
         .onAppear {
             if store == nil {
                 // UI-only store — AppDelegate owns pasteboard monitoring.
@@ -98,16 +98,16 @@ struct ContentView: View {
                 appState.requestExportJSON = false
             }
         }
-        .alert("清空历史？", isPresented: $showClearConfirm) {
-            Button("取消", role: .cancel) {}
-            Button("清空（保留置顶）", role: .destructive) {
+        .alert(PanelL10n.clearHistoryTitle, isPresented: $showClearConfirm) {
+            Button(PanelL10n.cancel, role: .cancel) {}
+            Button(PanelL10n.clearKeepPinned, role: .destructive) {
                 store?.clearHistory(keepPinned: true)
             }
-            Button("全部清空", role: .destructive) {
+            Button(PanelL10n.clearAll, role: .destructive) {
                 store?.clearHistory(keepPinned: false)
             }
         } message: {
-            Text("此操作无法撤销。置顶条目可选择保留。")
+            Text(PanelL10n.clearHistoryMessage)
         }
     }
 
@@ -153,13 +153,13 @@ struct SidebarView: View {
 
     var body: some View {
         List {
-            Section("收藏夹") {
+            Section(PanelL10n.favorites) {
                 Button {
                     appState.mainHistoryMode = .favorites
                     appState.showFavorites(scope: .all)
                 } label: {
                     HStack {
-                        Label("全部收藏", systemImage: "star.fill")
+                        Label(PanelL10n.allFavorites, systemImage: "star.fill")
                             .foregroundStyle(
                                 appState.mainHistoryMode == .favorites && appState.favoriteScope == .all
                                 ? PasteTheme.accent
@@ -195,12 +195,12 @@ struct SidebarView: View {
                     .buttonStyle(.plain)
                 }
 
-                Text("收藏的内容长期保存，未收藏的只保留 \(appState.keepUnfavoritedDays) 天。")
+                Text(PanelL10n.favoritesKeepHelp(appState.keepUnfavoritedDays))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
 
-            Section("自动标签") {
+            Section(PanelL10n.autoTags) {
                 ForEach(AutoTag.allCases) { tag in
                     Button {
                         appState.selectedAutoTag = tag.rawValue
@@ -221,7 +221,7 @@ struct SidebarView: View {
                     .buttonStyle(.plain)
                 }
                 if appState.selectedAutoTag != nil {
-                    Button("清除标签筛选") {
+                    Button(PanelL10n.clearTagFilter) {
                         appState.selectedAutoTag = nil
                     }
                     .font(.caption)
@@ -229,12 +229,12 @@ struct SidebarView: View {
                 }
             }
 
-            Section("视图") {
+            Section(PanelL10n.views) {
                 Button {
                     appState.mainHistoryMode = .list
                     appState.leaveFavorites()
                 } label: {
-                    Label("列表", systemImage: "list.bullet")
+                    Label(PanelL10n.list, systemImage: "list.bullet")
                         .foregroundStyle(appState.mainHistoryMode == .list ? PasteTheme.accent : .primary)
                 }
                 .buttonStyle(.plain)
@@ -242,13 +242,13 @@ struct SidebarView: View {
                     appState.mainHistoryMode = .timeline
                     appState.leaveFavorites()
                 } label: {
-                    Label("时间线大纲", systemImage: "calendar.day.timeline.leading")
+                    Label(PanelL10n.timelineOutline, systemImage: "calendar.day.timeline.leading")
                         .foregroundStyle(appState.mainHistoryMode == .timeline ? PasteTheme.accent : .primary)
                 }
                 .buttonStyle(.plain)
             }
 
-            Section("资料库") {
+            Section(PanelL10n.library) {
                 ForEach(AppState.ContentFilter.allCases) { filter in
                     Button {
                         appState.selectedFilter = filter
@@ -276,7 +276,7 @@ struct SidebarView: View {
             }
 
             if !boards.isEmpty {
-                Section("看板") {
+                Section(PanelL10n.boards) {
                     ForEach(boards) { board in
                         Label(board.name, systemImage: "square.grid.2x2")
                             .foregroundStyle(Color(hex: board.colorHex) ?? PasteTheme.accent)
@@ -323,9 +323,9 @@ enum SeedData {
         let boardCount = (try? context.fetchCount(boardDescriptor)) ?? 0
         if boardCount == 0 {
             let boards = [
-                ClipboardBoard(name: "工作", sortOrder: 0, colorHex: "#0D9488"),
-                ClipboardBoard(name: "灵感", sortOrder: 1, colorHex: "#EE6C4D"),
-                ClipboardBoard(name: "代码片段", sortOrder: 2, colorHex: "#059669")
+                ClipboardBoard(name: PanelL10n.tagWork, sortOrder: 0, colorHex: "#0D9488"),
+                ClipboardBoard(name: PanelL10n.tagIdeas, sortOrder: 1, colorHex: "#EE6C4D"),
+                ClipboardBoard(name: PanelL10n.tagCode, sortOrder: 2, colorHex: "#059669")
             ]
             boards.forEach { context.insert($0) }
         }
