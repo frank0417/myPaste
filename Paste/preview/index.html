@@ -327,6 +327,151 @@
       .sidebar, .preview { border: 0; }
       .preview { border-top: 1px solid var(--line); }
     }
+
+    .shot-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      cursor: crosshair;
+      user-select: none;
+      overflow: hidden;
+    }
+    .shot-overlay.active { display: block; background: rgba(0,0,0,.45); }
+    .shot-overlay canvas.shot-draw {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .shot-dim {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,.55);
+      pointer-events: none;
+    }
+    .shot-selection {
+      position: absolute;
+      border: 1.5px solid #2f80ff;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,.55);
+      pointer-events: none;
+      display: none;
+    }
+    .shot-selection .handle {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: #2f80ff;
+      border: 1.5px solid #fff;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .shot-selection .handle.nw { left: 0; top: 0; }
+    .shot-selection .handle.n { left: 50%; top: 0; }
+    .shot-selection .handle.ne { left: 100%; top: 0; }
+    .shot-selection .handle.e { left: 100%; top: 50%; }
+    .shot-selection .handle.se { left: 100%; top: 100%; }
+    .shot-selection .handle.s { left: 50%; top: 100%; }
+    .shot-selection .handle.sw { left: 0; top: 100%; }
+    .shot-selection .handle.w { left: 0; top: 50%; }
+    .shot-badge {
+      position: absolute;
+      transform: translateY(calc(-100% - 6px));
+      background: rgba(0,0,0,.72);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 22px;
+      padding: 0 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    .shot-toolbar {
+      position: absolute;
+      display: none;
+      align-items: center;
+      gap: 2px;
+      height: 48px;
+      padding: 0 10px;
+      background: rgba(255,255,255,.94);
+      border: 1px solid rgba(0,0,0,.08);
+      border-radius: 999px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.18);
+      z-index: 2;
+      cursor: default;
+    }
+    .shot-toolbar button {
+      width: 32px;
+      height: 32px;
+      border: 0;
+      background: transparent;
+      border-radius: 8px;
+      color: #334155;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      padding: 0;
+    }
+    .shot-toolbar button:hover { background: rgba(15,23,42,.06); }
+    .shot-toolbar button.active { background: #2f80ff; color: #fff; }
+    .shot-toolbar button.ok { color: #52c41a; }
+    .shot-toolbar button.cancel { color: #f5222d; }
+    .shot-toolbar .grip {
+      width: 22px;
+      color: #94a3b8;
+      letter-spacing: -1px;
+      font-size: 11px;
+      text-align: center;
+      cursor: grab;
+    }
+    .shot-toolbar .divider {
+      width: 1px;
+      height: 18px;
+      background: rgba(15,23,42,.1);
+      margin: 0 4px;
+    }
+    .shot-toolbar .swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,0,0,.2);
+    }
+    .shot-palette, .shot-widths {
+      display: none;
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 8px);
+      transform: translateX(-50%);
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.16);
+      padding: 8px 10px;
+      gap: 8px;
+    }
+    .shot-palette.open, .shot-widths.open { display: flex; }
+    .shot-palette button {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,0,0,.15);
+    }
+    .shot-toast {
+      display: none;
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 90;
+      background: rgba(244,246,248,.94);
+      border-radius: 16px;
+      padding: 10px 16px;
+      box-shadow: 0 12px 32px rgba(0,0,0,.18);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .shot-toast.show { display: block; }
   </style>
 </head>
 <body>
@@ -336,6 +481,7 @@
       <p>保存、搜索、同步你复制的一切。文本、链接、图片、颜色与代码片段，一键回到指尖。</p>
       <div class="cta-row">
         <button class="btn btn-primary" id="simulateCopy">模拟复制一条</button>
+        <button class="btn btn-ghost" id="simulateShot">模拟截图</button>
         <button class="btn btn-ghost" id="clearSearch">清空搜索</button>
       </div>
     </header>
@@ -379,8 +525,42 @@
       <div class="list" id="miniList"></div>
     </section>
 
-    <p class="footnote">支持全局快捷键 ⇧⌘V、看板分类与 JSON 导出。这是 Mac 原生 SwiftUI 应用的交互预览。完整工程位于 <code>Paste/Paste.xcodeproj</code>，可在 macOS 14+ 用 Xcode 打开并提交 App Store。</p>
+    <p class="footnote">支持全局快捷键 ⇧⌘V、区域截图标注（矩形 / 箭头 / 马赛克 / 文字）、看板分类与 JSON 导出。这是 Mac 原生 SwiftUI 应用的交互预览。完整工程位于 <code>Paste/Paste.xcodeproj</code>，可在 macOS 14+ 用 Xcode 打开并提交 App Store。</p>
   </div>
+
+  <div class="shot-overlay" id="shotOverlay" aria-label="截图标注">
+    <canvas class="shot-draw" id="shotCanvas"></canvas>
+    <div class="shot-selection" id="shotSelection">
+      <div class="shot-badge" id="shotBadge">0 × 0</div>
+      <span class="handle nw"></span><span class="handle n"></span><span class="handle ne"></span>
+      <span class="handle w"></span><span class="handle e"></span>
+      <span class="handle sw"></span><span class="handle s"></span><span class="handle se"></span>
+    </div>
+    <div class="shot-toolbar" id="shotToolbar">
+      <div class="grip" title="拖动工具条">⋮⋮</div>
+      <button data-tool="rect" title="矩形">▢</button>
+      <button data-tool="ellipse" title="圆形">○</button>
+      <button data-tool="line" title="直线">╱</button>
+      <button data-tool="arrow" title="箭头">↗</button>
+      <button data-tool="pen" title="画笔">✎</button>
+      <button data-tool="text" title="文字">T</button>
+      <button data-tool="pin" title="序号">#</button>
+      <button data-tool="mosaic" title="马赛克">▦</button>
+      <button data-tool="crop" title="重新选区">✂</button>
+      <div class="divider"></div>
+      <button id="shotColor" title="颜色"><span class="swatch" id="shotSwatch"></span></button>
+      <button id="shotWidth" title="粗细">≡</button>
+      <div class="divider"></div>
+      <button id="shotUndo" title="撤销">↺</button>
+      <button id="shotDownload" title="下载截图">⇩</button>
+      <div class="divider"></div>
+      <button class="cancel" id="shotCancel" title="取消（Esc）">✕</button>
+      <button class="ok" id="shotConfirm" title="完成（Enter）">✓</button>
+      <div class="shot-palette" id="shotPalette"></div>
+      <div class="shot-widths" id="shotWidths"></div>
+    </div>
+  </div>
+  <div class="shot-toast" id="shotToast">截图 960 × 455 · 图片已复制</div>
 
   <script>
     const TYPE_COLOR = {
@@ -580,6 +760,344 @@
       renderChips();
       renderList();
     };
+
+    const PALETTE = ["#F5222D", "#FA8C16", "#FADB14", "#52C41A", "#1890FF", "#722ED1", "#FFFFFF", "#1B2A2F"];
+    const shot = {
+      overlay: document.getElementById("shotOverlay"),
+      selectionEl: document.getElementById("shotSelection"),
+      badge: document.getElementById("shotBadge"),
+      toolbar: document.getElementById("shotToolbar"),
+      canvas: document.getElementById("shotCanvas"),
+      toast: document.getElementById("shotToast"),
+      palette: document.getElementById("shotPalette"),
+      widths: document.getElementById("shotWidths"),
+      swatch: document.getElementById("shotSwatch"),
+      rect: null,
+      drag: null,
+      tool: "move",
+      color: "#F5222D",
+      width: 3,
+      strokes: [],
+      current: null,
+      pin: 1,
+      ctx: null
+    };
+    shot.swatch.style.background = shot.color;
+    shot.palette.innerHTML = PALETTE.map((hex) =>
+      `<button type="button" style="background:${hex}" data-hex="${hex}"></button>`
+    ).join("");
+    shot.widths.innerHTML = [2, 3, 5].map((w) =>
+      `<button type="button" data-w="${w}" style="width:72px;height:${w}px;background:#1b2a2f;border-radius:99px"></button>`
+    ).join("");
+
+    function setTool(tool) {
+      shot.tool = shot.tool === tool ? "move" : tool;
+      shot.toolbar.querySelectorAll("[data-tool]").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.tool === shot.tool);
+      });
+    }
+
+    function layoutShot() {
+      if (!shot.rect) {
+        shot.selectionEl.style.display = "none";
+        shot.toolbar.style.display = "none";
+        shot.overlay.style.background = "";
+        return;
+      }
+      shot.overlay.style.background = "transparent";
+      const { x, y, w, h } = shot.rect;
+      shot.selectionEl.style.display = "block";
+      shot.selectionEl.style.left = `${x}px`;
+      shot.selectionEl.style.top = `${y}px`;
+      shot.selectionEl.style.width = `${w}px`;
+      shot.selectionEl.style.height = `${h}px`;
+      shot.badge.textContent = `${Math.round(w)} × ${Math.round(h)}`;
+      const tb = shot.toolbar;
+      tb.style.display = "flex";
+      const tw = tb.offsetWidth || 638;
+      const th = 48;
+      let tx = x + w / 2 - tw / 2;
+      let ty = y + h + 12;
+      if (ty + th > window.innerHeight - 8) ty = y - th - 12;
+      tx = Math.min(Math.max(tx, 8), Math.max(8, window.innerWidth - tw - 8));
+      ty = Math.min(Math.max(ty, 8), Math.max(8, window.innerHeight - th - 8));
+      tb.style.left = `${tx}px`;
+      tb.style.top = `${ty}px`;
+      drawStrokes();
+    }
+
+    function drawStrokes() {
+      const ctx = shot.ctx;
+      if (!ctx) return;
+      ctx.clearRect(0, 0, shot.canvas.width, shot.canvas.height);
+      const all = shot.current ? shot.strokes.concat(shot.current) : shot.strokes;
+      for (const s of all) {
+        ctx.strokeStyle = s.color;
+        ctx.fillStyle = s.color;
+        ctx.lineWidth = s.width;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        const a = s.points[0];
+        const b = s.points[s.points.length - 1];
+        if (s.tool === "rect") {
+          ctx.strokeRect(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+        } else if (s.tool === "ellipse") {
+          ctx.beginPath();
+          ctx.ellipse((a.x + b.x) / 2, (a.y + b.y) / 2, Math.abs(b.x - a.x) / 2, Math.abs(b.y - a.y) / 2, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        } else if (s.tool === "line" || s.tool === "pen") {
+          ctx.beginPath();
+          ctx.moveTo(s.points[0].x, s.points[0].y);
+          s.points.slice(1).forEach((p) => ctx.lineTo(p.x, p.y));
+          ctx.stroke();
+        } else if (s.tool === "arrow") {
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+          const ang = Math.atan2(b.y - a.y, b.x - a.x);
+          ctx.beginPath();
+          ctx.moveTo(b.x, b.y);
+          ctx.lineTo(b.x - 14 * Math.cos(ang - Math.PI / 6), b.y - 14 * Math.sin(ang - Math.PI / 6));
+          ctx.lineTo(b.x - 14 * Math.cos(ang + Math.PI / 6), b.y - 14 * Math.sin(ang + Math.PI / 6));
+          ctx.closePath();
+          ctx.fill();
+        } else if (s.tool === "mosaic") {
+          const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
+          const w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
+          ctx.fillStyle = "rgba(120,130,140,.55)";
+          for (let yy = y; yy < y + h; yy += 10) {
+            for (let xx = x; xx < x + w; xx += 10) {
+              ctx.globalAlpha = 0.4 + ((xx + yy) % 20) / 40;
+              ctx.fillRect(xx, yy, 10, 10);
+            }
+          }
+          ctx.globalAlpha = 1;
+        } else if (s.tool === "text") {
+          ctx.font = "16px Sora, sans-serif";
+          ctx.fillText(s.text || "", a.x, a.y + 16);
+        } else if (s.tool === "pin") {
+          ctx.beginPath();
+          ctx.arc(a.x, a.y, 11, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold 11px Sora, sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(String(s.pin), a.x, a.y);
+          ctx.textAlign = "start";
+          ctx.textBaseline = "alphabetic";
+        }
+      }
+    }
+
+    function openShot() {
+      shot.overlay.classList.add("active");
+      shot.rect = null;
+      shot.drag = null;
+      shot.tool = "move";
+      shot.strokes = [];
+      shot.current = null;
+      shot.pin = 1;
+      setTool("move");
+      const dpr = window.devicePixelRatio || 1;
+      shot.canvas.width = Math.round(window.innerWidth * dpr);
+      shot.canvas.height = Math.round(window.innerHeight * dpr);
+      shot.ctx = shot.canvas.getContext("2d");
+      shot.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      layoutShot();
+    }
+
+    function closeShot() {
+      shot.overlay.classList.remove("active");
+      shot.rect = null;
+      layoutShot();
+    }
+
+    function confirmShot() {
+      if (!shot.rect || shot.rect.w < 4 || shot.rect.h < 4) return;
+      const w = Math.round(shot.rect.w);
+      const h = Math.round(shot.rect.h);
+      const id = Date.now();
+      items.unshift({
+        id,
+        type: "image",
+        title: `截图 ${w}×${h}`,
+        body: "",
+        sub: "区域截图",
+        pinned: false,
+        time: "刚刚",
+        source: "截图"
+      });
+      selectedId = id;
+      filter = "all";
+      renderChips();
+      renderList();
+      closeShot();
+      shot.toast.textContent = `截图 ${w} × ${h} · 图片已复制`;
+      shot.toast.classList.add("show");
+      setTimeout(() => shot.toast.classList.remove("show"), 1900);
+    }
+
+    document.getElementById("simulateShot").onclick = openShot;
+    document.getElementById("shotCancel").onclick = closeShot;
+    document.getElementById("shotConfirm").onclick = confirmShot;
+    document.getElementById("shotUndo").onclick = () => {
+      shot.strokes.pop();
+      drawStrokes();
+    };
+    document.getElementById("shotDownload").onclick = () => {
+      shot.toast.textContent = "已保存到「下载」";
+      shot.toast.classList.add("show");
+      setTimeout(() => shot.toast.classList.remove("show"), 1600);
+    };
+    document.getElementById("shotColor").onclick = (e) => {
+      e.stopPropagation();
+      shot.palette.classList.toggle("open");
+      shot.widths.classList.remove("open");
+    };
+    document.getElementById("shotWidth").onclick = (e) => {
+      e.stopPropagation();
+      shot.widths.classList.toggle("open");
+      shot.palette.classList.remove("open");
+    };
+    shot.palette.onclick = (e) => {
+      const hex = e.target.dataset.hex;
+      if (!hex) return;
+      shot.color = hex;
+      shot.swatch.style.background = hex;
+      shot.palette.classList.remove("open");
+    };
+    shot.widths.onclick = (e) => {
+      const w = Number(e.target.dataset.w);
+      if (!w) return;
+      shot.width = w;
+      shot.widths.classList.remove("open");
+    };
+    shot.toolbar.querySelectorAll("[data-tool]").forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        setTool(btn.dataset.tool);
+      };
+    });
+
+    function hitHandle(pt) {
+      if (!shot.rect) return null;
+      const { x, y, w, h } = shot.rect;
+      const spots = {
+        nw: [x, y], n: [x + w / 2, y], ne: [x + w, y],
+        e: [x + w, y + h / 2], se: [x + w, y + h],
+        s: [x + w / 2, y + h], sw: [x, y + h], w: [x, y + h / 2]
+      };
+      for (const [name, [hx, hy]] of Object.entries(spots)) {
+        if (Math.hypot(pt.x - hx, pt.y - hy) <= 10) return name;
+      }
+      if (pt.x >= x && pt.x <= x + w && pt.y >= y && pt.y <= y + h) return "move";
+      return null;
+    }
+
+    shot.overlay.addEventListener("mousedown", (e) => {
+      if (e.target.closest(".shot-toolbar")) return;
+      const pt = { x: e.clientX, y: e.clientY };
+      if (e.detail === 2 && shot.rect) {
+        confirmShot();
+        return;
+      }
+      const handle = hitHandle(pt);
+      if (handle && handle !== "move") {
+        shot.drag = { kind: "handle", handle, start: pt, origin: { ...shot.rect } };
+        return;
+      }
+      if (handle === "move") {
+        if (shot.tool === "crop") {
+          shot.strokes = [];
+          shot.drag = { kind: "new", start: pt };
+          shot.rect = { x: pt.x, y: pt.y, w: 0, h: 0 };
+          return;
+        }
+        if (shot.tool === "text") {
+          const text = prompt("输入文字", "");
+          if (text) shot.strokes.push({ tool: "text", color: shot.color, width: shot.width, points: [pt], text });
+          drawStrokes();
+          return;
+        }
+        if (shot.tool === "pin") {
+          shot.strokes.push({ tool: "pin", color: shot.color, width: shot.width, points: [pt], pin: shot.pin++ });
+          drawStrokes();
+          return;
+        }
+        if (["rect", "ellipse", "line", "arrow", "pen", "mosaic"].includes(shot.tool)) {
+          shot.current = { tool: shot.tool, color: shot.color, width: shot.width, points: [pt, pt] };
+          shot.drag = { kind: "draw", start: pt };
+          return;
+        }
+        shot.drag = { kind: "move", start: pt, origin: { ...shot.rect } };
+        return;
+      }
+      shot.strokes = [];
+      shot.tool = "move";
+      setTool("move");
+      shot.drag = { kind: "new", start: pt };
+      shot.rect = { x: pt.x, y: pt.y, w: 0, h: 0 };
+      layoutShot();
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (!shot.drag) return;
+      const pt = { x: e.clientX, y: e.clientY };
+      if (shot.drag.kind === "new") {
+        shot.rect = {
+          x: Math.min(shot.drag.start.x, pt.x),
+          y: Math.min(shot.drag.start.y, pt.y),
+          w: Math.abs(pt.x - shot.drag.start.x),
+          h: Math.abs(pt.y - shot.drag.start.y)
+        };
+        layoutShot();
+      } else if (shot.drag.kind === "move") {
+        shot.rect = {
+          x: Math.min(Math.max(0, shot.drag.origin.x + pt.x - shot.drag.start.x), window.innerWidth - shot.drag.origin.w),
+          y: Math.min(Math.max(0, shot.drag.origin.y + pt.y - shot.drag.start.y), window.innerHeight - shot.drag.origin.h),
+          w: shot.drag.origin.w,
+          h: shot.drag.origin.h
+        };
+        layoutShot();
+      } else if (shot.drag.kind === "handle") {
+        const o = shot.drag.origin;
+        let x1 = o.x, y1 = o.y, x2 = o.x + o.w, y2 = o.y + o.h;
+        const h = shot.drag.handle;
+        if (h.includes("n")) y1 = pt.y;
+        if (h.includes("s")) y2 = pt.y;
+        if (h.includes("w")) x1 = pt.x;
+        if (h.includes("e")) x2 = pt.x;
+        shot.rect = { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) };
+        layoutShot();
+      } else if (shot.drag.kind === "draw" && shot.current) {
+        if (shot.current.tool === "pen") shot.current.points.push(pt);
+        else shot.current.points[1] = pt;
+        drawStrokes();
+      }
+    });
+
+    window.addEventListener("mouseup", () => {
+      if (!shot.drag) return;
+      if (shot.drag.kind === "new" && shot.rect && (shot.rect.w < 4 || shot.rect.h < 4)) shot.rect = null;
+      if (shot.drag.kind === "draw" && shot.current) {
+        shot.strokes.push(shot.current);
+        shot.current = null;
+      }
+      shot.drag = null;
+      layoutShot();
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (!shot.overlay.classList.contains("active")) return;
+      if (e.key === "Escape") closeShot();
+      if (e.key === "Enter") confirmShot();
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
+        shot.strokes.pop();
+        drawStrokes();
+      }
+    });
 
     renderChips();
     renderList();

@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import CoreGraphics
 import Foundation
+import ScreenCaptureKit
 import UniformTypeIdentifiers
 
 /// Apple's capture tool. Kept outside the main-actor type so the background worker
@@ -57,12 +58,12 @@ enum ScreenshotMode: String, CaseIterable, Identifiable {
     }
 }
 
-/// Captures screenshots through the system `screencapture` tool and files the result
-/// in clipboard history like any other copied image.
+/// Captures a frozen screenshot, then opens a custom overlay so the user can crop
+/// and annotate before the image is filed in clipboard history.
 ///
-/// Shelling out to `screencapture` instead of ScreenCaptureKit keeps the native
-/// selection overlay (magnifier, Space to switch to window mode, Esc to cancel) and
-/// leaves the pixel grabbing to an Apple-signed binary.
+/// Pixels come from ScreenCaptureKit (with `CGDisplayCreateImage` as fallback).
+/// `/usr/sbin/screencapture` is only used when both grabbers fail, typically in
+/// environments where Screen Recording has not been granted yet.
 @MainActor
 final class ScreenshotService: ObservableObject {
     static let shared = ScreenshotService()
@@ -95,29 +96,71 @@ final class ScreenshotService: ObservableObject {
     /// capture keeps only the recognized text and drops the image entirely. The user
     /// picks per capture from the menus; the hotkey always takes a plain capture.
     func capture(_ mode: ScreenshotMode, recognizeText: Bool = false) {
-        guard !isCapturing else { return }
+        guard !isCapturing, !ScreenshotOverlayController.shared.isActive else { return }
         isCapturing = true
 
-        // Our own shelf must not end up in the shot; bring it back afterwards so the
-        // new screenshot is visible where the user started the capture.
+        // Our own windows must not end up in the shot; bring them back afterwards.
         let restorePanel = StatusItemController.shared.isPanelVisible
+        let restoreMain = StatusItemController.shared.isMainWindowVisible
         if restorePanel {
             StatusItemController.shared.hidePanel()
         }
+        if restoreMain {
+            StatusItemController.shared.hideMainWindow()
+        }
         requestScreenRecordingAccessIfNeeded()
 
+        let delayNs: UInt64 = (restorePanel || restoreMain) ? 250_000_000 : 40_000_000
+        Task { [self] in
+            try? await Task.sleep(nanoseconds: delayNs)
+            let frames = await ScreenshotGrabber.captureAllScreens()
+            await MainActor.run {
+                if frames.isEmpty {
+                    self.captureWithSystemTool(
+                        mode: mode,
+                        recognizeText: recognizeText,
+                        restorePanel: restorePanel,
+                        restoreMain: restoreMain
+                    )
+                    return
+                }
+                ScreenshotOverlayController.shared.present(
+                    frames: frames,
+                    mode: mode,
+                    recognizeText: recognizeText
+                ) { outcome in
+                    switch outcome {
+                    case .cancelled:
+                        self.isCapturing = false
+                        self.restoreWindows(panel: restorePanel, main: restoreMain)
+                    case .captured(let png, let rawPNG):
+                        self.finishOverlayCapture(
+                            mode: mode,
+                            png: png,
+                            rawPNG: rawPNG,
+                            recognizeText: recognizeText,
+                            restorePanel: restorePanel,
+                            restoreMain: restoreMain
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /// Fallback when ScreenCaptureKit and CGDisplayCreateImage both fail: the
+    /// system picker still works in non-sandboxed builds.
+    private func captureWithSystemTool(
+        mode: ScreenshotMode,
+        recognizeText: Bool,
+        restorePanel: Bool,
+        restoreMain: Bool
+    ) {
         let output = Self.makeOutputURL()
         let arguments = mode.arguments(output: output.path)
-        // Give the shelf time to animate away before the pixels are read.
-        let delay: TimeInterval = restorePanel ? 0.3 : 0
-
-        // Captured strongly: this is a singleton, and a weak capture cannot be read
-        // from the nested task that hands the result back to the main actor.
-        queue.asyncAfter(deadline: .now() + delay) { [self] in
+        queue.async { [self] in
             let status = Self.runScreenCapture(arguments)
             let data = Self.readPNG(at: output)
-            // OCR stays on this queue and ahead of the pasteboard write: the text has
-            // to be there by the time the user reaches for ⌘V.
             let text = data.flatMap { recognizeText ? TextRecognizer.recognize(imageData: $0) : nil }
             Task { @MainActor in
                 self.finish(
@@ -126,10 +169,50 @@ final class ScreenshotService: ObservableObject {
                     text: text,
                     recognizeText: recognizeText,
                     status: status,
-                    restorePanel: restorePanel
+                    restorePanel: restorePanel,
+                    restoreMain: restoreMain,
+                    showActionBar: true
                 )
             }
         }
+    }
+
+    private func finishOverlayCapture(
+        mode: ScreenshotMode,
+        png: Data,
+        rawPNG: Data,
+        recognizeText: Bool,
+        restorePanel: Bool,
+        restoreMain: Bool
+    ) {
+        if recognizeText {
+            queue.async { [self] in
+                let text = TextRecognizer.recognize(imageData: rawPNG)
+                Task { @MainActor in
+                    self.finish(
+                        mode: mode,
+                        data: png,
+                        text: text,
+                        recognizeText: true,
+                        status: 0,
+                        restorePanel: restorePanel,
+                        restoreMain: restoreMain,
+                        showActionBar: false
+                    )
+                }
+            }
+            return
+        }
+        finish(
+            mode: mode,
+            data: png,
+            text: nil,
+            recognizeText: false,
+            status: 0,
+            restorePanel: restorePanel,
+            restoreMain: restoreMain,
+            showActionBar: false
+        )
     }
 
     private func finish(
@@ -138,7 +221,9 @@ final class ScreenshotService: ObservableObject {
         text: String?,
         recognizeText: Bool,
         status: Int32,
-        restorePanel: Bool
+        restorePanel: Bool,
+        restoreMain: Bool = false,
+        showActionBar: Bool = true
     ) {
         isCapturing = false
 
@@ -150,21 +235,17 @@ final class ScreenshotService: ObservableObject {
             } else if status != 0 && status != 1 {
                 presentFailureAlert(status: status)
             }
-            if restorePanel {
-                StatusItemController.shared.showPanel()
-            }
+            restoreWindows(panel: restorePanel, main: restoreMain)
             return
         }
 
         if recognizeText {
-            finishTextCapture(mode: mode, text: text, restorePanel: restorePanel)
+            finishTextCapture(mode: mode, text: text, restorePanel: restorePanel, restoreMain: restoreMain)
             return
         }
 
         guard let payload = Self.payload(mode: mode, pngData: data) else {
-            if restorePanel {
-                StatusItemController.shared.showPanel()
-            }
+            restoreWindows(panel: restorePanel, main: restoreMain)
             return
         }
         writeImageToPasteboard(data)
@@ -176,21 +257,30 @@ final class ScreenshotService: ObservableObject {
             title: payload.previewTitle,
             thumbnail: thumbnail
         )
-        if restorePanel {
-            StatusItemController.shared.showPanel()
-        }
-        // The strip under the pointer: read the text, save the file, or dismiss.
-        // The pointer sits where the selection ended, so the bar hangs just below
-        // the screenshot the user just drew.
-        ScreenshotActionBar.shared.show(
-            thumbnail: thumbnail,
-            title: "\(payload.previewTitle) · 已复制",
-            anchor: NSEvent.mouseLocation,
-            actions: .init(
-                recognizeText: { [self] in recognizeLastCapture() },
-                save: { [self] in saveLastCapture() }
+        restoreWindows(panel: restorePanel, main: restoreMain)
+        if showActionBar {
+            // System-picker fallback: the strip under the pointer still offers OCR
+            // and download, since that path has no annotation toolbar.
+            ScreenshotActionBar.shared.show(
+                thumbnail: thumbnail,
+                title: "\(payload.previewTitle) · 已复制",
+                anchor: NSEvent.mouseLocation,
+                actions: .init(
+                    recognizeText: { [self] in recognizeLastCapture() },
+                    save: { [self] in saveLastCapture() }
+                )
             )
-        )
+        } else {
+            ScreenshotHUD.shared.show(thumbnail: thumbnail, title: payload.previewTitle, detail: "图片已复制")
+        }
+    }
+
+    private func restoreWindows(panel: Bool, main: Bool) {
+        if panel {
+            StatusItemController.shared.showPanel()
+        } else if main {
+            StatusItemController.shared.showMainWindow()
+        }
     }
 
     /// Reads the text in the capture that just landed, puts it on the pasteboard and
@@ -268,11 +358,10 @@ final class ScreenshotService: ObservableObject {
 
     /// A 识字 capture keeps only the words: the image is discarded, the text goes to
     /// the pasteboard and into history as a normal text item.
-    private func finishTextCapture(mode: ScreenshotMode, text: String?, restorePanel: Bool) {
+    private func finishTextCapture(mode: ScreenshotMode, text: String?, restorePanel: Bool, restoreMain: Bool = false) {
         guard let text, !text.isEmpty else {
-            if restorePanel {
-                StatusItemController.shared.showPanel()
-            } else {
+            restoreWindows(panel: restorePanel, main: restoreMain)
+            if !restorePanel && !restoreMain {
                 ScreenshotHUD.shared.show(thumbnail: nil, title: "截图识字", detail: "未识别到文字")
             }
             return
@@ -283,9 +372,8 @@ final class ScreenshotService: ObservableObject {
         pasteboard.setString(text, forType: .string)
         let payload = Self.textPayload(mode: mode, text: text)
         onCaptured?(payload)
-        if restorePanel {
-            StatusItemController.shared.showPanel()
-        } else {
+        restoreWindows(panel: restorePanel, main: restoreMain)
+        if !restorePanel && !restoreMain {
             ScreenshotHUD.shared.show(
                 thumbnail: nil,
                 title: "截图识字",
@@ -343,7 +431,9 @@ final class ScreenshotService: ObservableObject {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = "截图失败"
-        alert.informativeText = "系统截图工具返回错误代码 \(status)。请重试，或用系统快捷键 ⇧⌘4 截图后由 PasteNest 自动收录。"
+        alert.informativeText = status == 0
+            ? "无法读取屏幕画面。请确认已允许「屏幕录制」权限后重试，或用系统快捷键 ⇧⌘4 截图后由 PasteNest 自动收录。"
+            : "无法读取屏幕画面（错误 \(status)）。请确认已允许「屏幕录制」权限后重试，或用系统快捷键 ⇧⌘4 截图后由 PasteNest 自动收录。"
         alert.addButton(withTitle: "好")
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
@@ -441,5 +531,105 @@ final class ScreenshotService: ObservableObject {
             return (rep.pixelsWide, rep.pixelsHigh)
         }
         return (Int(image.size.width), Int(image.size.height))
+    }
+}
+
+enum ScreenshotGrabber {
+    struct Frame {
+        let screen: NSScreen
+        let image: NSImage
+        let scale: CGFloat
+        let windows: [CGRect]
+    }
+
+    static func captureAllScreens() async -> [Frame] {
+        let windows = windowRectsByScreen()
+        let kitContent = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+        var frames: [Frame] = []
+        for screen in NSScreen.screens {
+            let image: NSImage?
+            if let kitContent {
+                image = try? await captureWithKit(screen: screen, content: kitContent)
+            } else {
+                image = nil
+            }
+            guard let image = image ?? captureWithDisplay(screen) else { continue }
+            let pixelWidth = ScreenshotRenderer.cgImage(from: image)?.width ?? Int(screen.frame.width)
+            let scale = CGFloat(pixelWidth) / max(screen.frame.width, 1)
+            frames.append(
+                Frame(
+                    screen: screen,
+                    image: image,
+                    scale: scale,
+                    windows: windows[screen.displayID] ?? []
+                )
+            )
+        }
+        return frames
+    }
+
+    private static func captureWithKit(screen: NSScreen, content: SCShareableContent) async throws -> NSImage {
+        guard let display = content.displays.first(where: { $0.displayID == screen.displayID }) else {
+            throw NSError(domain: "PasteNest.Screenshot", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "Display not found"
+            ])
+        }
+        let filter = SCContentFilter(display: display, excludingWindows: [])
+        let config = SCStreamConfiguration()
+        config.width = display.width
+        config.height = display.height
+        config.showsCursor = false
+        let cgImage = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
+        return NSImage(cgImage: cgImage, size: screen.frame.size)
+    }
+
+    private static func captureWithDisplay(_ screen: NSScreen) -> NSImage? {
+        guard let cgImage = CGDisplayCreateImage(screen.displayID) else { return nil }
+        return NSImage(cgImage: cgImage, size: screen.frame.size)
+    }
+
+    /// Layer-0 on-screen windows, converted into each display's flipped canvas space.
+    static func windowRectsByScreen() -> [CGDirectDisplayID: [CGRect]] {
+        guard let info = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else {
+            return [:]
+        }
+        let primaryMaxY = NSScreen.screens.first?.frame.maxY ?? 0
+        var result: [CGDirectDisplayID: [CGRect]] = [:]
+        for screen in NSScreen.screens {
+            let canvas = CGRect(origin: .zero, size: screen.frame.size)
+            var rects: [CGRect] = []
+            for entry in info {
+                guard (entry[kCGWindowLayer as String] as? Int) == 0 else { continue }
+                guard let bounds = entry[kCGWindowBounds as String] as? [String: Any],
+                      let x = cgFloat(bounds["X"]),
+                      let y = cgFloat(bounds["Y"]),
+                      let width = cgFloat(bounds["Width"]),
+                      let height = cgFloat(bounds["Height"]),
+                      width >= 40, height >= 40 else { continue }
+                let local = ScreenshotLayout.localFlippedRect(
+                    cgBounds: CGRect(x: x, y: y, width: width, height: height),
+                    primaryMaxY: primaryMaxY,
+                    screenFrame: screen.frame
+                ).intersection(canvas)
+                if local.width >= 32, local.height >= 32 {
+                    rects.append(local)
+                }
+            }
+            result[screen.displayID] = rects
+        }
+        return result
+    }
+
+    private static func cgFloat(_ value: Any?) -> CGFloat? {
+        if let number = value as? CGFloat { return number }
+        if let number = value as? Double { return CGFloat(number) }
+        if let number = value as? NSNumber { return CGFloat(truncating: number) }
+        return nil
+    }
+}
+
+extension NSScreen {
+    var displayID: CGDirectDisplayID {
+        (deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID) ?? 0
     }
 }

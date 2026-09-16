@@ -57,9 +57,13 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         statusItem?.button?.toolTip = "PasteNest — 常驻后台（\(display) 唤出）"
     }
 
-    /// `ScreenshotService` hides the shelf before a capture and restores it after.
+    /// `ScreenshotService` hides the shelf (and the main window) before a capture.
     var isPanelVisible: Bool {
         panel?.isVisible == true
+    }
+
+    var isMainWindowVisible: Bool {
+        resolveMainWindow()?.isVisible == true
     }
 
     func registerMainWindow(_ window: NSWindow) {

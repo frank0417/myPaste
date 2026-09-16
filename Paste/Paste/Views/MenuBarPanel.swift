@@ -273,7 +273,7 @@ struct MenuBarPanel: View {
                     .frame(width: 26, height: 26)
             }
             .buttonStyle(.plain)
-            .help("截图（\(appState.screenshotHotkeyDisplay)）— 结果自动存入历史")
+            .help("截图（\(appState.screenshotHotkeyDisplay)）冻结屏幕并标注，结果存入历史")
 
             boardTab(
                 title: "剪贴板",

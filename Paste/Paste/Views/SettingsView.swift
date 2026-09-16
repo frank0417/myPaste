@@ -42,7 +42,7 @@ struct SettingsView: View {
             Text("复制后会按类型自动打标签（图片、链接、富文本等），可在时间线或标签栏筛选。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text("截图（\(appState.screenshotHotkeyDisplay)）保存图片；之后在卡片上右键「识别文字」即可用 Vision 在本机识别画面文字（中英文）。菜单里的「截取区域并识字」则只保留文字、不存图片。")
+                Text("截图（\(appState.screenshotHotkeyDisplay)）会冻结当前屏幕，拖出选区后可用矩形、箭头、马赛克、文字等标注，点 ✓ 后进入剪贴板与历史。之后在卡片上右键「识别文字」即可用 Vision 在本机识别画面文字（中英文）。菜单里的「截取区域并识字」则只保留文字、不存图片。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Toggle("登录时启动", isOn: $appState.launchAtLogin)
@@ -121,7 +121,7 @@ struct SettingsView: View {
                     appState.resetHotkeysToDefaults()
                 }
                 .disabled(HotKeyAction.allCases.allSatisfy { appState.shortcut(for: $0) == $0.defaultShortcut })
-                Text("面板与主窗口不会同时出现：唤出其中一个会自动收起另一个。截图直接进入区域选择，按 Esc 放弃本次截图；识字不需要单独的快捷键，截完在卡片上选「识别文字」即可。")
+                Text("面板与主窗口不会同时出现：唤出其中一个会自动收起另一个。截图会冻结屏幕并进入选区标注，按 Esc 放弃本次截图；识字不需要单独的快捷键，截完在卡片上选「识别文字」即可。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

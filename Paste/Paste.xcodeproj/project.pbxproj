@@ -41,6 +41,8 @@
 		C8D9E0F1A2B30819203A4B62 /* FavoriteTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9E0F1A2B3C40819203A4B63 /* FavoriteTag.swift */; };
 		E0F1A2B3C4D50819203A4B64 /* FavoritesFolderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E60819203A4B65 /* FavoritesFolderView.swift */; };
 		A2B3C4D5E6F70819203A4B66 /* ImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3C4D5E6F7A80819203A4B67 /* ImageCache.swift */; };
+		B8C9D0E1F2A30819203A4B71 /* ScreenshotEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7B8C9D0E1F20819203A4B70 /* ScreenshotEditor.swift */; };
+		D0E1F2A3B4C50819203A4B73 /* ScreenshotOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9D0E1F2A3B40819203A4B72 /* ScreenshotOverlay.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -81,6 +83,8 @@
 		D9E0F1A2B3C40819203A4B63 /* FavoriteTag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoriteTag.swift; sourceTree = "<group>"; };
 		F1A2B3C4D5E60819203A4B65 /* FavoritesFolderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoritesFolderView.swift; sourceTree = "<group>"; };
 		B3C4D5E6F7A80819203A4B67 /* ImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCache.swift; sourceTree = "<group>"; };
+		A7B8C9D0E1F20819203A4B70 /* ScreenshotEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotEditor.swift; sourceTree = "<group>"; };
+		C9D0E1F2A3B40819203A4B72 /* ScreenshotOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotOverlay.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -161,6 +165,8 @@
 				72F05B2CCFE249AFA44F04CA /* SettingsView.swift */,
 				A57B86873CE445BFBE80F41F /* HotKeyRecorderView.swift */,
 				E5F6A7B8C9D00819203A4B5F /* ScreenshotHUD.swift */,
+				A7B8C9D0E1F20819203A4B70 /* ScreenshotEditor.swift */,
+				C9D0E1F2A3B40819203A4B72 /* ScreenshotOverlay.swift */,
 				F1A2B3C4D5E60819203A4B65 /* FavoritesFolderView.swift */,
 			);
 			path = Views;
@@ -284,6 +290,8 @@
 				F1A2B3C4D5E6F70819203A4B /* ScreenshotService.swift in Sources */,
 				C2D3E4F5A6B70819203A4B5C /* TextRecognizer.swift in Sources */,
 				D4E5F6A7B8C90819203A4B5E /* ScreenshotHUD.swift in Sources */,
+				B8C9D0E1F2A30819203A4B71 /* ScreenshotEditor.swift in Sources */,
+				D0E1F2A3B4C50819203A4B73 /* ScreenshotOverlay.swift in Sources */,
 				A6B7C8D9E0F10819203A4B60 /* RetentionPolicy.swift in Sources */,
 				C8D9E0F1A2B30819203A4B62 /* FavoriteTag.swift in Sources */,
 				E0F1A2B3C4D50819203A4B64 /* FavoritesFolderView.swift in Sources */,
@@ -335,7 +343,7 @@
 				CODE_SIGN_ENTITLEMENTS = Paste/Paste.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 26;
+				CURRENT_PROJECT_VERSION = 27;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Paste/Info.plist;
@@ -344,7 +352,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.5.6;
+				MARKETING_VERSION = 1.5.7;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mypaste.PasteNest;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -360,7 +368,7 @@
 				CODE_SIGN_ENTITLEMENTS = Paste/Paste.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 26;
+				CURRENT_PROJECT_VERSION = 27;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Paste/Info.plist;
@@ -369,7 +377,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.5.6;
+				MARKETING_VERSION = 1.5.7;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mypaste.PasteNest;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
