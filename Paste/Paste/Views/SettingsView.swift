@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import ServiceManagement
 
 struct SettingsView: View {
@@ -88,6 +89,12 @@ struct SettingsView: View {
             Text("PasteNest 常驻菜单栏后台，关掉窗口不会退出：按 \(appState.hotkeyDisplay) 唤出底部面板，按 \(appState.mainWindowHotkeyDisplay) 唤出主窗口，也可点击右上角层叠图标。右键图标可退出。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+            LabeledContent("版本") {
+                Text("\(Self.appVersion)（Build \(Self.buildNumber)）")
+                    .font(.callout.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(20)
         .formStyle(.grouped)
@@ -192,13 +199,40 @@ struct SettingsView: View {
                 .font(.title.weight(.bold))
             Text("保存、搜索、同步你复制的一切")
                 .foregroundStyle(.secondary)
-            Text("版本 \(Self.appVersion)")
+
+            HStack(spacing: 8) {
+                Text("版本 \(Self.appVersion)")
+                    .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                Text("Build \(Self.buildNumber)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                Button {
+                    copyVersionInfo()
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                        .font(.caption)
+                }
+                .buttonStyle(.plain)
+                .help("复制版本信息")
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Color.primary.opacity(0.05), in: Capsule(style: .continuous))
+            .padding(.top, 4)
+
+            Text("macOS \(Self.systemVersion)")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
             Spacer()
         }
         .padding(28)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func copyVersionInfo() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString("PasteNest \(Self.appVersion) (\(Self.buildNumber)) · macOS \(Self.systemVersion)", forType: .string)
     }
 
     private func hotkeyRow(_ action: HotKeyAction) -> some View {
@@ -244,6 +278,17 @@ struct SettingsView: View {
 
     private static var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
+    }
+
+    private static var buildNumber: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
+    }
+
+    private static var systemVersion: String {
+        let v = ProcessInfo.processInfo.operatingSystemVersion
+        return v.patchVersion == 0
+            ? "\(v.majorVersion).\(v.minorVersion)"
+            : "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)"
     }
 
     private func updateLaunchAtLogin(_ enabled: Bool) {
