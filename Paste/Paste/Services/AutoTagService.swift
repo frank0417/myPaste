@@ -14,18 +14,7 @@ enum AutoTag: String, CaseIterable, Identifiable, Codable {
 
     var id: String { rawValue }
 
-    var displayName: String {
-        switch self {
-        case .image: return "图片"
-        case .link: return "链接"
-        case .richText: return "富文本"
-        case .text: return "文本"
-        case .code: return "代码"
-        case .file: return "文件"
-        case .color: return "颜色"
-        case .snippet: return "长文本"
-        }
-    }
+    var displayName: String { PanelL10n.autoTag(self) }
 
     var systemImage: String {
         switch self {
