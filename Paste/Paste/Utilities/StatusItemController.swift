@@ -24,6 +24,13 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     private var localKeyMonitor: Any?
     private var localClickMonitor: Any?
     private var isDetailExpanded = false
+    /// Owned Settings window. The SwiftUI `Settings` scene's `showSettingsWindow:`
+    /// is a no-op in an LSUIElement accessory app, so the menu items appeared to do
+    /// nothing. This window is created on demand and reused.
+    private var settingsWindow: NSWindow?
+    /// Captured when the overflow menu is popped so "粘贴选中项" can call back
+    /// into the panel without stuffing a Swift closure into `representedObject`.
+    private var panelMenuPasteSelected: (() -> Void)?
 
     private override init() {
         super.init()
@@ -128,37 +135,142 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         openSettings(tab: .hotkeys)
     }
 
-    /// Bring up the SwiftUI Settings scene from an accessory (menu-bar) app.
-    /// The panel is a non-activating NSPanel, so the settings window must be
-    /// ordered in explicitly after the app activates, or it never appears.
+    /// Bring up Settings from an accessory (menu-bar) app.
+    ///
+    /// `NSApp.sendAction(showSettingsWindow:)` does not present a window while the
+    /// app is `LSUIElement` / `.accessory`, so both "快捷键设置…" and "打开设置…"
+    /// used to look like dead menu items. We host `SettingsView` in our own
+    /// `NSWindow` and order it front after activating.
     /// - Parameter tab: the tab to land on; `nil` keeps whatever was showing.
     func openSettings(tab: AppState.SettingsTab? = nil) {
         if let tab {
             appState?.settingsTab = tab
         }
         hidePanel()
-        // Activate first so the settings window can come to the front.
         NSApp.activate(ignoringOtherApps: true)
-        DispatchQueue.main.async {
-            if #available(macOS 14, *) {
-                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-            } else {
-                NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
-            }
-            NSApp.activate(ignoringOtherApps: true)
-            // The scene window is created lazily; nudge it frontmost on the
-            // next runloop turn once it exists.
-            DispatchQueue.main.async {
-                NSApp.activate(ignoringOtherApps: true)
-                // Only bring forward the settings window itself. Ordering every plain
-                // window in also raised the main window's leftover blank surface.
-                for window in NSApp.windows where !(window is NSPanel) && window !== self.mainWindow {
-                    guard !window.title.isEmpty else { continue }
-                    window.makeKeyAndOrderFront(nil)
-                }
+        // Wait a turn so a SwiftUI `Menu` (or NSMenu tracking) can finish
+        // tearing down before we order a new window in.
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.presentSettingsWindow()
+            if let tab {
+                // Apply again after the view exists; TabView otherwise stays on 通用.
+                self.appState?.settingsTab = tab
             }
         }
     }
+
+    /// Pops the panel overflow menu as a real `NSMenu`.
+    ///
+    /// SwiftUI `Menu` inside a non-activating `NSPanel` draws and highlights items,
+    /// but the item actions frequently never run — which is exactly "点击没反应".
+    func popPanelOverflowMenu(pasteSelected: @escaping () -> Void) {
+        panelMenuPasteSelected = pasteSelected
+        let menu = makePanelOverflowMenu()
+        if let panel, let view = panel.contentView {
+            let windowPoint = panel.mouseLocationOutsideOfEventStream
+            let viewPoint = view.convert(windowPoint, from: nil)
+            menu.popUp(positioning: nil, at: viewPoint, in: view)
+        } else {
+            menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+        }
+    }
+
+    private func makePanelOverflowMenu() -> NSMenu {
+        let menu = NSMenu()
+        let shotHint = appState.map { "（\($0.screenshotHotkeyDisplay)）" } ?? ""
+        let windowHint = appState.map { "（\($0.mainWindowHotkeyDisplay)）" } ?? ""
+        let monitoringTitle = (appState?.isMonitoringEnabled == false) ? "恢复监听" : "暂停监听"
+
+        addMenuItem(menu, title: "粘贴选中项", action: #selector(runPanelPasteSelected))
+        menu.addItem(NSMenuItem.separator())
+
+        addMenuItem(menu, title: "截取区域\(shotHint)", action: #selector(menuCaptureRegion))
+        addMenuItem(menu, title: "截取区域并识字（只存文字）", action: #selector(menuCaptureRegionOCR))
+        menu.addItem(NSMenuItem.separator())
+        addMenuItem(menu, title: monitoringTitle, action: #selector(menuToggleMonitoring))
+        menu.addItem(NSMenuItem.separator())
+        addMenuItem(menu, title: "打开主窗口\(windowHint)", action: #selector(menuShowMainWindow))
+        menu.addItem(NSMenuItem.separator())
+        addMenuItem(menu, title: "快捷键设置…", action: #selector(menuOpenHotkeySettings))
+        addMenuItem(menu, title: "打开设置…", action: #selector(menuOpenSettings))
+        addMenuItem(menu, title: "隐藏面板", action: #selector(menuHidePanel))
+        menu.addItem(NSMenuItem.separator())
+        addMenuItem(menu, title: "退出 PasteNest", action: #selector(menuQuit))
+        menu.addItem(NSMenuItem.separator())
+        let version = NSMenuItem(title: AppVersion.menuTitle, action: nil, keyEquivalent: "")
+        version.isEnabled = false
+        menu.addItem(version)
+        return menu
+    }
+
+    private func addMenuItem(_ menu: NSMenu, title: String, action: Selector) {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = self
+        menu.addItem(item)
+    }
+
+    @objc private func runPanelPasteSelected() {
+        panelMenuPasteSelected?()
+    }
+
+    @objc private func menuToggleMonitoring() {
+        guard let appState else { return }
+        appState.isMonitoringEnabled.toggle()
+        appState.savePreferences()
+        NotificationCenter.default.post(
+            name: .pasteMonitoringPreferenceChanged,
+            object: nil,
+            userInfo: ["enabled": appState.isMonitoringEnabled]
+        )
+    }
+
+    private func presentSettingsWindow() {
+        NSApp.activate(ignoringOtherApps: true)
+        if let existing = resolveSettingsWindow() {
+            settingsWindow = existing
+            existing.makeKeyAndOrderFront(nil)
+            existing.orderFrontRegardless()
+            return
+        }
+        guard let window = makeSettingsWindow() else { return }
+        settingsWindow = window
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+    }
+
+    private func resolveSettingsWindow() -> NSWindow? {
+        if let settingsWindow { return settingsWindow }
+        return NSApp.windows.first { isSettingsWindow($0) }
+    }
+
+    private func isSettingsWindow(_ window: NSWindow) -> Bool {
+        if window === panel || window === mainWindow { return false }
+        if window.identifier?.rawValue == Self.settingsWindowIdentifier { return true }
+        let identifier = window.identifier?.rawValue ?? ""
+        if identifier.localizedCaseInsensitiveContains("settings") { return true }
+        return window.title == "设置" || window.title == "Settings"
+    }
+
+    private func makeSettingsWindow() -> NSWindow? {
+        guard let appState, let container = modelContainer else { return nil }
+        let root = SettingsView()
+            .environmentObject(appState)
+            .modelContainer(container)
+        let hosting = NSHostingController(rootView: root)
+        let window = NSWindow(contentViewController: hosting)
+        window.title = "设置"
+        window.styleMask = [.titled, .closable]
+        window.isReleasedWhenClosed = false
+        window.identifier = NSUserInterfaceItemIdentifier(Self.settingsWindowIdentifier)
+        window.setContentSize(NSSize(width: 520, height: 400))
+        window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+        window.center()
+        return window
+    }
+
+    private static let settingsWindowIdentifier = "PasteNestSettings"
+
     @objc private func menuQuit() {
         NSApp.terminate(nil)
     }
@@ -383,12 +495,15 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     }
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        hidePanel()
-        return false
+        if sender === panel {
+            hidePanel()
+            return false
+        }
+        return true
     }
 
     func windowWillClose(_ notification: Notification) {
-        // Belt-and-suspenders: never let close tear down residency.
+        guard notification.object as? NSWindow === panel else { return }
         removeDismissalMonitors()
     }
 }

@@ -342,57 +342,20 @@ struct MenuBarPanel: View {
                     .lineLimit(1)
             }
 
-            Menu {
-                Button("粘贴选中项") { pasteSelected() }
-                Divider()
-                // Captures live on their hotkey; the menu keeps the shortcut visible
-                // and offers the text-only capture as a choice, not a second key.
-                Button("截取区域（\(appState.screenshotHotkeyDisplay)）") {
-                    ScreenshotService.shared.capture(.region)
-                }
-                Button("截取区域并识字（只存文字）") {
-                    ScreenshotService.shared.capture(.region, recognizeText: true)
-                }
-                Divider()
-                Button(appState.isMonitoringEnabled ? "暂停监听" : "恢复监听") {
-                    appState.isMonitoringEnabled.toggle()
-                    appState.savePreferences()
-                    NotificationCenter.default.post(
-                        name: .pasteMonitoringPreferenceChanged,
-                        object: nil,
-                        userInfo: ["enabled": appState.isMonitoringEnabled]
-                    )
-                }
-                Divider()
-                Button("打开主窗口（\(appState.mainWindowHotkeyDisplay)）") {
-                    StatusItemController.shared.showMainWindow()
-                }
-                Divider()
-                // The shortcuts shown in this menu are all rebindable; take the user
-                // straight to that tab.
-                Button("快捷键设置…") {
-                    StatusItemController.shared.openSettings(tab: .hotkeys)
-                }
-                Button("打开设置…") {
-                    StatusItemController.shared.openSettings()
-                }
-                Button("隐藏面板") {
-                    StatusItemController.shared.hidePanel()
-                }
-                Divider()
-                Button("退出 PasteNest", role: .destructive) {
-                    NSApp.terminate(nil)
-                }
-                Divider()
-                // Which build is this? Answered without opening Settings.
-                Text(AppVersion.menuTitle)
+            // SwiftUI `Menu` inside this non-activating NSPanel highlights items
+            // but often never fires their actions — "快捷键设置…" looked dead.
+            // A real NSMenu popped from this button does run them.
+            Button {
+                StatusItemController.shared.popPanelOverflowMenu(pasteSelected: pasteSelected)
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(.secondary)
                     .frame(width: 26, height: 26)
+                    .contentShape(Rectangle())
             }
-            .menuStyle(.borderlessButton)
+            .buttonStyle(.plain)
+            .help("菜单")
         }
         .lineLimit(1)
         .padding(.horizontal, 14)

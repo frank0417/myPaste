@@ -10,6 +10,7 @@ node Paste/PasteTests/screenshot_service.test.mjs
 node Paste/PasteTests/text_recognizer.test.mjs
 node Paste/PasteTests/favorites_retention.test.mjs
 node Paste/PasteTests/performance_cache.test.mjs
+node Paste/PasteTests/settings_window.test.mjs
 ```
 
 | Test | Mirrors |
@@ -21,3 +22,4 @@ node Paste/PasteTests/performance_cache.test.mjs
 | `text_recognizer.test.mjs` | `TextRecognizer` reading-order assembly, CJK joining and character counting |
 | `favorites_retention.test.mjs` | `RetentionPolicy` expiry/sweep rules and `FavoriteTagCatalog` category normalization |
 | `performance_cache.test.mjs` | `KeywordScorer` field memoization, excess-only history trim, capture coalescing |
+| `settings_window.test.mjs` | Panel overflow uses NSMenu; Settings is an owned window, not `showSettingsWindow:` |
