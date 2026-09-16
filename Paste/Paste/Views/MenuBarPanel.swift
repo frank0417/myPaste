@@ -362,6 +362,12 @@ struct MenuBarPanel: View {
                 Button("打开主窗口（\(appState.mainWindowHotkeyDisplay)）") {
                     StatusItemController.shared.showMainWindow()
                 }
+                Divider()
+                // The shortcuts shown in this menu are all rebindable; take the user
+                // straight to that tab.
+                Button("快捷键设置…") {
+                    StatusItemController.shared.openSettings(tab: .hotkeys)
+                }
                 Button("打开设置…") {
                     StatusItemController.shared.openSettings()
                 }

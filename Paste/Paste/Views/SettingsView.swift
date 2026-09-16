@@ -6,17 +6,24 @@ struct SettingsView: View {
     @StateObject private var syncService = SyncService()
 
     var body: some View {
-        TabView {
+        TabView(selection: $appState.settingsTab) {
             generalTab
                 .tabItem { Label("通用", systemImage: "gearshape") }
+                .tag(AppState.SettingsTab.general)
+            hotkeysTab
+                .tabItem { Label("快捷键", systemImage: "keyboard") }
+                .tag(AppState.SettingsTab.hotkeys)
             historyTab
                 .tabItem { Label("历史", systemImage: "clock") }
+                .tag(AppState.SettingsTab.history)
             syncTab
                 .tabItem { Label("同步", systemImage: "icloud") }
+                .tag(AppState.SettingsTab.sync)
             aboutTab
                 .tabItem { Label("关于", systemImage: "info.circle") }
+                .tag(AppState.SettingsTab.about)
         }
-        .frame(width: 520, height: 380)
+        .frame(width: 520, height: 400)
         .onAppear { syncService.startStatusHeartbeat() }
     }
 
@@ -43,10 +50,12 @@ struct SettingsView: View {
                     updateLaunchAtLogin(enabled)
                 }
             Section("快捷键") {
-                ForEach(HotKeyAction.allCases) { action in
-                    hotkeyRow(action)
+                LabeledContent("全局快捷键") {
+                    Button("修改…") {
+                        appState.settingsTab = .hotkeys
+                    }
                 }
-                Text("点击按钮后按下新的组合键（需包含 ⌘ / ⌃ / ⌥ 中至少一个），按 Esc 取消。两个窗口不会同时出现：唤出其中一个会自动收起另一个。截图与截图识字快捷键都直接进入区域选择，按 Esc 放弃本次截图。")
+                Text("面板 \(appState.hotkeyDisplay) · 主窗口 \(appState.mainWindowHotkeyDisplay) · 截图 \(appState.screenshotHotkeyDisplay) · 截图识字 \(appState.screenshotOCRHotkeyDisplay)。在「快捷键」页可重新录制，录下即刻生效。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -79,6 +88,36 @@ struct SettingsView: View {
             Text("PasteNest 常驻菜单栏后台，关掉窗口不会退出：按 \(appState.hotkeyDisplay) 唤出底部面板，按 \(appState.mainWindowHotkeyDisplay) 唤出主窗口，也可点击右上角层叠图标。右键图标可退出。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        }
+        .padding(20)
+        .formStyle(.grouped)
+    }
+
+    /// Every global shortcut in one place. Recording a combo registers it with the
+    /// system immediately; the row shows the combo that is actually live.
+    private var hotkeysTab: some View {
+        Form {
+            Section {
+                ForEach(HotKeyAction.allCases) { action in
+                    hotkeyRow(action)
+                }
+            } header: {
+                Text("全局快捷键")
+            } footer: {
+                Text("点击组合键按钮，然后按下新的组合（需包含 ⌘ / ⌃ / ⌥ 中至少一个），按 Esc 取消。录下即刻生效，不用重启；被系统或其他 App 占用的组合会被拒绝并保留原快捷键。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Button("全部恢复默认") {
+                    appState.resetHotkeysToDefaults()
+                }
+                .disabled(HotKeyAction.allCases.allSatisfy { appState.shortcut(for: $0) == $0.defaultShortcut })
+                Text("面板与主窗口不会同时出现：唤出其中一个会自动收起另一个。截图与截图识字都直接进入区域选择，按 Esc 放弃本次截图。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(20)
         .formStyle(.grouped)
@@ -164,19 +203,34 @@ struct SettingsView: View {
 
     private func hotkeyRow(_ action: HotKeyAction) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            LabeledContent(action.title) {
+            LabeledContent {
                 HotKeyRecorderView(action: action, shortcut: shortcutBinding(action)) { newShortcut in
                     appState.updateHotkey(newShortcut, for: action)
                 }
+            } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(action.title)
+                    liveStatus(action)
+                }
             }
-            if let feedback = appState.hotkeyFeedback[action] {
-                Label(
-                    feedback.message,
-                    systemImage: feedback.isError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill"
-                )
-                .font(.caption)
-                .foregroundStyle(feedback.isError ? Color.orange : Color.secondary)
+            if let feedback = appState.hotkeyFeedback[action], feedback.isError {
+                Label(feedback.message, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(Color.orange)
             }
+        }
+    }
+
+    /// What the system is listening for right now — the proof that a change took.
+    private func liveStatus(_ action: HotKeyAction) -> some View {
+        let live = appState.liveShortcut(for: action)
+        return HStack(spacing: 4) {
+            Circle()
+                .fill(live == nil ? Color.orange : Color.green)
+                .frame(width: 6, height: 6)
+            Text(live.map { "已生效 \($0.display)" } ?? "未注册")
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(.secondary)
         }
     }
 

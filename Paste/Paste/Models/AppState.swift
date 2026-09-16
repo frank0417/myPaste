@@ -42,6 +42,16 @@ final class AppState: ObservableObject {
     @Published var embeddingRevision: Int = 0
     @Published var panelViewMode: PanelViewMode = .shelf
     @Published var mainHistoryMode: MainHistoryMode = .list
+    /// Which Settings tab is showing; menus set it so "快捷键设置…" lands on that tab.
+    @Published var settingsTab: SettingsTab = .general
+
+    enum SettingsTab: String, CaseIterable {
+        case general
+        case hotkeys
+        case history
+        case sync
+        case about
+    }
 
     enum PanelViewMode: String {
         case shelf
@@ -189,6 +199,20 @@ final class AppState: ObservableObject {
         case .rejected(let reason):
             hotkeyFeedback[action] = .rejected(reason)
             return false
+        }
+    }
+
+    /// The combo the system is actually listening for right now, or `nil` if the
+    /// action has no live binding. Settings shows this next to each recorder so the
+    /// user sees what took effect, not just what was typed.
+    func liveShortcut(for action: HotKeyAction) -> HotKeyShortcut? {
+        GlobalHotKeyManager.shared.shortcut(for: action)
+    }
+
+    /// Puts every shortcut back to its default and registers each one right away.
+    func resetHotkeysToDefaults() {
+        for action in HotKeyAction.allCases {
+            updateHotkey(action.defaultShortcut, for: action)
         }
     }
 
