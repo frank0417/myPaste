@@ -67,31 +67,42 @@ struct MenuBarPanel: View {
     }
 
     var body: some View {
-        ZStack {
-            // When detail is open, hide the shelf layer completely so nothing shows through.
-            if detailItem == nil {
-                panelCard
+        VStack(spacing: 8) {
+            // The search capsule floats on the transparent window above the surface,
+            // its own small pill, so the panel keeps an unbroken rounded outline.
+            if showSearch && detailItem == nil {
+                searchRow
                     .transition(.opacity)
             }
 
-            if let detailItem = detailItem {
-                ClipboardItemDetailOverlay(
-                    item: detailItem,
-                    retentionDays: appState.keepUnfavoritedDays,
-                    onClose: { appState.shelfDetailItemID = nil },
-                    onCopy: { copyOnlyItem(detailItem) },
-                    onCopyText: { store?.copyText(detailItem) },
-                    onPaste: { paste(detailItem) },
-                    onToggleFavorite: { store?.toggleFavorite(detailItem) }
-                )
-                .transition(.opacity)
+            ZStack {
+                // When detail is open, hide the shelf layer completely so nothing shows through.
+                if detailItem == nil {
+                    panelCard
+                        .transition(.opacity)
+                }
+
+                if let detailItem = detailItem {
+                    ClipboardItemDetailOverlay(
+                        item: detailItem,
+                        retentionDays: appState.keepUnfavoritedDays,
+                        onClose: { appState.shelfDetailItemID = nil },
+                        onCopy: { copyOnlyItem(detailItem) },
+                        onCopyText: { store?.copyText(detailItem) },
+                        onPaste: { paste(detailItem) },
+                        onToggleFavorite: { store?.toggleFavorite(detailItem) }
+                    )
+                    .transition(.opacity)
+                }
             }
+            // One surface for the panel. The shelf and the detail view are both
+            // content on it, so switching between them crossfades on a steady backdrop
+            // and the rounded edge never moves.
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .panelSurface()
         }
-        // One surface for the whole window. The shelf and the detail view are both
-        // content on it, so switching between them crossfades on a steady backdrop
-        // and the rounded edge never moves.
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .panelSurface()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .animation(.easeOut(duration: 0.18), value: showSearch)
         .animation(.easeOut(duration: 0.2), value: appState.shelfDetailItemID)
         .onAppear {
             if store == nil {
@@ -197,12 +208,6 @@ struct MenuBarPanel: View {
 
     private var panelCard: some View {
         VStack(spacing: 0) {
-            // The search row is the first thing on the surface, above the nav bar,
-            // so it never floats detached outside the panel.
-            if showSearch {
-                searchRow
-                    .transition(.opacity)
-            }
             topBar
             if appState.panelViewMode == .shelf {
                 shelf
@@ -380,12 +385,12 @@ struct MenuBarPanel: View {
         .padding(.vertical, 8)
         .shelfPill()
         .padding(.horizontal, 16)
-        .padding(.top, showSearch ? 6 : 14)
+        .padding(.top, 14)
         .padding(.bottom, 10)
     }
 
-    /// A single-line search capsule at the top of the surface, above the nav bar. It
-    /// keeps to a compact width and leaves the rest of the row to a quiet hint.
+    /// A single-line search capsule floating above the panel, aligned with the nav
+    /// bar's leading edge. It is its own small surface on the transparent window.
     private var searchRow: some View {
         HStack(spacing: 12) {
             HStack(spacing: 8) {
@@ -430,18 +435,32 @@ struct MenuBarPanel: View {
             .padding(.vertical, 7)
             // One text line tall, whatever the window offers.
             .fixedSize(horizontal: false, vertical: true)
-            .shelfPill(tint: PasteTheme.accent.opacity(0.35))
+            .background {
+                Capsule(style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .overlay(Capsule(style: .continuous).fill(PasteTheme.panelFill.opacity(0.86)))
+            }
+            .clipShape(Capsule(style: .continuous))
+            .overlay(
+                Capsule(style: .continuous)
+                    .inset(by: 1)
+                    .strokeBorder(Color.white.opacity(0.7), lineWidth: 1)
+                    .allowsHitTesting(false)
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(PasteTheme.accent.opacity(0.35), lineWidth: 1)
+                    .allowsHitTesting(false)
+            )
+            // Soft and downward only, so nothing reaches the window's top edge and
+            // gets cut into a band.
+            .shadow(color: .black.opacity(0.08), radius: 6, y: 3)
             .frame(maxWidth: 320)
-
-            Text("↩ 粘贴选中 · Esc 收起")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .lineLimit(1)
 
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 18)
-        .padding(.top, 14)
+        .padding(.top, 4)
         .onAppear {
             // The panel rebuilds its hosting view on show / detail toggle; adopt the
             // live query so the field never disagrees with the filtered results.
