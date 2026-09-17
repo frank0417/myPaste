@@ -65,25 +65,40 @@ struct HotKeyShortcut: Codable, Equatable {
     var carbonModifiers: UInt32
 
     static func load(_ action: HotKeyAction) -> HotKeyShortcut {
+        if action == .screenshot {
+            upgradeScreenshotHotkeyToShiftCommandXIfNeeded()
+        }
         guard let data = UserDefaults.standard.data(forKey: action.storageKey),
               let shortcut = try? JSONDecoder().decode(HotKeyShortcut.self, from: data),
               shortcut.rejectionReason == nil else {
             return action.defaultShortcut
         }
-        // ⇧⌘D was the factory screenshot combo. Treat a still-stored copy as
-        // unset so existing installs pick up ⇧⌘X; a combo the user recorded
-        // themselves is left alone.
-        if action == .screenshot, shortcut == Self.retiredScreenshotDefault {
-            return action.defaultShortcut
+        // Older factory capture combos (⌃⇧⌘4, then ⇧⌘D). Treat a still-stored
+        // copy as unset so existing installs pick up ⇧⌘X, and persist it.
+        if action == .screenshot, Self.retiredScreenshotDefaults.contains(shortcut) {
+            let upgraded = action.defaultShortcut
+            upgraded.save(for: .screenshot)
+            return upgraded
         }
         return shortcut
     }
 
-    /// Factory screenshot combo before ⇧⌘X.
-    private static let retiredScreenshotDefault = HotKeyShortcut(
-        keyCode: UInt32(kVK_ANSI_D),
-        carbonModifiers: UInt32(cmdKey | shiftKey)
-    )
+    /// One-shot so 1.5.9 installs that still have ⌃⇧⌘4 (the original factory
+    /// combo, which the ⇧⌘D-only migrator missed) actually bind ⇧⌘X.
+    private static let screenshotHotkeyUpgradeKey = "didUpgradeScreenshotHotkeyToShiftCommandX"
+
+    private static func upgradeScreenshotHotkeyToShiftCommandXIfNeeded() {
+        let defaults = UserDefaults.standard
+        guard defaults.object(forKey: screenshotHotkeyUpgradeKey) == nil else { return }
+        HotKeyAction.screenshot.defaultShortcut.save(for: .screenshot)
+        defaults.set(true, forKey: screenshotHotkeyUpgradeKey)
+    }
+
+    /// Factory screenshot combos shipped before ⇧⌘X.
+    private static let retiredScreenshotDefaults: [HotKeyShortcut] = [
+        HotKeyShortcut(keyCode: UInt32(kVK_ANSI_D), carbonModifiers: UInt32(cmdKey | shiftKey)),
+        HotKeyShortcut(keyCode: UInt32(kVK_ANSI_4), carbonModifiers: UInt32(cmdKey | shiftKey | controlKey))
+    ]
 
     func save(for action: HotKeyAction) {
         if let data = try? JSONEncoder().encode(self) {
