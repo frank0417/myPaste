@@ -312,13 +312,6 @@ enum PanelL10n {
         )
     }
     static var restoreDefaults: String { pick("恢复默认", hant: "恢復預設", en: "Restore defaults") }
-    static var restoreDefaultsDetail: String {
-        pick(
-            "面板与主窗口不会同时出现：唤出其中一个会自动收起另一个。截图会冻结屏幕并进入选区标注，按 Esc 放弃本次截图；识字不需要单独的快捷键，截完在卡片上选「识别文字」即可。",
-            hant: "面板與主視窗不會同時出現：喚出其中一個會自動收起另一個。截圖會凍結螢幕並進入選區標註，按 Esc 放棄本次截圖；識字不需要單獨的快捷鍵，截完在卡片上選「辨識文字」即可。",
-            en: "The shelf and main window never show together. A screenshot freezes the screen for annotating; Esc cancels. Text recognition has no extra hotkey — choose Recognize text on a capture."
-        )
-    }
     static var restoreAllDefaults: String { pick("全部恢复默认", hant: "全部恢復預設", en: "Restore all defaults") }
     static var retention: String { pick("收藏与保留", hant: "收藏與保留", en: "Saved & retention") }
     static func keepUnfavorited(_ days: Int) -> String {

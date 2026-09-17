@@ -75,7 +75,7 @@ Paste/
 在 **Mac + Xcode** 上：
 
 ```bash
-./scripts/package.sh              # 生成 dist/PasteNest.app + dist/PasteNest-1.5.12.dmg
+./scripts/package.sh              # 生成 dist/PasteNest.app + dist/PasteNest-1.5.13.dmg
 ./scripts/package.sh --sign --pkg # Developer ID 签名 + .pkg
 make package                      # 同上（Makefile 封装）
 ```

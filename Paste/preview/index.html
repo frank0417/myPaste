@@ -885,9 +885,8 @@
             <div class="settings-row">
               <div class="settings-copy">
                 <strong data-i18n="restore">恢复默认</strong>
-                <p data-i18n="restoreDetail">面板与主窗口不会同时出现。截图会冻结屏幕；识字没有单独快捷键。</p>
               </div>
-              <button class="settings-chip" type="button" data-i18n="restoreAll">全部恢复默认</button>
+              <button class="settings-chip" type="button" id="restoreAllHotkeys" data-i18n="restoreAll">全部恢复默认</button>
             </div>
           </div>
         </div>
@@ -1032,7 +1031,7 @@
         accessibilityCaption: "只有「一键粘贴到其他 App」才需要。", allowed: "已允许",
         hotkeyPanel: "唤出剪贴板面板", hotkeyWindow: "唤出主窗口", hotkeyShot: "截图（区域）",
         livePanel: "已生效 ⇧⌘V", liveWindow: "已生效 ⌥⌘V", liveShot: "已生效 ⇧⌘X",
-        restore: "恢复默认", restoreDetail: "面板与主窗口不会同时出现。截图会冻结屏幕；识字没有单独快捷键。",
+        restore: "恢复默认",
         restoreAll: "全部恢复默认", retention: "收藏与保留", keepDays: "未收藏的内容保留 3 天",
         retentionHelp: "收藏夹里的内容长期保存；其余记录到期后自动删除。",
         iCloudSync: "通过 iCloud 同步", iCloudCaption: "历史通过你的 Apple ID 在多台 Mac 间同步。",
@@ -1060,7 +1059,7 @@
         accessibilityCaption: "只有「一鍵貼到其他 App」才需要。", allowed: "已允許",
         hotkeyPanel: "喚出剪貼板面板", hotkeyWindow: "喚出主視窗", hotkeyShot: "截圖（區域）",
         livePanel: "已生效 ⇧⌘V", liveWindow: "已生效 ⌥⌘V", liveShot: "已生效 ⇧⌘X",
-        restore: "恢復預設", restoreDetail: "面板與主視窗不會同時出現。截圖會凍結螢幕；識字沒有單獨快捷鍵。",
+        restore: "恢復預設",
         restoreAll: "全部恢復預設", retention: "收藏與保留", keepDays: "未收藏的內容保留 3 天",
         retentionHelp: "收藏夾裡的內容長期保存；其餘記錄到期後自動刪除。",
         iCloudSync: "透過 iCloud 同步", iCloudCaption: "歷史透過你的 Apple ID 在多台 Mac 間同步。",
@@ -1088,7 +1087,7 @@
         accessibilityCaption: "Only instant paste into other apps needs this.", allowed: "Allowed",
         hotkeyPanel: "Show clipboard shelf", hotkeyWindow: "Show main window", hotkeyShot: "Screenshot (region)",
         livePanel: "Active ⇧⌘V", liveWindow: "Active ⌥⌘V", liveShot: "Active ⇧⌘X",
-        restore: "Restore defaults", restoreDetail: "The shelf and main window never show together. A screenshot freezes the screen. Text recognition has no extra hotkey.",
+        restore: "Restore defaults",
         restoreAll: "Restore all defaults", retention: "Saved & retention", keepDays: "Unsaved items stay 3 days",
         retentionHelp: "Saved items stay. Everything else is deleted when it expires.",
         iCloudSync: "Sync with iCloud", iCloudCaption: "History syncs across your Macs with the same Apple ID.",
@@ -1784,6 +1783,15 @@
       btn.onclick = () => showSettingsTab(btn.dataset.settingsTab);
     });
     document.getElementById("settingsOpenHotkeys").onclick = () => showSettingsTab("hotkeys");
+    document.getElementById("restoreAllHotkeys").onclick = () => {
+      const keys = document.querySelectorAll("[data-settings-pane='hotkeys'] .settings-key");
+      const defaults = ["⇧⌘V", "⌥⌘V", "⇧⌘X"];
+      keys.forEach((el, i) => { if (defaults[i]) el.textContent = defaults[i]; });
+      const lives = document.querySelectorAll("[data-settings-pane='hotkeys'] .settings-status span");
+      const copy = ui();
+      const liveDefaults = [copy.livePanel, copy.liveWindow, copy.liveShot];
+      lives.forEach((el, i) => { if (liveDefaults[i]) el.textContent = liveDefaults[i]; });
+    };
 
     renderChips();
     renderList();

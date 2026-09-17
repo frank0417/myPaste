@@ -63,6 +63,10 @@ assertTrue(!/withTitle: "设置…"/.test(controller), "status menu no longer ha
 assertTrue(/PanelL10n\.settingsTabHotkeys/.test(settings), "settings tabs are localized");
 assertTrue(/PanelL10n\.screenshotSettingsHelp/.test(settings), "settings screenshot copy is localized");
 assertTrue(/PanelL10n\.restoreAllDefaults/.test(settings), "restore-defaults chip is localized");
+assertTrue(/id="restoreAllHotkeys"/.test(preview), "preview restore-all is a clickable button");
+assertTrue(!/data-i18n="restoreDetail"/.test(preview), "preview restore card has no detail paragraph");
+assertTrue(!/restoreDefaultsDetail/.test(settings), "restore-defaults card no longer shows the long help paragraph");
+assertTrue(!/\.disabled\(HotKeyAction/.test(settings), "restore-all stays clickable even when shortcuts are already the defaults");
 assertTrue(!/settingsCard\("快捷键"\)/.test(settings), "settings cards no longer hardcode 快捷键");
 
 assertTrue(/PanelL10n\.hotkeyNeedModifier/.test(hotkey), "hotkey rejection copy is localized");
