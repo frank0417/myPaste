@@ -287,7 +287,8 @@
     .facts { margin: 16px 0; display: grid; gap: 8px; font-size: 0.86rem; }
     .facts div { display: grid; grid-template-columns: 72px 1fr; gap: 8px; }
     .facts span { color: var(--muted); }
-    .actions { display: flex; gap: 8px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .actions .btn { flex: 0 0 auto; white-space: nowrap; }
     .sync {
       margin-left: auto;
       display: inline-flex;
@@ -1010,7 +1011,8 @@
         boards: "看板", boardWork: "工作", boardIdeas: "灵感", boardCode: "代码片段",
         search: "搜索已复制的一切…", synced: "已同步 · 刚刚", empty: "没有匹配的结果",
         selectPreview: "选择一条记录以预览", source: "来源", time: "时间", type: "类型",
-        paste: "粘贴", pasted: "已粘贴", pin: "置顶", unpin: "取消置顶",
+        paste: "粘贴", pasted: "已粘贴", copyAction: "复制", pin: "置顶", unpin: "取消置顶",
+        tag: "分类", board: "看板",
         imagePreview: "图片预览", justNow: "刚刚",
         settings: "设置", tabGeneral: "通用", tabHotkeys: "快捷键", tabHistory: "历史",
         tabSync: "同步", tabAbout: "关于", preferences: "偏好", listen: "监听剪贴板",
@@ -1037,7 +1039,8 @@
         boards: "看板", boardWork: "工作", boardIdeas: "靈感", boardCode: "程式碼片段",
         search: "搜尋已複製的一切…", synced: "已同步 · 剛剛", empty: "沒有符合的結果",
         selectPreview: "選擇一則記錄以預覽", source: "來源", time: "時間", type: "類型",
-        paste: "貼上", pasted: "已貼上", pin: "置頂", unpin: "取消置頂",
+        paste: "貼上", pasted: "已貼上", copyAction: "複製", pin: "置頂", unpin: "取消置頂",
+        tag: "分類", board: "看板",
         imagePreview: "圖片預覽", justNow: "剛剛",
         settings: "設定", tabGeneral: "一般", tabHotkeys: "快捷鍵", tabHistory: "歷史",
         tabSync: "同步", tabAbout: "關於", preferences: "偏好", listen: "監聽剪貼板",
@@ -1064,7 +1067,8 @@
         boards: "Boards", boardWork: "Work", boardIdeas: "Ideas", boardCode: "Snippets",
         search: "Search everything you’ve copied…", synced: "Synced · just now", empty: "No matches",
         selectPreview: "Select an item to preview", source: "Source", time: "Time", type: "Type",
-        paste: "Paste", pasted: "Pasted", pin: "Pin", unpin: "Unpin",
+        paste: "Paste", pasted: "Pasted", copyAction: "Copy", pin: "Pin", unpin: "Unpin",
+        tag: "Tag", board: "Board",
         imagePreview: "Image preview", justNow: "Just now",
         settings: "Settings", tabGeneral: "General", tabHotkeys: "Hotkeys", tabHistory: "History",
         tabSync: "Sync", tabAbout: "About", preferences: "Preferences", listen: "Watch clipboard",
@@ -1218,7 +1222,10 @@
         </div>
         <div class="actions">
           <button class="btn btn-primary" id="pasteBtn">${copy.paste}</button>
+          <button class="btn btn-ghost" id="copyBtn">${copy.copyAction}</button>
           <button class="btn btn-ghost" id="pinBtn">${item.pinned ? copy.unpin : copy.pin}</button>
+          <button class="btn btn-ghost" type="button">${copy.tag}</button>
+          <button class="btn btn-ghost" type="button">${copy.board}</button>
         </div>
       `;
       document.getElementById("pinBtn").onclick = () => {

@@ -36,6 +36,8 @@ assertTrue(/func lineSpacing\(for text: String\)/.test(theme), "CJK previews get
 assertTrue(/func shelfChipLabel\(\)/.test(theme), "chip labels share one modifier");
 assertTrue(/struct ShelfAccentButtonStyle: ButtonStyle/.test(theme), "primary actions use a capsule accent style");
 assertTrue(/struct ShelfQuietButtonStyle: ButtonStyle/.test(theme), "secondary actions use a hairline capsule style");
+assertTrue(/fixedSize\(horizontal: true, vertical: false\)/.test(theme), "capsule buttons keep their intrinsic title width");
+assertTrue(/struct WrappingHStack: Layout/.test(theme), "preview actions wrap onto extra rows instead of clipping");
 assertTrue(/static var buttonHorizontalPadding: CGFloat/.test(theme), "button padding keys off CJK vs Latin");
 assertTrue(/static var actionGap: CGFloat/.test(theme), "icon-to-title gap keys off CJK vs Latin");
 assertTrue(/struct ShelfActionLabel: View/.test(theme), "action labels are a dedicated view, not system Label");

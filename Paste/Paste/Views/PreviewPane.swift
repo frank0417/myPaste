@@ -200,37 +200,38 @@ struct PreviewPane: View {
     }
 
     private func actions(_ item: ClipboardItem) -> some View {
-        HStack(spacing: 10) {
+        WrappingHStack(spacing: 8, lineSpacing: 8) {
             Button {
                 store?.paste(item)
             } label: {
-                Label(PanelL10n.paste, systemImage: "return")
-                    .frame(maxWidth: .infinity)
+                ShelfActionLabel(title: PanelL10n.paste, systemImage: "return")
             }
-            .buttonStyle(.borderedProminent)
-            .tint(PasteTheme.accent)
+            .buttonStyle(ShelfAccentButtonStyle())
+            .help(PanelL10n.paste)
 
             Button {
                 store?.copyOnly(item)
             } label: {
-                Label(PanelL10n.copy, systemImage: "doc.on.doc")
+                ShelfActionLabel(title: PanelL10n.copy, systemImage: "doc.on.doc")
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(ShelfQuietButtonStyle())
+            .help(PanelL10n.copy)
 
             if recognizedText(item) != nil {
                 Button {
                     store?.copyText(item)
                 } label: {
-                    Label(PanelL10n.copyText, systemImage: "text.viewfinder")
+                    ShelfActionLabel(title: PanelL10n.copyText, systemImage: "text.viewfinder")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(ShelfQuietButtonStyle())
+                .help(PanelL10n.copyText)
             } else if item.contentType == .image, item.imageData != nil {
                 Button {
                     store?.recognizeText(in: item)
                 } label: {
-                    Label(PanelL10n.recognizeText, systemImage: "text.viewfinder")
+                    ShelfActionLabel(title: PanelL10n.recognizeText, systemImage: "text.viewfinder")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(ShelfQuietButtonStyle())
                 .help(PanelL10n.recognizeHelp)
             }
 
@@ -238,9 +239,9 @@ struct PreviewPane: View {
                 Button {
                     store?.saveImage(item)
                 } label: {
-                    Label(PanelL10n.download, systemImage: "arrow.down.to.line")
+                    ShelfActionLabel(title: PanelL10n.download, systemImage: "arrow.down.to.line")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(ShelfQuietButtonStyle())
                 .help(PanelL10n.downloadHelp)
             }
 
@@ -248,16 +249,19 @@ struct PreviewPane: View {
                 store?.toggleFavorite(item)
             } label: {
                 Image(systemName: item.isFavorite ? "star.fill" : "star")
+                    .font(PasteTheme.Typography.icon)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(ShelfQuietButtonStyle())
             .help(item.isFavorite ? PanelL10n.unfavorite : PanelL10n.favoriteHelp)
 
             Button {
                 store?.togglePin(item)
             } label: {
                 Image(systemName: item.isPinned ? "pin.slash" : "pin")
+                    .font(PasteTheme.Typography.icon)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(ShelfQuietButtonStyle())
+            .help(item.isPinned ? PanelL10n.unpin : PanelL10n.pin)
 
             Menu {
                 ForEach(favoriteTagOptions, id: \.self) { tag in
@@ -273,8 +277,12 @@ struct PreviewPane: View {
                     }
                 }
             } label: {
-                Label(item.favoriteTags.first ?? PanelL10n.tag, systemImage: "tag")
+                ShelfActionLabel(
+                    title: item.favoriteTags.first ?? PanelL10n.tag,
+                    systemImage: "tag"
+                )
             }
+            .buttonStyle(ShelfQuietButtonStyle())
             .help(PanelL10n.favoriteTagHelp)
 
             Menu {
@@ -283,9 +291,12 @@ struct PreviewPane: View {
                     Button(board.name) { store?.assign(item: item, to: board) }
                 }
             } label: {
-                Label(item.board?.name ?? PanelL10n.board, systemImage: "square.grid.2x2")
+                ShelfActionLabel(
+                    title: item.board?.name ?? PanelL10n.board,
+                    systemImage: "square.grid.2x2"
+                )
             }
+            .buttonStyle(ShelfQuietButtonStyle())
         }
-        .controlSize(.large)
     }
 }
