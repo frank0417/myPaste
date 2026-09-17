@@ -77,12 +77,14 @@ assertTrue(/ScreenshotL10n\.hudRecognizedMenu/.test(store), "history OCR HUD fol
 assertTrue(/ScreenshotL10n\.stripOCRSuffix/.test(store), "OCR subtitle stripping understands every language");
 
 assertTrue(/PanelL10n\.paste/.test(previewPane) && /PanelL10n\.recognizeText/.test(previewPane), "preview pane actions are localized");
-assertTrue(/WrappingHStack/.test(previewPane), "preview actions wrap instead of clipping titles");
-assertTrue(/ShelfActionLabel\(title: PanelL10n\.paste/.test(previewPane), "paste keeps a full title in the preview pane");
-assertTrue(/ShelfActionLabel\(title: PanelL10n\.copy/.test(previewPane), "copy keeps a full title in the preview pane");
+assertTrue(/\.help\(PanelL10n\.paste\)/.test(previewPane), "paste is an icon with a localized hover hint");
+assertTrue(/\.help\(PanelL10n\.copy\)/.test(previewPane), "copy is an icon with a localized hover hint");
+assertTrue(/\.help\(PanelL10n\.favoriteTagHelp\)/.test(previewPane), "tag menu hover hint follows the app language");
+assertTrue(/\.help\(PanelL10n\.assignBoardHelp\)/.test(previewPane), "board menu hover hint follows the app language");
+assertTrue(/accessibilityLabel\(PanelL10n\.paste\)/.test(previewPane), "icon-only paste still has an accessibility name");
+assertTrue(!/ShelfActionLabel/.test(previewPane), "preview actions do not draw titles on the buttons");
 assertTrue(!/\.buttonStyle\(\.borderedProminent\)/.test(previewPane), "preview pane no longer uses system borderedProminent buttons");
 assertTrue(!/\.controlSize\(\.large\)/.test(previewPane), "preview actions are not forced into one large crowded row");
-assertTrue(!/Label\(PanelL10n\.paste, systemImage: "return"\)[\s\S]{0,80}maxWidth: \.infinity/.test(previewPane), "paste no longer stretches and clips its title");
 assertTrue(/PanelL10n\.list/.test(history) && /PanelL10n\.recentlyCopied/.test(history), "history pane chrome is localized");
 assertTrue(/PanelL10n\.paste/.test(row) && /PanelL10n\.delete/.test(row), "row context menu is localized");
 
@@ -90,10 +92,11 @@ assertTrue(/id="shotOCR"[\s\S]*?>Aa</.test(preview), "English overlay OCR uses a
 assertTrue(!/>文</.test(preview), "preview toolbar no longer shows a CJK 文 glyph");
 assertTrue(/\.shot-toast \{/.test(preview), "toast CSS selector is intact");
 assertTrue(/const UI = \{/.test(preview) && /"zh-Hans":/.test(preview) && /"zh-Hant":/.test(preview) && /en: \{/.test(preview), "preview chrome has three language tables");
-assertTrue(/flex-wrap:\s*wrap/.test(preview), "preview action row wraps so labels stay whole");
-assertTrue(/copyAction: "复制"/.test(preview) && /copyAction: "複製"/.test(preview) && /copyAction: "Copy"/.test(preview), "preview copy button has three language labels");
-assertTrue(/\$\{copy\.copyAction\}/.test(preview), "preview pane renders the copy action title");
-assertTrue(/white-space:\s*nowrap/.test(preview), "preview action labels do not wrap inside the capsule");
+assertTrue(/title="\$\{copy\.paste\}"/.test(preview), "preview paste is an icon with a hover title");
+assertTrue(/title="\$\{copy\.copyAction\}"/.test(preview), "preview copy is an icon with a hover title");
+assertTrue(/aria-label="\$\{copy\.tag\}"/.test(preview), "preview tag icon has an accessible name");
+assertTrue(!/>\$\{copy\.paste\}</.test(preview), "preview paste button does not draw its title");
+assertTrue(/copyAction: "复制"/.test(preview) && /copyAction: "複製"/.test(preview) && /copyAction: "Copy"/.test(preview), "preview copy hover hint has three language labels");
 assertTrue(/data-i18n="simulateShot"/.test(preview), "hero screenshot button is in the chrome table");
 assertTrue(/data-i18n="tabHotkeys"/.test(preview), "settings tabs are in the chrome table");
 assertTrue(/imageCopied: "Image copied"/.test(preview) && /imageCopied: "图片已复制"/.test(preview) && /imageCopied: "圖片已複製"/.test(preview), "toast copy exists in all three languages");

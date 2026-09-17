@@ -556,6 +556,9 @@ enum PanelL10n {
     static var unknownApp: String { pick("未知应用", hant: "未知 App", en: "Unknown app") }
     static var noBoard: String { pick("无看板", hant: "無看板", en: "No board") }
     static var board: String { pick("看板", hant: "看板", en: "Board") }
+    static var assignBoardHelp: String {
+        pick("移到看板", hant: "移到看板", en: "Move to a board")
+    }
     static func removeFromTag(_ tag: String) -> String {
         pick("移出「\(tag)」分类", hant: "移出「\(tag)」分類", en: "Remove from “\(tag)”")
     }
