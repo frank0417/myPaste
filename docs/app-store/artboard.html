@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8" />
+  <title>PasteNest App Store artboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@600;700&family=Sora:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1b2a2f;
+      --muted: #5b6b70;
+      --accent: #0f766e;
+      --coral: #e07a5f;
+      --cream: #f7f4ee;
+      --sand: #f3efe7;
+      --mist: #e8f1f0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 2560px; height: 1600px; overflow: hidden; }
+    body { font-family: "Noto Sans SC", "Sora", sans-serif; color: var(--ink); background: var(--cream); }
+    .board { width: 2560px; height: 1600px; position: relative; display: none; overflow: hidden; }
+    .board.on { display: block; }
+
+    .bg {
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(1100px 620px at 12% -8%, #d9ece8 0%, transparent 55%),
+        radial-gradient(980px 620px at 100% 0%, #f3e2d4 0%, transparent 52%),
+        linear-gradient(150deg, var(--cream), var(--mist) 46%, var(--sand));
+    }
+    .bg.dark {
+      background:
+        radial-gradient(1100px 620px at 12% -8%, #123c37 0%, transparent 55%),
+        radial-gradient(980px 620px at 100% 0%, #2a1a12 0%, transparent 52%),
+        linear-gradient(150deg, #0b1413, #10201d 46%, #1a140f);
+    }
+
+    .head { position: absolute; left: 96px; top: 88px; right: 96px; z-index: 3; }
+    .kicker {
+      display: inline-flex; align-items: center; gap: 14px;
+      font-family: "Sora", sans-serif; font-weight: 600; letter-spacing: .18em;
+      text-transform: uppercase; font-size: 19px;
+    }
+    .kicker img { width: 44px; height: 44px; border-radius: 11px; }
+    h1 {
+      font-family: "Noto Serif SC", "Fraunces", serif;
+      font-weight: 700; letter-spacing: -0.03em; line-height: 1.04;
+      font-size: 92px; margin-top: 20px;
+    }
+    .sub { font-size: 28px; line-height: 1.5; font-weight: 500; color: var(--muted); margin-top: 18px; max-width: 26em; }
+    .dark h1, .dark .sub { color: #f6f1e8; }
+    .dark .sub { color: rgba(246,241,232,.82); }
+    .dark .kicker { color: #9ad4cc; }
+
+    .shot {
+      position: absolute; z-index: 2; border-radius: 26px; overflow: hidden;
+      background: #fff;
+      box-shadow: 0 60px 130px rgba(11,20,19,.32), 0 0 0 1px rgba(27,42,47,.06);
+    }
+    .shot img { width: 100%; height: 100%; object-fit: contain; display: block; background: #f4f6f8; }
+    .shot.cover img { object-fit: cover; }
+
+    .keys { display: inline-flex; gap: 10px; margin-top: 30px; align-items: center; }
+    .key {
+      min-width: 58px; height: 58px; padding: 0 16px;
+      border-radius: 14px; display: grid; place-items: center;
+      font-family: "Sora", sans-serif; font-weight: 700; font-size: 24px;
+      background: rgba(255,255,255,.94); color: var(--ink);
+      box-shadow: 0 12px 28px rgba(11,20,19,.14), inset 0 -2px 0 rgba(27,42,47,.08);
+    }
+    .keys .lbl { margin-left: 14px; color: var(--muted); font-size: 24px; font-weight: 500; }
+
+    .points { margin-top: 34px; display: grid; gap: 18px; }
+    .points div { font-size: 24px; font-weight: 600; display: flex; gap: 14px; align-items: center; }
+    .points i { width: 11px; height: 11px; border-radius: 50%; background: var(--accent); display: inline-block; flex: 0 0 auto; }
+
+    .caption {
+      position: absolute; left: 96px; bottom: 48px; z-index: 4;
+      font-size: 16px; letter-spacing: .1em; text-transform: uppercase;
+      font-family: "Sora", sans-serif; font-weight: 600; opacity: .5;
+    }
+    .dark .caption { color: #f6f1e8; }
+
+    /* 01 hero — shelf, wide */
+    #b1 h1 { font-size: 104px; }
+    #b1 .brand { position: absolute; right: 96px; top: 88px; z-index: 3; }
+    #b1 .brand img { width: 92px; height: 92px; border-radius: 22px; box-shadow: 0 20px 44px rgba(11,20,19,.2); }
+    #b1 .shot { left: 50%; transform: translateX(-50%); bottom: 90px; width: 2200px; height: 840px; }
+
+    /* 02 hotkey — settings, right */
+    #b2 .shot { right: 96px; top: 200px; width: 1080px; height: 1130px; }
+    #b2 .head { right: auto; width: 1240px; }
+
+    /* 03 screenshot — overlay, wide dark */
+    #b3 .shot { left: 50%; transform: translateX(-50%); bottom: 80px; width: 2100px; height: 980px; }
+
+    /* 04 ocr — card, right dark */
+    #b4 .shot { right: 96px; top: 220px; width: 1180px; height: 760px; }
+    #b4 .head { right: auto; width: 1180px; }
+
+    /* 05 search — window, wide */
+    #b5 .shot { left: 50%; transform: translateX(-50%); bottom: 90px; width: 2050px; height: 820px; }
+
+    /* 06 keep — detail + board, right */
+    #b6 .shot { right: 96px; top: 220px; width: 1120px; height: 730px; }
+    #b6 .shot2 { right: 480px; top: 990px; width: 740px; height: 480px; }
+    #b6 .head { right: auto; width: 1180px; }
+
+    .en h1 { font-family: "Fraunces", serif; }
+  </style>
+</head>
+<body>
+  <section class="board" id="b1">
+    <div class="bg dark"></div>
+    <div class="brand"><img src="photos/app-icon.png" alt="" /></div>
+    <div class="head">
+      <div class="kicker"><img src="photos/app-icon.png" alt="" /> <span data-k>PasteNest</span></div>
+      <h1 data-h>复制过的，<br>都还在。</h1>
+      <p class="sub" data-s>菜单栏里的剪贴板巢穴。文字、链接、图片、代码、颜色，自动收好，一键回来。</p>
+    </div>
+    <div class="shot cover"><img src="photos/shot-shelf.png" alt="" /></div>
+    <div class="caption" data-c>01  /  你的第二块剪贴板</div>
+  </section>
+
+  <section class="board" id="b2">
+    <div class="bg"></div>
+    <div class="head">
+      <div class="kicker" style="color:var(--accent)"><img src="photos/app-icon.png" alt="" /> <span data-k>全局快捷键</span></div>
+      <h1 data-h>按一下，<br>它就来了。</h1>
+      <p class="sub" data-s>底部货架、主窗口、截图各有独立快捷键。录下即刻生效，被占用会提醒，一键恢复默认。</p>
+      <div class="keys">
+        <span class="key">⇧</span><span class="key">⌘</span><span class="key">V</span>
+        <span class="lbl" data-k2>唤出底部货架 · 回车粘贴</span>
+      </div>
+    </div>
+    <div class="shot"><img src="photos/shot-settings.png" alt="" /></div>
+    <div class="caption" data-c>02  /  手不离开键盘</div>
+  </section>
+
+  <section class="board" id="b3">
+    <div class="bg dark"></div>
+    <div class="head">
+      <div class="kicker"><img src="photos/app-icon.png" alt="" /> <span data-k>区域截图</span></div>
+      <h1 data-h>截图像发一条消息。</h1>
+      <p class="sub" data-s>冻结屏幕，拖出选区，矩形 / 箭头 / 画笔 / 马赛克 / 文字标注，确认后进入剪贴板与历史。</p>
+    </div>
+    <div class="shot cover"><img src="photos/shot-overlay.png" alt="" /></div>
+    <div class="caption" data-c>03  /  标注完，直接复用</div>
+  </section>
+
+  <section class="board" id="b4">
+    <div class="bg dark"></div>
+    <div class="head">
+      <div class="kicker"><img src="photos/app-icon.png" alt="" /> <span data-k>识别文字</span></div>
+      <h1 data-h>图里的字，<br>也能搜。</h1>
+      <p class="sub" data-s>本机 Vision 识别中英文。可选复制，或只留文字不要图。链接会自动变成链接条目。</p>
+    </div>
+    <div class="shot"><img src="photos/shot-ocr.png" alt="" /></div>
+    <div class="caption" data-c>04  /  字留在你的电脑上</div>
+  </section>
+
+  <section class="board" id="b5">
+    <div class="bg"></div>
+    <div class="head">
+      <div class="kicker" style="color:var(--accent)"><img src="photos/app-icon.png" alt="" /> <span data-k>搜索与分类</span></div>
+      <h1 data-h>不用整理，<br>它自己认得。</h1>
+      <p class="sub" data-s>链接、代码、颜色、文件自动打标。搜索标题、正文、来源应用，实时出结果。</p>
+    </div>
+    <div class="shot cover"><img src="photos/shot-window.png" alt="" /></div>
+    <div class="caption" data-c>05  /  找得到，才算数</div>
+  </section>
+
+  <section class="board" id="b6">
+    <div class="bg"></div>
+    <div class="head">
+      <div class="kicker" style="color:var(--accent)"><img src="photos/app-icon.png" alt="" /> <span data-k>收藏与隐私</span></div>
+      <h1 data-h>重要的，<br>留下来。</h1>
+      <p class="sub" data-s>收藏长期保存，其余按你设定的天数自动清理。iCloud 可选，数据走你的 Apple ID，我们碰不到。</p>
+      <div class="points">
+        <div><i></i><span data-p1>收藏夹独立面板，可打标签</span></div>
+        <div><i></i><span data-p2>未收藏内容默认 3 天后清理</span></div>
+        <div><i></i><span data-p3>无广告、无追踪、无账号体系</span></div>
+      </div>
+    </div>
+    <div class="shot"><img src="photos/shot-detail.png" alt="" /></div>
+    <div class="shot shot2"><img src="photos/shot-board.png" alt="" /></div>
+    <div class="caption" data-c>06  /  只存在你的 Mac 上</div>
+  </section>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const n = params.get("n") || "1";
+    const lang = params.get("lang") || "zh-Hans";
+    document.querySelectorAll(".board").forEach((el) => el.classList.remove("on"));
+    const board = document.getElementById("b" + n) || document.getElementById("b1");
+    board.classList.add("on");
+    board.classList.add(lang);
+
+    const L = {
+      "zh-Hans": {
+        1: { k: "PasteNest", h: "复制过的，<br>都还在。", s: "菜单栏里的剪贴板巢穴。文字、链接、图片、代码、颜色，自动收好，一键回来。", c: "01  /  你的第二块剪贴板" },
+        2: { k: "全局快捷键", h: "按一下，<br>它就来了。", s: "底部货架、主窗口、截图各有独立快捷键。录下即刻生效，被占用会提醒，一键恢复默认。", k2: "唤出底部货架 · 回车粘贴", c: "02  /  手不离开键盘" },
+        3: { k: "区域截图", h: "截图像发一条消息。", s: "冻结屏幕，拖出选区，矩形 / 箭头 / 画笔 / 马赛克 / 文字标注，确认后进入剪贴板与历史。", c: "03  /  标注完，直接复用" },
+        4: { k: "识别文字", h: "图里的字，<br>也能搜。", s: "本机 Vision 识别中英文。可选复制，或只留文字不要图。链接会自动变成链接条目。", c: "04  /  字留在你的电脑上" },
+        5: { k: "搜索与分类", h: "不用整理，<br>它自己认得。", s: "链接、代码、颜色、文件自动打标。搜索标题、正文、来源应用，实时出结果。", c: "05  /  找得到，才算数" },
+        6: { k: "收藏与隐私", h: "重要的，<br>留下来。", s: "收藏长期保存，其余按你设定的天数自动清理。iCloud 可选，数据走你的 Apple ID，我们碰不到。", p1: "收藏夹独立面板，可打标签", p2: "未收藏内容默认 3 天后清理", p3: "无广告、无追踪、无账号体系", c: "06  /  只存在你的 Mac 上" }
+      },
+      "zh-Hant": {
+        1: { k: "PasteNest", h: "複製過的，<br>都還在。", s: "選單列裡的剪貼板巢穴。文字、連結、圖片、程式碼、顏色，自動收好，一鍵回來。", c: "01  /  你的第二塊剪貼板" },
+        2: { k: "全域快捷鍵", h: "按一下，<br>它就來了。", s: "底部貨架、主視窗、截圖各有獨立快捷鍵。錄下即刻生效，被佔用會提醒，一鍵恢復預設。", k2: "喚出底部貨架 · 回車貼上", c: "02  /  手不離開鍵盤" },
+        3: { k: "區域截圖", h: "截圖像發一條訊息。", s: "凍結螢幕，拖出選區，矩形 / 箭頭 / 畫筆 / 馬賽克 / 文字標註，確認後進入剪貼板與歷史。", c: "03  /  標註完，直接複用" },
+        4: { k: "辨識文字", h: "圖裡的字，<br>也能搜。", s: "本機 Vision 辨識中英文。可選複製，或只留文字不要圖。連結會自動變成連結條目。", c: "04  /  字留在你的電腦上" },
+        5: { k: "搜尋與分類", h: "不用整理，<br>它自己認得。", s: "連結、程式碼、顏色、檔案自動打標。搜尋標題、正文、來源應用，即時出結果。", c: "05  /  找得到，才算數" },
+        6: { k: "收藏與隱私", h: "重要的，<br>留下來。", s: "收藏長期保存，其餘按你設定的天數自動清理。iCloud 可選，資料走你的 Apple ID，我們碰不到。", p1: "收藏夾獨立面板，可打標籤", p2: "未收藏內容預設 3 天後清理", p3: "無廣告、無追蹤、無帳號體系", c: "06  /  只存在你的 Mac 上" }
+      },
+      en: {
+        1: { k: "PasteNest", h: "Everything you copy,<br>still here.", s: "A clipboard nest in your menu bar. Text, links, images, code, and colors — tucked away, one tap back.", c: "01  /  A second clipboard" },
+        2: { k: "Global hotkeys", h: "One press,<br>and it's here.", s: "The shelf, main window, and screenshot each get their own hotkey. Changes apply instantly; taken combos are flagged; one click restores defaults.", k2: "Show the shelf · Enter pastes", c: "02  /  Hands stay on the keyboard" },
+        3: { k: "Region screenshot", h: "Screenshot like sending a message.", s: "Freeze the screen, drag a region, mark it up with rectangles, arrows, pen, mosaic, or text — it lands in your clipboard and history.", c: "03  /  Annotate, then reuse" },
+        4: { k: "Recognize text", h: "Words in images,<br>searchable.", s: "On-device Vision reads Chinese and English. Copy what you select, or keep only the text. Links become link items automatically.", c: "04  /  Text stays on your Mac" },
+        5: { k: "Search & tags", h: "No tidying.<br>It just knows.", s: "Links, code, colors, and files tag themselves. Search titles, bodies, and source apps — results appear as you type.", c: "05  /  Find it, or it doesn't count" },
+        6: { k: "Saved & private", h: "What matters,<br>stays.", s: "Saved items keep forever; the rest clear after the days you set. iCloud is optional and goes through your Apple ID — we never see your data.", p1: "A separate Saved panel with tags", p2: "Unsaved items clear after 3 days", p3: "No ads, no tracking, no accounts", c: "06  /  Only on your Mac" }
+      }
+    };
+    const t = (L[lang] || L["zh-Hans"])[n] || L["zh-Hans"][n];
+    const set = (sel, html, useHTML) => {
+      const el = board.querySelector(sel);
+      if (!el) return;
+      if (useHTML) el.innerHTML = html; else el.textContent = html;
+    };
+    set("[data-k]", t.k);
+    set("[data-h]", t.h, true);
+    set("[data-s]", t.s);
+    set("[data-c]", t.c);
+    if (t.k2) set("[data-k2]", t.k2);
+    if (t.p1) set("[data-p1]", t.p1);
+    if (t.p2) set("[data-p2]", t.p2);
+    if (t.p3) set("[data-p3]", t.p3);
+  </script>
+</body>
+</html>
