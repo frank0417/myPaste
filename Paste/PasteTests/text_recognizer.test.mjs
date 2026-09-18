@@ -139,13 +139,80 @@ assertTrue(!isCJK(undefined), "missing character is not CJK");
 assertEqual(characterCount("安静、好用的 Mac 工具。"), 12, "whitespace is not counted");
 assertEqual(characterCount("a\nb c"), 3, "newlines are not counted");
 
+function preparedScale(width, height, minSide = 180) {
+  const side = Math.min(width, height);
+  return side > 0 && side < minSide ? 2 : 1;
+}
+assertEqual(preparedScale(966, 442), 1, "a Retina UI crop is not upscaled");
+assertEqual(preparedScale(80, 40), 2, "a tiny crop is doubled so Vision has enough pixels");
+assertEqual(preparedScale(180, 180), 1, "a crop on the minimum side is left as-is");
+
+const DARK_LUMINANCE_THRESHOLD = 0.45;
+
+function luminance(r, g, b) {
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+}
+
+function meanLuminance(pixels) {
+  if (!pixels.length) return 0;
+  return pixels.reduce((sum, p) => sum + luminance(p.r, p.g, p.b), 0) / pixels.length;
+}
+
+function isDark(mean) {
+  return mean < DARK_LUMINANCE_THRESHOLD;
+}
+
+function invertRGB(pixel) {
+  return { r: 255 - pixel.r, g: 255 - pixel.g, b: 255 - pixel.b, a: pixel.a };
+}
+
+function ocrCandidateOrder(dark) {
+  return dark ? ["inverted", "original"] : ["original", "inverted"];
+}
+
+assertTrue(isDark(luminance(20, 20, 24)), "a terminal-dark pixel is dark");
+assertTrue(!isDark(luminance(245, 245, 247)), "a paper-white pixel is not dark");
+assertTrue(
+  isDark(meanLuminance(Array.from({ length: 16 }, () => ({ r: 30, g: 30, b: 32 })))),
+  "a dark 16-sample probe is dark"
+);
+assertTrue(
+  !isDark(meanLuminance(Array.from({ length: 16 }, () => ({ r: 242, g: 244, b: 247 })))),
+  "a light 16-sample probe is not dark"
+);
+assertEqual(
+  invertRGB({ r: 0, g: 0, b: 0, a: 255 }),
+  { r: 255, g: 255, b: 255, a: 255 },
+  "black inverts to white and keeps alpha"
+);
+assertEqual(
+  invertRGB({ r: 200, g: 200, b: 200, a: 255 }),
+  { r: 55, g: 55, b: 55, a: 255 },
+  "light glyphs invert to dark ink and keep alpha"
+);
+assertEqual(ocrCandidateOrder(true), ["inverted", "original"], "dark UI tries inverted first");
+assertEqual(ocrCandidateOrder(false), ["original", "inverted"], "light UI tries the freeze first");
+
 const swift = fs.readFileSync(
   path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../Paste/Services/TextRecognizer.swift"),
   "utf8"
 );
 assertTrue(/func recognize\(cgImage: CGImage\)/.test(swift), "overlay OCR can skip the PNG round-trip");
+assertTrue(/func recognize\(preparedCGImage: CGImage\)/.test(swift), "Vision can run on a bitmap copied off the freeze");
+assertTrue(/func preparedImage\(from image: CGImage\)/.test(swift), "ScreenCaptureKit crops are copied into a disconnected sRGB bitmap");
+assertTrue(/CGColorSpace\.sRGB/.test(swift) && /premultipliedLast/.test(swift), "prepared OCR bitmaps are 8-bit sRGB RGBA");
+assertTrue(/byteOrder32Big/.test(swift), "RGBA byte order is explicit so invert does not flip alpha");
+assertTrue(/minimumPreparedSide = 180/.test(swift), "tiny UI crops are upscaled before Vision");
+assertTrue(/darkLuminanceThreshold: CGFloat = 0\.45/.test(swift), "dark UI is anything dimmer than mid-gray");
+assertTrue(/func invertedImage\(from image: CGImage\)/.test(swift), "light-on-dark crops can be inverted for Vision");
+assertTrue(/func isDark\(_ image: CGImage\)/.test(swift), "darkness is measured from the freeze itself");
+assertTrue(/invertRGBKeepingAlpha/.test(swift), "inversion keeps alpha so the bitmap stays opaque");
+assertTrue(/255 &- pixel\[0\]/.test(swift), "each RGB channel is inverted independently");
+assertTrue(/isDark\(preparedCGImage\), let inverted/.test(swift), "a dark freeze tries the inverted bitmap first");
+assertTrue(/images = \[preparedCGImage, inverted\]/.test(swift), "a light freeze still falls back to inverted");
 assertTrue(/VNImageRequestHandler\(cgImage:/.test(swift), "Vision reads the cropped CGImage directly");
 assertTrue(/recognitionLevel = level/.test(swift) && /\.fast/.test(swift), "sparse UI text tries .fast first");
+assertTrue(/minimumTextHeight = \(level == \.fast\) \? 0 : 0\.008/.test(swift), "fast OCR does not drop small UI labels");
 assertTrue(/automaticallyDetectsLanguage = true/.test(swift), "a language-pack miss still falls back to auto-detect");
 assertTrue(/import ImageIO/.test(swift), "PNG history items decode through ImageIO before Vision");
 
@@ -154,13 +221,32 @@ const overlay = fs.readFileSync(
   "utf8"
 );
 assertTrue(
-  /TextRecognizer\.recognize\(cgImage: cropped\)/.test(overlay),
-  "the overlay recognizes the cropped freeze pixels, not a re-encoded PNG"
+  /TextRecognizer\.preparedImage\(from: cropped\)/.test(overlay),
+  "the overlay copies the crop off the IOSurface before leaving the main thread"
+);
+assertTrue(
+  /TextRecognizer\.recognize\(preparedCGImage: prepared\)/.test(overlay),
+  "the overlay recognizes the prepared freeze pixels, not a re-encoded PNG"
+);
+assertTrue(
+  !/TextRecognizer\.recognize\(cgImage: cropped\)/.test(overlay),
+  "overlay OCR no longer hands Vision the live freeze crop"
 );
 assertTrue(
   !/TextRecognizer\.recognize\(imageData: data\)/.test(overlay),
   "overlay OCR no longer PNG-encodes the crop first"
 );
+assertTrue(/ocrPanelUsesLightAppearance/.test(overlay), "OCR card forces aqua so text is not white-on-white");
+assertTrue(/ocrPanelTextColorHex/.test(overlay), "OCR ink is an explicit dark color, not labelColor");
+assertTrue(/preferredColorScheme\(\.light\)/.test(overlay), "OCR card stays in light color scheme");
+assertTrue(/ScreenshotL10n\.string\(\.ocrWorking\)/.test(overlay), "recognizing state has visible copy, not only a spinner");
+assertTrue(/\.textSelection\(\.enabled\)/.test(overlay), "recognized text is selectable SwiftUI Text, not NSTextView");
+assertTrue(/onCopy\(session\.ocrResult \?\? ""\)/.test(overlay), "the Copy button copies the full recognized string");
+assertTrue(/onCancel\?\(\)\n        ScreenshotHUD/.test(overlay), "copying recognized text closes the overlay then shows a HUD");
+assertTrue(!/copyOCRText[\s\S]{0,400}onConfirm/.test(overlay), "OCR copy does not confirm a PNG that would overwrite the text");
+assertTrue(!/class ScreenshotOCRScrollView/.test(overlay), "OCR no longer hosts an AppKit text view on the flipped freeze");
+assertTrue(!/struct ScreenshotOCRTextView/.test(overlay), "OCR result is not an NSViewRepresentable");
+assertTrue(!/textColor = \.labelColor/.test(overlay), "OCR text view does not use appearance-adaptive labelColor");
 
 if (failed > 0) {
   console.error(`\n${failed} test(s) failed`);

@@ -40,7 +40,7 @@ assertTrue(/hant: "辨識文字"/.test(l10n), "panel OCR uses Traditional Chines
 assertTrue(/en: "Read"/.test(l10n), "panel OCR chip stays a short English verb");
 
 for (const key of [
-  "imageCopied", "modeRegion", "textCapture", "permissionTitle", "savedToDownloads", "ocrEmpty"
+  "imageCopied", "modeRegion", "textCapture", "permissionTitle", "savedToDownloads", "ocrEmpty", "ocrWorking"
 ]) {
   assertTrue(editor.split(`.${key}:`).length >= 4, `ScreenshotL10n.${key} exists in all three languages`);
 }
@@ -105,6 +105,7 @@ assertTrue(/data-i18n="simulateShot"/.test(preview), "hero screenshot button is 
 assertTrue(/data-i18n="tabHotkeys"/.test(preview), "settings tabs are in the chrome table");
 assertTrue(/imageCopied: "Image copied"/.test(preview) && /imageCopied: "图片已复制"/.test(preview) && /imageCopied: "圖片已複製"/.test(preview), "toast copy exists in all three languages");
 assertTrue(/recognizeText: "Recognize text"/.test(preview) && /recognizeText: "识别文字"/.test(preview) && /recognizeText: "辨識文字"/.test(preview), "OCR hint exists in all three languages");
+assertTrue(/shotOCRCopy[\s\S]{0,500}closeShot\(\)/.test(preview), "preview OCR copy closes the overlay");
 
 function blockAfter(source, marker) {
   const start = source.indexOf(marker);

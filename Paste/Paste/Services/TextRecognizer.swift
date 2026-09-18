@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import ImageIO
 import Vision
@@ -19,9 +20,45 @@ enum TextRecognizer {
         let minX: CGFloat
     }
 
+    /// Smallest pixel side that still gives Vision enough samples for UI type.
+    /// Crops shorter than this are upscaled before recognition.
+    static let minimumPreparedSide = 180
+    /// Mean sRGB luminance below this is treated as a dark UI (light glyphs).
+    static let darkLuminanceThreshold: CGFloat = 0.45
+    /// Downsample size for the darkness probe — a 16×16 average is enough.
+    static let luminanceSampleSize = 16
+
     /// Overlay OCR should send the cropped `CGImage` here. PNG round-trips and
     /// `.accurate` (document) recognition often return nothing on UI screenshots.
     static func recognize(cgImage: CGImage) -> String? {
+        recognize(preparedCGImage: preparedImage(from: cgImage))
+    }
+
+    /// Vision on a bitmap that `preparedImage(from:)` already copied. Overlay OCR
+    /// must copy on the main thread first: the freeze is IOSurface-backed, and
+    /// reading it from a detached task while the canvas draws often yields nothing.
+    ///
+    /// Dark UIs (light glyphs on black) are inverted first: Vision is tuned for
+    /// dark ink on paper and often returns nothing on a terminal or dark IDE.
+    static func recognize(preparedCGImage: CGImage) -> String? {
+        let inverted = invertedImage(from: preparedCGImage)
+        let images: [CGImage]
+        if isDark(preparedCGImage), let inverted {
+            images = [inverted, preparedCGImage]
+        } else if let inverted {
+            images = [preparedCGImage, inverted]
+        } else {
+            images = [preparedCGImage]
+        }
+        for image in images {
+            if let text = recognizeVariants(on: image) {
+                return text
+            }
+        }
+        return nil
+    }
+
+    private static func recognizeVariants(on image: CGImage) -> String? {
         let attempts: [(VNRequestTextRecognitionLevel, [String])] = [
             (.fast, languages),
             (.accurate, languages),
@@ -29,12 +66,96 @@ enum TextRecognizer {
             (.accurate, [])
         ]
         for (level, langs) in attempts {
-            let handler = VNImageRequestHandler(cgImage: cgImage, orientation: .up, options: [:])
+            let handler = VNImageRequestHandler(cgImage: image, orientation: .up, options: [:])
             if let text = run(handler: handler, level: level, languages: langs) {
                 return text
             }
         }
         return nil
+    }
+
+    /// Copy into a disconnected sRGB bitmap so ScreenCaptureKit IOSurface / BGRA
+    /// crops (and tiny UI type) are something Vision will actually read.
+    static func preparedImage(from image: CGImage) -> CGImage {
+        let minSide = min(image.width, image.height)
+        let scale = (minSide > 0 && minSide < minimumPreparedSide) ? 2 : 1
+        let width = max(1, image.width * scale)
+        let height = max(1, image.height * scale)
+        guard let ctx = rgbContext(width: width, height: height) else { return image }
+        ctx.interpolationQuality = scale > 1 ? .high : .none
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return ctx.makeImage() ?? image
+    }
+
+    /// Recolor light-on-dark UI as dark ink on paper. Alpha is left alone so a
+    /// fully opaque screenshot does not become a transparent hole.
+    static func invertedImage(from image: CGImage) -> CGImage? {
+        let width = max(1, image.width)
+        let height = max(1, image.height)
+        guard let ctx = rgbContext(width: width, height: height) else { return nil }
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        invertRGBKeepingAlpha(in: ctx, width: width, height: height)
+        return ctx.makeImage()
+    }
+
+    static func isDark(_ image: CGImage) -> Bool {
+        guard let mean = meanLuminance(of: image) else { return false }
+        return mean < darkLuminanceThreshold
+    }
+
+    /// Rec. 709 luma, 0…1, from a tiny downsample of the freeze.
+    static func meanLuminance(of image: CGImage) -> CGFloat? {
+        let side = luminanceSampleSize
+        guard let ctx = rgbContext(width: side, height: side) else { return nil }
+        ctx.interpolationQuality = .low
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: side, height: side))
+        guard let data = ctx.data else { return nil }
+        let rowBytes = ctx.bytesPerRow
+        var sum: Double = 0
+        var count = 0
+        for y in 0..<side {
+            let row = data.advanced(by: y * rowBytes)
+            for x in 0..<side {
+                let pixel = row.advanced(by: x * 4).assumingMemoryBound(to: UInt8.self)
+                let r = Double(pixel[0])
+                let g = Double(pixel[1])
+                let b = Double(pixel[2])
+                sum += 0.2126 * r + 0.7152 * g + 0.0722 * b
+                count += 1
+            }
+        }
+        guard count > 0 else { return nil }
+        return CGFloat(sum / Double(count) / 255)
+    }
+
+    private static func rgbContext(width: Int, height: Int) -> CGContext? {
+        let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        // byteOrder32Big + premultipliedLast is RGBA in memory on every endianness,
+        // so the invert / luminance walks can treat byte 3 as alpha.
+        let bitmapInfo = CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue
+        return CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo
+        )
+    }
+
+    private static func invertRGBKeepingAlpha(in ctx: CGContext, width: Int, height: Int) {
+        guard let data = ctx.data else { return }
+        let rowBytes = ctx.bytesPerRow
+        for y in 0..<height {
+            let row = data.advanced(by: y * rowBytes)
+            for x in 0..<width {
+                let pixel = row.advanced(by: x * 4).assumingMemoryBound(to: UInt8.self)
+                pixel[0] = 255 &- pixel[0]
+                pixel[1] = 255 &- pixel[1]
+                pixel[2] = 255 &- pixel[2]
+            }
+        }
     }
 
     /// Runs synchronously on whatever queue calls it — the capture pipeline's
@@ -61,7 +182,9 @@ enum TextRecognizer {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = level
         request.usesLanguageCorrection = (level == .accurate)
-        request.minimumTextHeight = 0.008
+        // `.fast` is for sparse UI chrome; do not drop small labels. Accurate
+        // (document) recognition still ignores specks.
+        request.minimumTextHeight = (level == .fast) ? 0 : 0.008
         if languages.isEmpty {
             request.automaticallyDetectsLanguage = true
         } else {
