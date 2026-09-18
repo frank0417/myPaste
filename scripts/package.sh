@@ -132,19 +132,55 @@ fi
 
 if [[ "$APP_STORE" -eq 1 ]]; then
   echo "==> Archive for App Store…"
+  set +e
   xcodebuild archive \
     "${COMMON_ARGS[@]}" \
     -archivePath "$ARCHIVE_PATH" \
-    -destination "generic/platform=macOS"
+    -destination "generic/platform=macOS" \
+    2>&1 | tee "$ROOT/build/archive.log"
+  ARCHIVE_STATUS=${PIPESTATUS[0]}
+  set -e
+  if [[ "$ARCHIVE_STATUS" -ne 0 ]]; then
+    echo "❌ Archive 失败，完整日志: build/archive.log，末尾如下："
+    tail -30 "$ROOT/build/archive.log"
+    exit "$ARCHIVE_STATUS"
+  fi
 
   EXPORT_OPTS="$ROOT/scripts/ExportOptions-AppStore.plist"
   EXPORT_DIR="$DIST/AppStore"
   mkdir -p "$EXPORT_DIR"
+  echo "==> 导出 App Store 安装包…"
+  set +e
   xcodebuild -exportArchive \
     -archivePath "$ARCHIVE_PATH" \
     -exportPath "$EXPORT_DIR" \
-    -exportOptionsPlist "$EXPORT_OPTS"
-  echo "✅ App Store 导出完成: $EXPORT_DIR"
+    -exportOptionsPlist "$EXPORT_OPTS" \
+    2>&1 | tee "$ROOT/build/export.log"
+  EXPORT_STATUS=${PIPESTATUS[0]}
+  set -e
+  if [[ "$EXPORT_STATUS" -ne 0 ]]; then
+    echo "❌ 导出失败，完整日志: build/export.log，末尾如下："
+    tail -40 "$ROOT/build/export.log"
+    cat <<EOF
+
+常见原因：
+  1. Xcode 中未选择 Team：Paste.xcodeproj → Signing & Capabilities → Team
+  2. 缺少 Apple Distribution 证书：Xcode → Settings → Accounts → Manage Certificates → + 新建
+  3. Bundle ID「$BUNDLE_ID」未在开发者后台注册，或没有对应的 Mac App Store 描述文件
+  4. 多账号时可用 --team 显式指定：
+     ./scripts/package.sh --app-store --team YOUR_TEAM_ID
+EOF
+    exit "$EXPORT_STATUS"
+  fi
+
+  PKG_OUT="$(find "$EXPORT_DIR" -maxdepth 1 -name '*.pkg' -print -quit)"
+  if [[ -z "$PKG_OUT" ]]; then
+    echo "❌ 导出完成但未找到 .pkg，目录内容："
+    ls -la "$EXPORT_DIR"
+    exit 1
+  fi
+  echo "✅ App Store 导出完成: $PKG_OUT"
+  echo "   用 Transporter 上传该 .pkg 即可（拖入 Transporter 窗口 → 交付）"
   ls -la "$EXPORT_DIR"
   exit 0
 fi
