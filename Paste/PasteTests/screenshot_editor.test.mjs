@@ -17,6 +17,7 @@ const OCR_PANEL_MAX_HEIGHT = 420;
 const OCR_PANEL_GAP = 12;
 const OCR_PANEL_USES_LIGHT_APPEARANCE = true;
 const OCR_PANEL_TEXT_COLOR = "#222426";
+const OCR_RESULT_USES_SWIFTUI_TEXT = true;
 const SIZE_BADGE_HEIGHT = 22;
 const SIZE_BADGE_GAP = 6;
 const ARROW_HEAD_LENGTH = 14;
@@ -531,6 +532,7 @@ assertEqual(OCR_PANEL_ACTIONS["zh-Hant"].working, "正在辨識…", "Traditiona
 assertEqual(OCR_PANEL_ACTIONS.en.working, "Recognizing…", "English OCR working");
 assertTrue(OCR_PANEL_USES_LIGHT_APPEARANCE, "OCR card stays aqua on the dark freeze");
 assertEqual(OCR_PANEL_TEXT_COLOR, "#222426", "OCR ink is explicit dark gray, not labelColor");
+assertTrue(OCR_RESULT_USES_SWIFTUI_TEXT, "recognized text is SwiftUI Text so it shows on the flipped freeze");
 const HUD = {
   "zh-Hans": { imageCopied: "图片已复制", modeRegion: "截取区域", textCapture: "截图识字" },
   "zh-Hant": { imageCopied: "圖片已複製", modeRegion: "截取區域", textCapture: "截圖識字" },
@@ -598,6 +600,7 @@ const editorSwift = fs.readFileSync(
 );
 assertTrue(editorSwift.includes(`ocrPanelUsesLightAppearance = true`), "Swift OCR card forces light appearance");
 assertTrue(editorSwift.includes(`ocrPanelTextColorHex = "${OCR_PANEL_TEXT_COLOR}"`), "Swift OCR ink matches the mirrored hex");
+assertTrue(editorSwift.includes("ocrResultUsesSwiftUIText = true"), "recognized text is SwiftUI Text on the flipped freeze");
 assertTrue(editorSwift.includes('.ocrWorking: "正在识别…"'), "Swift Simplified working copy");
 assertTrue(editorSwift.includes('.ocrWorking: "正在辨識…"'), "Swift Traditional working copy");
 assertTrue(editorSwift.includes('.ocrWorking: "Recognizing…"'), "Swift English working copy");

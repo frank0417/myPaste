@@ -1290,13 +1290,13 @@ private extension View {
     }
 }
 
-/// Recognized text sits to the right of the crop. The user can highlight a
-/// substring, then copy that (or the whole result) without ending the capture.
+/// Recognized text sits to the right of the crop. The freeze canvas is flipped, so
+/// an AppKit `NSTextView` draws blank here; SwiftUI `Text` matches the title that
+/// already shows. Highlight + ⌘C still works via `.textSelection`.
 private struct ScreenshotOCRPanelView: View {
     @ObservedObject var session: ScreenshotSession
     var onCopy: (String) -> Void
     var onDismiss: () -> Void
-    @State private var selectedText = ""
 
     static var ink: Color {
         Color(hex: ScreenshotLayout.ocrPanelTextColorHex) ?? Color(red: 0.13, green: 0.14, blue: 0.15)
@@ -1322,8 +1322,16 @@ private struct ScreenshotOCRPanelView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let text = session.ocrResult, !text.isEmpty {
-                    ScreenshotOCRTextView(text: text, selectedText: $selectedText)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    ScrollView {
+                        Text(text)
+                            .font(.system(size: 13))
+                            .foregroundStyle(Self.ink)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 4)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 } else {
                     Text(ScreenshotL10n.string(.ocrEmpty))
                         .font(.system(size: 13))
@@ -1347,8 +1355,7 @@ private struct ScreenshotOCRPanelView: View {
                 Spacer(minLength: 0)
 
                 Button {
-                    let selected = selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    onCopy(selected.isEmpty ? (session.ocrResult ?? "") : selected)
+                    onCopy(session.ocrResult ?? "")
                 } label: {
                     Text(ScreenshotL10n.string(.copy))
                         .font(.system(size: 12, weight: .semibold))
@@ -1382,119 +1389,5 @@ private struct ScreenshotOCRPanelView: View {
         )
         .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
         .preferredColorScheme(.light)
-        .onChange(of: session.ocrResult) { _, _ in
-            selectedText = ""
-        }
-    }
-}
-
-private struct ScreenshotOCRTextView: NSViewRepresentable {
-    let text: String
-    @Binding var selectedText: String
-
-    private static var ink: NSColor {
-        NSColor(hex: ScreenshotLayout.ocrPanelTextColorHex) ?? NSColor(srgbRed: 0.13, green: 0.14, blue: 0.15, alpha: 1)
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(selectedText: $selectedText)
-    }
-
-    func makeNSView(context: Context) -> ScreenshotOCRScrollView {
-        let scroll = ScreenshotOCRScrollView()
-        scroll.drawsBackground = false
-        scroll.hasVerticalScroller = true
-        scroll.hasHorizontalScroller = false
-        scroll.autohidesScrollers = true
-        scroll.borderType = .noBorder
-        if ScreenshotLayout.ocrPanelUsesLightAppearance {
-            scroll.appearance = NSAppearance(named: .aqua)
-        }
-
-        let textView = NSTextView(usingTextLayoutManager: false)
-        if ScreenshotLayout.ocrPanelUsesLightAppearance {
-            textView.appearance = NSAppearance(named: .aqua)
-            textView.usesAdaptiveColorMappingForDarkAppearance = false
-        }
-        textView.isEditable = false
-        textView.isSelectable = true
-        textView.isRichText = false
-        textView.drawsBackground = false
-        textView.font = .systemFont(ofSize: 13)
-        textView.textContainerInset = NSSize(width: 8, height: 4)
-        textView.minSize = NSSize(width: 0, height: 0)
-        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        textView.isVerticallyResizable = true
-        textView.isHorizontallyResizable = false
-        textView.autoresizingMask = [.width]
-        textView.textContainer?.widthTracksTextView = true
-        textView.textContainer?.lineFragmentPadding = 4
-        textView.delegate = context.coordinator
-        apply(text, to: textView)
-
-        scroll.documentView = textView
-        context.coordinator.textView = textView
-        return scroll
-    }
-
-    func updateNSView(_ scroll: ScreenshotOCRScrollView, context: Context) {
-        guard let textView = scroll.documentView as? NSTextView else { return }
-        scroll.syncTextContainerWidth()
-        if textView.string != text {
-            apply(text, to: textView)
-        }
-        context.coordinator.selectedText = $selectedText
-    }
-
-    private func apply(_ text: String, to textView: NSTextView) {
-        let color = Self.ink
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 13),
-            .foregroundColor: color
-        ]
-        textView.typingAttributes = attributes
-        textView.textStorage?.setAttributedString(NSAttributedString(string: text, attributes: attributes))
-        textView.textColor = color
-    }
-
-    final class Coordinator: NSObject, NSTextViewDelegate {
-        var selectedText: Binding<String>
-        weak var textView: NSTextView?
-
-        init(selectedText: Binding<String>) {
-            self.selectedText = selectedText
-        }
-
-        func textViewDidChangeSelection(_ notification: Notification) {
-            guard let textView = notification.object as? NSTextView else { return }
-            let range = textView.selectedRange()
-            if range.length > 0, NSMaxRange(range) <= (textView.string as NSString).length {
-                selectedText.wrappedValue = (textView.string as NSString).substring(with: range)
-            } else {
-                selectedText.wrappedValue = ""
-            }
-        }
-    }
-}
-
-/// Keeps the OCR text container as wide as the card. A zero-width container at
-/// first layout wraps every glyph into an invisible column.
-private final class ScreenshotOCRScrollView: NSScrollView {
-    override func layout() {
-        super.layout()
-        syncTextContainerWidth()
-    }
-
-    func syncTextContainerWidth() {
-        guard let textView = documentView as? NSTextView else { return }
-        let width = max(contentSize.width, bounds.width)
-        guard width > 1 else { return }
-        if abs(textView.frame.width - width) > 0.5 {
-            textView.frame.size.width = width
-        }
-        textView.textContainer?.containerSize = NSSize(
-            width: max(1, width - textView.textContainerInset.width * 2),
-            height: CGFloat.greatestFiniteMagnitude
-        )
     }
 }

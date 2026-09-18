@@ -445,6 +445,9 @@ enum ScreenshotLayout {
     /// Explicit dark ink on the white card. `labelColor` follows the overlay window
     /// and disappears against the card when the freeze is dark.
     static let ocrPanelTextColorHex = "#222426"
+    /// The freeze canvas is flipped. `NSTextView` inside that hierarchy draws blank,
+    /// so the result is a SwiftUI `Text` like the card title (which already shows).
+    static let ocrResultUsesSwiftUIText = true
     static let sizeBadgeHeight: CGFloat = 22
     static let sizeBadgeGap: CGFloat = 6
     static let mosaicBlock: CGFloat = 10
