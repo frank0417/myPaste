@@ -287,7 +287,17 @@
     .facts { margin: 16px 0; display: grid; gap: 8px; font-size: 0.86rem; }
     .facts div { display: grid; grid-template-columns: 72px 1fr; gap: 8px; }
     .facts span { color: var(--muted); }
-    .actions { display: flex; gap: 8px; }
+    .actions { display: flex; gap: 8px; align-items: center; }
+    .actions .icon-btn {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      font-size: 14px;
+      line-height: 1;
+    }
     .sync {
       margin-left: auto;
       display: inline-flex;
@@ -875,9 +885,8 @@
             <div class="settings-row">
               <div class="settings-copy">
                 <strong data-i18n="restore">恢复默认</strong>
-                <p data-i18n="restoreDetail">面板与主窗口不会同时出现。截图会冻结屏幕；识字没有单独快捷键。</p>
               </div>
-              <button class="settings-chip" type="button" data-i18n="restoreAll">全部恢复默认</button>
+              <button class="settings-chip" type="button" id="restoreAllHotkeys" data-i18n="restoreAll">全部恢复默认</button>
             </div>
           </div>
         </div>
@@ -1010,7 +1019,8 @@
         boards: "看板", boardWork: "工作", boardIdeas: "灵感", boardCode: "代码片段",
         search: "搜索已复制的一切…", synced: "已同步 · 刚刚", empty: "没有匹配的结果",
         selectPreview: "选择一条记录以预览", source: "来源", time: "时间", type: "类型",
-        paste: "粘贴", pasted: "已粘贴", pin: "置顶", unpin: "取消置顶",
+        paste: "粘贴", pasted: "已粘贴", copyAction: "复制", pin: "置顶", unpin: "取消置顶",
+        tag: "分类", board: "看板",
         imagePreview: "图片预览", justNow: "刚刚",
         settings: "设置", tabGeneral: "通用", tabHotkeys: "快捷键", tabHistory: "历史",
         tabSync: "同步", tabAbout: "关于", preferences: "偏好", listen: "监听剪贴板",
@@ -1021,7 +1031,7 @@
         accessibilityCaption: "只有「一键粘贴到其他 App」才需要。", allowed: "已允许",
         hotkeyPanel: "唤出剪贴板面板", hotkeyWindow: "唤出主窗口", hotkeyShot: "截图（区域）",
         livePanel: "已生效 ⇧⌘V", liveWindow: "已生效 ⌥⌘V", liveShot: "已生效 ⇧⌘X",
-        restore: "恢复默认", restoreDetail: "面板与主窗口不会同时出现。截图会冻结屏幕；识字没有单独快捷键。",
+        restore: "恢复默认",
         restoreAll: "全部恢复默认", retention: "收藏与保留", keepDays: "未收藏的内容保留 3 天",
         retentionHelp: "收藏夹里的内容长期保存；其余记录到期后自动删除。",
         iCloudSync: "通过 iCloud 同步", iCloudCaption: "历史通过你的 Apple ID 在多台 Mac 间同步。",
@@ -1037,7 +1047,8 @@
         boards: "看板", boardWork: "工作", boardIdeas: "靈感", boardCode: "程式碼片段",
         search: "搜尋已複製的一切…", synced: "已同步 · 剛剛", empty: "沒有符合的結果",
         selectPreview: "選擇一則記錄以預覽", source: "來源", time: "時間", type: "類型",
-        paste: "貼上", pasted: "已貼上", pin: "置頂", unpin: "取消置頂",
+        paste: "貼上", pasted: "已貼上", copyAction: "複製", pin: "置頂", unpin: "取消置頂",
+        tag: "分類", board: "看板",
         imagePreview: "圖片預覽", justNow: "剛剛",
         settings: "設定", tabGeneral: "一般", tabHotkeys: "快捷鍵", tabHistory: "歷史",
         tabSync: "同步", tabAbout: "關於", preferences: "偏好", listen: "監聽剪貼板",
@@ -1048,7 +1059,7 @@
         accessibilityCaption: "只有「一鍵貼到其他 App」才需要。", allowed: "已允許",
         hotkeyPanel: "喚出剪貼板面板", hotkeyWindow: "喚出主視窗", hotkeyShot: "截圖（區域）",
         livePanel: "已生效 ⇧⌘V", liveWindow: "已生效 ⌥⌘V", liveShot: "已生效 ⇧⌘X",
-        restore: "恢復預設", restoreDetail: "面板與主視窗不會同時出現。截圖會凍結螢幕；識字沒有單獨快捷鍵。",
+        restore: "恢復預設",
         restoreAll: "全部恢復預設", retention: "收藏與保留", keepDays: "未收藏的內容保留 3 天",
         retentionHelp: "收藏夾裡的內容長期保存；其餘記錄到期後自動刪除。",
         iCloudSync: "透過 iCloud 同步", iCloudCaption: "歷史透過你的 Apple ID 在多台 Mac 間同步。",
@@ -1064,7 +1075,8 @@
         boards: "Boards", boardWork: "Work", boardIdeas: "Ideas", boardCode: "Snippets",
         search: "Search everything you’ve copied…", synced: "Synced · just now", empty: "No matches",
         selectPreview: "Select an item to preview", source: "Source", time: "Time", type: "Type",
-        paste: "Paste", pasted: "Pasted", pin: "Pin", unpin: "Unpin",
+        paste: "Paste", pasted: "Pasted", copyAction: "Copy", pin: "Pin", unpin: "Unpin",
+        tag: "Tag", board: "Board",
         imagePreview: "Image preview", justNow: "Just now",
         settings: "Settings", tabGeneral: "General", tabHotkeys: "Hotkeys", tabHistory: "History",
         tabSync: "Sync", tabAbout: "About", preferences: "Preferences", listen: "Watch clipboard",
@@ -1075,7 +1087,7 @@
         accessibilityCaption: "Only instant paste into other apps needs this.", allowed: "Allowed",
         hotkeyPanel: "Show clipboard shelf", hotkeyWindow: "Show main window", hotkeyShot: "Screenshot (region)",
         livePanel: "Active ⇧⌘V", liveWindow: "Active ⌥⌘V", liveShot: "Active ⇧⌘X",
-        restore: "Restore defaults", restoreDetail: "The shelf and main window never show together. A screenshot freezes the screen. Text recognition has no extra hotkey.",
+        restore: "Restore defaults",
         restoreAll: "Restore all defaults", retention: "Saved & retention", keepDays: "Unsaved items stay 3 days",
         retentionHelp: "Saved items stay. Everything else is deleted when it expires.",
         iCloudSync: "Sync with iCloud", iCloudCaption: "History syncs across your Macs with the same Apple ID.",
@@ -1217,8 +1229,11 @@
           <div><span>${copy.type}</span><div>${typeLabel(item.type)}</div></div>
         </div>
         <div class="actions">
-          <button class="btn btn-primary" id="pasteBtn">${copy.paste}</button>
-          <button class="btn btn-ghost" id="pinBtn">${item.pinned ? copy.unpin : copy.pin}</button>
+          <button class="btn btn-primary icon-btn" id="pasteBtn" type="button" title="${copy.paste}" aria-label="${copy.paste}">↩</button>
+          <button class="btn btn-ghost icon-btn" id="copyBtn" type="button" title="${copy.copyAction}" aria-label="${copy.copyAction}">⧉</button>
+          <button class="btn btn-ghost icon-btn" id="pinBtn" type="button" title="${item.pinned ? copy.unpin : copy.pin}" aria-label="${item.pinned ? copy.unpin : copy.pin}">📌</button>
+          <button class="btn btn-ghost icon-btn" type="button" title="${copy.tag}" aria-label="${copy.tag}">🏷</button>
+          <button class="btn btn-ghost icon-btn" type="button" title="${copy.board}" aria-label="${copy.board}">▦</button>
         </div>
       `;
       document.getElementById("pinBtn").onclick = () => {
@@ -1227,8 +1242,12 @@
       };
       document.getElementById("pasteBtn").onclick = () => {
         const btn = document.getElementById("pasteBtn");
-        btn.textContent = copy.pasted;
-        setTimeout(() => btn.textContent = copy.paste, 900);
+        btn.title = copy.pasted;
+        btn.setAttribute("aria-label", copy.pasted);
+        setTimeout(() => {
+          btn.title = copy.paste;
+          btn.setAttribute("aria-label", copy.paste);
+        }, 900);
       };
     }
 
@@ -1764,6 +1783,15 @@
       btn.onclick = () => showSettingsTab(btn.dataset.settingsTab);
     });
     document.getElementById("settingsOpenHotkeys").onclick = () => showSettingsTab("hotkeys");
+    document.getElementById("restoreAllHotkeys").onclick = () => {
+      const keys = document.querySelectorAll("[data-settings-pane='hotkeys'] .settings-key");
+      const defaults = ["⇧⌘V", "⌥⌘V", "⇧⌘X"];
+      keys.forEach((el, i) => { if (defaults[i]) el.textContent = defaults[i]; });
+      const lives = document.querySelectorAll("[data-settings-pane='hotkeys'] .settings-status span");
+      const copy = ui();
+      const liveDefaults = [copy.livePanel, copy.liveWindow, copy.liveShot];
+      lives.forEach((el, i) => { if (liveDefaults[i]) el.textContent = liveDefaults[i]; });
+    };
 
     renderChips();
     renderList();

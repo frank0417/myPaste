@@ -206,22 +206,49 @@ assertTrue(
   "screenshot default differs from both window defaults"
 );
 
-const RETIRED_SCREENSHOT = { keyCode: KEY.d, carbonModifiers: cmdKey | shiftKey };
-function loadScreenshot(stored) {
+const RETIRED_SCREENSHOT = [
+  { keyCode: KEY.d, carbonModifiers: cmdKey | shiftKey },
+  { keyCode: KEY.four, carbonModifiers: cmdKey | shiftKey | controlKey }
+];
+function loadScreenshot(stored, { alreadyUpgraded } = {}) {
+  // First launch of this build writes ⇧⌘X over whatever was stored.
+  if (!alreadyUpgraded) return DEFAULTS.screenshot;
   if (!stored) return DEFAULTS.screenshot;
-  if (sameShortcut(stored, RETIRED_SCREENSHOT)) return DEFAULTS.screenshot;
+  if (RETIRED_SCREENSHOT.some((retired) => sameShortcut(stored, retired))) {
+    return DEFAULTS.screenshot;
+  }
   return stored;
 }
 assertEqual(loadScreenshot(null), DEFAULTS.screenshot, "missing storage uses ⇧⌘X");
 assertEqual(
-  loadScreenshot(RETIRED_SCREENSHOT),
+  loadScreenshot(RETIRED_SCREENSHOT[0]),
   DEFAULTS.screenshot,
-  "a still-stored ⇧⌘D factory default upgrades to ⇧⌘X"
+  "first launch upgrades a still-stored ⇧⌘D factory default to ⇧⌘X"
+);
+assertEqual(
+  loadScreenshot(RETIRED_SCREENSHOT[1]),
+  DEFAULTS.screenshot,
+  "first launch upgrades the original ⌃⇧⌘4 factory default to ⇧⌘X"
 );
 assertEqual(
   loadScreenshot({ keyCode: KEY.v, carbonModifiers: cmdKey | controlKey }),
+  DEFAULTS.screenshot,
+  "first launch of this build sets screenshot to ⇧⌘X even if a custom combo was stored"
+);
+assertEqual(
+  loadScreenshot(RETIRED_SCREENSHOT[0], { alreadyUpgraded: true }),
+  DEFAULTS.screenshot,
+  "a still-stored ⇧⌘D factory default keeps upgrading after the one-shot flag"
+);
+assertEqual(
+  loadScreenshot(RETIRED_SCREENSHOT[1], { alreadyUpgraded: true }),
+  DEFAULTS.screenshot,
+  "a still-stored ⌃⇧⌘4 factory default keeps upgrading after the one-shot flag"
+);
+assertEqual(
+  loadScreenshot({ keyCode: KEY.v, carbonModifiers: cmdKey | controlKey }, { alreadyUpgraded: true }),
   { keyCode: KEY.v, carbonModifiers: cmdKey | controlKey },
-  "a custom screenshot combo is kept"
+  "after the one-shot upgrade a custom screenshot combo is kept"
 );
 
 // A rejected combo must not clear the working shortcut.
@@ -279,8 +306,17 @@ const swift = fs.readFileSync(
   "utf8"
 );
 assertTrue(/kVK_ANSI_X/.test(swift), "Swift screenshot default uses kVK_ANSI_X");
-assertTrue(/retiredScreenshotDefault/.test(swift), "old ⇧⌘D factory default is migrated");
-assertTrue(/kVK_ANSI_D/.test(swift), "retired default is still named so stored ⇧⌘D can be recognized");
+assertTrue(/retiredScreenshotDefaults/.test(swift), "older factory screenshot combos are migrated");
+assertTrue(/kVK_ANSI_D/.test(swift), "retired ⇧⌘D default is still named so stored copies can be recognized");
+assertTrue(
+  /kVK_ANSI_4[\s\S]*cmdKey \| shiftKey \| controlKey/.test(swift) ||
+    /cmdKey \| shiftKey \| controlKey[\s\S]*kVK_ANSI_4/.test(swift),
+  "retired ⌃⇧⌘4 factory default is listed so original installs upgrade"
+);
+assertTrue(
+  /didUpgradeScreenshotHotkeyToShiftCommandX/.test(swift),
+  "existing installs get a one-shot write of ⇧⌘X"
+);
 assertTrue(/PanelL10n\.hotkeyNeedModifier/.test(swift), "hotkey rejection reasons follow the app language");
 assertTrue(/PanelL10n\.hotkeyClash/.test(swift), "duplicate-combo messages follow the app language");
 assertTrue(/PanelL10n\.reservedSpotlight/.test(swift), "reserved combo names are localized");

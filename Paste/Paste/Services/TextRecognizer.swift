@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 import Vision
 
 /// On-device OCR for captured images, via Vision. Nothing leaves the Mac.
@@ -18,15 +19,55 @@ enum TextRecognizer {
         let minX: CGFloat
     }
 
+    /// Overlay OCR should send the cropped `CGImage` here. PNG round-trips and
+    /// `.accurate` (document) recognition often return nothing on UI screenshots.
+    static func recognize(cgImage: CGImage) -> String? {
+        let attempts: [(VNRequestTextRecognitionLevel, [String])] = [
+            (.fast, languages),
+            (.accurate, languages),
+            (.fast, []),
+            (.accurate, [])
+        ]
+        for (level, langs) in attempts {
+            let handler = VNImageRequestHandler(cgImage: cgImage, orientation: .up, options: [:])
+            if let text = run(handler: handler, level: level, languages: langs) {
+                return text
+            }
+        }
+        return nil
+    }
+
     /// Runs synchronously on whatever queue calls it — the capture pipeline's
     /// background queue. `nil` when the image holds no readable text.
     static func recognize(imageData: Data) -> String? {
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .accurate
-        request.usesLanguageCorrection = true
-        request.recognitionLanguages = languages
-
+        if let cgImage = cgImage(from: imageData) {
+            return recognize(cgImage: cgImage)
+        }
         let handler = VNImageRequestHandler(data: imageData, options: [:])
+        return run(handler: handler, level: .fast, languages: languages)
+            ?? run(handler: VNImageRequestHandler(data: imageData, options: [:]), level: .accurate, languages: languages)
+    }
+
+    private static func cgImage(from data: Data) -> CGImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        return CGImageSourceCreateImageAtIndex(source, 0, nil)
+    }
+
+    private static func run(
+        handler: VNImageRequestHandler,
+        level: VNRequestTextRecognitionLevel,
+        languages: [String]
+    ) -> String? {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = level
+        request.usesLanguageCorrection = (level == .accurate)
+        request.minimumTextHeight = 0.008
+        if languages.isEmpty {
+            request.automaticallyDetectsLanguage = true
+        } else {
+            request.recognitionLanguages = languages
+        }
+
         do {
             try handler.perform([request])
         } catch {

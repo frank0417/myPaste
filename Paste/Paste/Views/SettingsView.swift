@@ -184,24 +184,13 @@ struct SettingsView: View {
 
             settingsCard {
                 HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(PanelL10n.restoreDefaults)
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(PasteTheme.ink)
-                        Text(PanelL10n.restoreDefaultsDetail)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                    Text(PanelL10n.restoreDefaults)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(PasteTheme.ink)
                     Spacer(minLength: 8)
                     settingsChip(PanelL10n.restoreAllDefaults) {
                         appState.resetHotkeysToDefaults()
                     }
-                    .disabled(HotKeyAction.allCases.allSatisfy { appState.shortcut(for: $0) == $0.defaultShortcut })
-                    .opacity(
-                        HotKeyAction.allCases.allSatisfy { appState.shortcut(for: $0) == $0.defaultShortcut }
-                            ? 0.45 : 1
-                    )
                 }
             }
         }

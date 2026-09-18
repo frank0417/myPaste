@@ -140,6 +140,8 @@ assertTrue(/PanelL10n\.settingsTabGeneral/.test(settings), "settings tabs are lo
 assertTrue(/PanelL10n\.listenClipboard/.test(settings), "general preferences are localized");
 assertTrue(/PanelL10n\.screenshotSettingsHelp/.test(settings), "screenshot help follows the app language");
 assertTrue(/PanelL10n\.restoreAllDefaults/.test(settings), "restore-defaults chip is localized");
+assertTrue(!/restoreDefaultsDetail/.test(settings), "restore-defaults card has no detail paragraph");
+assertTrue(!/\.disabled\(HotKeyAction/.test(settings), "restore-all is not disabled at factory shortcuts");
 assertTrue(
   /PasteTheme\.backgroundGradient/.test(settings),
   "settings use the same warm gradient as the main panel"

@@ -2,6 +2,10 @@
 // Vision: Vision hands back unordered line observations in normalized coordinates
 // (origin bottom-left), and we rebuild reading order from them.
 
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 const lineTolerance = 0.014;
 
 const CJK_RANGES = [
@@ -134,6 +138,29 @@ assertTrue(!isCJK(undefined), "missing character is not CJK");
 
 assertEqual(characterCount("安静、好用的 Mac 工具。"), 12, "whitespace is not counted");
 assertEqual(characterCount("a\nb c"), 3, "newlines are not counted");
+
+const swift = fs.readFileSync(
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../Paste/Services/TextRecognizer.swift"),
+  "utf8"
+);
+assertTrue(/func recognize\(cgImage: CGImage\)/.test(swift), "overlay OCR can skip the PNG round-trip");
+assertTrue(/VNImageRequestHandler\(cgImage:/.test(swift), "Vision reads the cropped CGImage directly");
+assertTrue(/recognitionLevel = level/.test(swift) && /\.fast/.test(swift), "sparse UI text tries .fast first");
+assertTrue(/automaticallyDetectsLanguage = true/.test(swift), "a language-pack miss still falls back to auto-detect");
+assertTrue(/import ImageIO/.test(swift), "PNG history items decode through ImageIO before Vision");
+
+const overlay = fs.readFileSync(
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../Paste/Views/ScreenshotOverlay.swift"),
+  "utf8"
+);
+assertTrue(
+  /TextRecognizer\.recognize\(cgImage: cropped\)/.test(overlay),
+  "the overlay recognizes the cropped freeze pixels, not a re-encoded PNG"
+);
+assertTrue(
+  !/TextRecognizer\.recognize\(imageData: data\)/.test(overlay),
+  "overlay OCR no longer PNG-encodes the crop first"
+);
 
 if (failed > 0) {
   console.error(`\n${failed} test(s) failed`);

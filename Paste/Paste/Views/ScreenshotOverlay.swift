@@ -758,19 +758,24 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
         commitText()
         guard let selection = session.selection,
               selection.width >= ScreenshotLayout.minSelection,
-              selection.height >= ScreenshotLayout.minSelection,
-              let data = ScreenshotRenderer.png(
-                cgImage: session.cgImage,
-                pointSize: session.canvasSize,
-                selection: selection,
-                strokes: []
-              ) else { return }
+              selection.height >= ScreenshotLayout.minSelection else { return }
+        let scale = CGFloat(session.cgImage.width) / max(session.canvasSize.width, 1)
+        let crop = ScreenshotLayout.pixelCrop(
+            selection,
+            scale: scale,
+            imageWidth: session.cgImage.width,
+            imageHeight: session.cgImage.height
+        )
+        guard crop.width >= 1, crop.height >= 1,
+              let cropped = session.cgImage.cropping(to: crop) else { return }
         session.isRecognizing = true
         session.showOCRResult = true
         session.ocrResult = nil
+        session.notify()
+        positionChrome()
         Task { [session] in
             let text = await Task.detached(priority: .userInitiated) {
-                TextRecognizer.recognize(imageData: data)
+                TextRecognizer.recognize(cgImage: cropped)
             }.value
             await MainActor.run {
                 session.isRecognizing = false
@@ -1306,8 +1311,8 @@ private struct ScreenshotOCRPanelView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     Text(ScreenshotL10n.string(.ocrEmpty))
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.primary.opacity(0.55))
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         .padding(.horizontal, 12)
                 }

@@ -200,64 +200,73 @@ struct PreviewPane: View {
     }
 
     private func actions(_ item: ClipboardItem) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Button {
                 store?.paste(item)
             } label: {
-                Label(PanelL10n.paste, systemImage: "return")
-                    .frame(maxWidth: .infinity)
+                previewIcon("return")
             }
-            .buttonStyle(.borderedProminent)
-            .tint(PasteTheme.accent)
+            .buttonStyle(ShelfAccentButtonStyle())
+            .help(PanelL10n.paste)
+            .accessibilityLabel(PanelL10n.paste)
 
             Button {
                 store?.copyOnly(item)
             } label: {
-                Label(PanelL10n.copy, systemImage: "doc.on.doc")
+                previewIcon("doc.on.doc")
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(ShelfQuietButtonStyle())
+            .help(PanelL10n.copy)
+            .accessibilityLabel(PanelL10n.copy)
 
             if recognizedText(item) != nil {
                 Button {
                     store?.copyText(item)
                 } label: {
-                    Label(PanelL10n.copyText, systemImage: "text.viewfinder")
+                    previewIcon("text.viewfinder")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(ShelfQuietButtonStyle())
+                .help(PanelL10n.copyText)
+                .accessibilityLabel(PanelL10n.copyText)
             } else if item.contentType == .image, item.imageData != nil {
                 Button {
                     store?.recognizeText(in: item)
                 } label: {
-                    Label(PanelL10n.recognizeText, systemImage: "text.viewfinder")
+                    previewIcon("text.viewfinder")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(ShelfQuietButtonStyle())
                 .help(PanelL10n.recognizeHelp)
+                .accessibilityLabel(PanelL10n.recognizeText)
             }
 
             if item.contentType == .image, item.imageData != nil {
                 Button {
                     store?.saveImage(item)
                 } label: {
-                    Label(PanelL10n.download, systemImage: "arrow.down.to.line")
+                    previewIcon("arrow.down.to.line")
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(ShelfQuietButtonStyle())
                 .help(PanelL10n.downloadHelp)
+                .accessibilityLabel(PanelL10n.download)
             }
 
             Button {
                 store?.toggleFavorite(item)
             } label: {
-                Image(systemName: item.isFavorite ? "star.fill" : "star")
+                previewIcon(item.isFavorite ? "star.fill" : "star")
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(ShelfQuietButtonStyle())
             .help(item.isFavorite ? PanelL10n.unfavorite : PanelL10n.favoriteHelp)
+            .accessibilityLabel(item.isFavorite ? PanelL10n.unfavorite : PanelL10n.favorite)
 
             Button {
                 store?.togglePin(item)
             } label: {
-                Image(systemName: item.isPinned ? "pin.slash" : "pin")
+                previewIcon(item.isPinned ? "pin.slash" : "pin")
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(ShelfQuietButtonStyle())
+            .help(item.isPinned ? PanelL10n.unpin : PanelL10n.pin)
+            .accessibilityLabel(item.isPinned ? PanelL10n.unpin : PanelL10n.pin)
 
             Menu {
                 ForEach(favoriteTagOptions, id: \.self) { tag in
@@ -273,9 +282,12 @@ struct PreviewPane: View {
                     }
                 }
             } label: {
-                Label(item.favoriteTags.first ?? PanelL10n.tag, systemImage: "tag")
+                previewIcon("tag")
             }
+            .menuIndicator(.hidden)
+            .buttonStyle(ShelfQuietButtonStyle())
             .help(PanelL10n.favoriteTagHelp)
+            .accessibilityLabel(PanelL10n.tag)
 
             Menu {
                 Button(PanelL10n.noBoard) { store?.assign(item: item, to: nil) }
@@ -283,9 +295,19 @@ struct PreviewPane: View {
                     Button(board.name) { store?.assign(item: item, to: board) }
                 }
             } label: {
-                Label(item.board?.name ?? PanelL10n.board, systemImage: "square.grid.2x2")
+                previewIcon("square.grid.2x2")
             }
+            .menuIndicator(.hidden)
+            .buttonStyle(ShelfQuietButtonStyle())
+            .help(PanelL10n.assignBoardHelp)
+            .accessibilityLabel(PanelL10n.board)
         }
-        .controlSize(.large)
+    }
+
+    private func previewIcon(_ systemImage: String) -> some View {
+        Image(systemName: systemImage)
+            .font(PasteTheme.Typography.icon)
+            .symbolRenderingMode(.hierarchical)
+            .frame(width: 16, height: 16)
     }
 }

@@ -63,6 +63,10 @@ assertTrue(!/withTitle: "设置…"/.test(controller), "status menu no longer ha
 assertTrue(/PanelL10n\.settingsTabHotkeys/.test(settings), "settings tabs are localized");
 assertTrue(/PanelL10n\.screenshotSettingsHelp/.test(settings), "settings screenshot copy is localized");
 assertTrue(/PanelL10n\.restoreAllDefaults/.test(settings), "restore-defaults chip is localized");
+assertTrue(/id="restoreAllHotkeys"/.test(preview), "preview restore-all is a clickable button");
+assertTrue(!/data-i18n="restoreDetail"/.test(preview), "preview restore card has no detail paragraph");
+assertTrue(!/restoreDefaultsDetail/.test(settings), "restore-defaults card no longer shows the long help paragraph");
+assertTrue(!/\.disabled\(HotKeyAction/.test(settings), "restore-all stays clickable even when shortcuts are already the defaults");
 assertTrue(!/settingsCard\("快捷键"\)/.test(settings), "settings cards no longer hardcode 快捷键");
 
 assertTrue(/PanelL10n\.hotkeyNeedModifier/.test(hotkey), "hotkey rejection copy is localized");
@@ -77,6 +81,14 @@ assertTrue(/ScreenshotL10n\.hudRecognizedMenu/.test(store), "history OCR HUD fol
 assertTrue(/ScreenshotL10n\.stripOCRSuffix/.test(store), "OCR subtitle stripping understands every language");
 
 assertTrue(/PanelL10n\.paste/.test(previewPane) && /PanelL10n\.recognizeText/.test(previewPane), "preview pane actions are localized");
+assertTrue(/\.help\(PanelL10n\.paste\)/.test(previewPane), "paste is an icon with a localized hover hint");
+assertTrue(/\.help\(PanelL10n\.copy\)/.test(previewPane), "copy is an icon with a localized hover hint");
+assertTrue(/\.help\(PanelL10n\.favoriteTagHelp\)/.test(previewPane), "tag menu hover hint follows the app language");
+assertTrue(/\.help\(PanelL10n\.assignBoardHelp\)/.test(previewPane), "board menu hover hint follows the app language");
+assertTrue(/accessibilityLabel\(PanelL10n\.paste\)/.test(previewPane), "icon-only paste still has an accessibility name");
+assertTrue(!/ShelfActionLabel/.test(previewPane), "preview actions do not draw titles on the buttons");
+assertTrue(!/\.buttonStyle\(\.borderedProminent\)/.test(previewPane), "preview pane no longer uses system borderedProminent buttons");
+assertTrue(!/\.controlSize\(\.large\)/.test(previewPane), "preview actions are not forced into one large crowded row");
 assertTrue(/PanelL10n\.list/.test(history) && /PanelL10n\.recentlyCopied/.test(history), "history pane chrome is localized");
 assertTrue(/PanelL10n\.paste/.test(row) && /PanelL10n\.delete/.test(row), "row context menu is localized");
 
@@ -84,7 +96,11 @@ assertTrue(/id="shotOCR"[\s\S]*?>Aa</.test(preview), "English overlay OCR uses a
 assertTrue(!/>文</.test(preview), "preview toolbar no longer shows a CJK 文 glyph");
 assertTrue(/\.shot-toast \{/.test(preview), "toast CSS selector is intact");
 assertTrue(/const UI = \{/.test(preview) && /"zh-Hans":/.test(preview) && /"zh-Hant":/.test(preview) && /en: \{/.test(preview), "preview chrome has three language tables");
-assertTrue(/function applyLanguage\(lang\)/.test(preview), "language switch updates all chrome, not only overlay hints");
+assertTrue(/title="\$\{copy\.paste\}"/.test(preview), "preview paste is an icon with a hover title");
+assertTrue(/title="\$\{copy\.copyAction\}"/.test(preview), "preview copy is an icon with a hover title");
+assertTrue(/aria-label="\$\{copy\.tag\}"/.test(preview), "preview tag icon has an accessible name");
+assertTrue(!/>\$\{copy\.paste\}</.test(preview), "preview paste button does not draw its title");
+assertTrue(/copyAction: "复制"/.test(preview) && /copyAction: "複製"/.test(preview) && /copyAction: "Copy"/.test(preview), "preview copy hover hint has three language labels");
 assertTrue(/data-i18n="simulateShot"/.test(preview), "hero screenshot button is in the chrome table");
 assertTrue(/data-i18n="tabHotkeys"/.test(preview), "settings tabs are in the chrome table");
 assertTrue(/imageCopied: "Image copied"/.test(preview) && /imageCopied: "图片已复制"/.test(preview) && /imageCopied: "圖片已複製"/.test(preview), "toast copy exists in all three languages");

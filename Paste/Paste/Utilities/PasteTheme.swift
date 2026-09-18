@@ -243,6 +243,7 @@ struct ShelfAccentButtonStyle: ButtonStyle {
             .lineLimit(1)
             .minimumScaleFactor(PasteTheme.Typography.chipMinimumScale)
             .allowsTightening(true)
+            .fixedSize(horizontal: true, vertical: false)
             .foregroundStyle(.white)
             .padding(.horizontal, PasteTheme.Typography.buttonHorizontalPadding)
             .padding(.vertical, PasteTheme.Typography.buttonVerticalPadding)
@@ -261,6 +262,7 @@ struct ShelfQuietButtonStyle: ButtonStyle {
             .lineLimit(1)
             .minimumScaleFactor(PasteTheme.Typography.chipMinimumScale)
             .allowsTightening(true)
+            .fixedSize(horizontal: true, vertical: false)
             .foregroundStyle(PasteTheme.ink.opacity(0.78))
             .padding(.horizontal, PasteTheme.Typography.buttonHorizontalPadding)
             .padding(.vertical, PasteTheme.Typography.buttonVerticalPadding)
@@ -272,5 +274,77 @@ struct ShelfQuietButtonStyle: ButtonStyle {
                 Capsule(style: .continuous)
                     .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
             )
+    }
+}
+
+/// Rows of intrinsic-size children. Preview actions wrap instead of clipping titles to "…".
+struct WrappingHStack: Layout {
+    var spacing: CGFloat = 8
+    var lineSpacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let limit = proposal.width ?? .infinity
+        let rows = clustered(in: limit, subviews: subviews)
+        let width = rows.map(\.width).max() ?? 0
+        let height = rows.reduce(CGFloat(0)) { $0 + $1.height }
+            + CGFloat(max(rows.count - 1, 0)) * lineSpacing
+        return CGSize(width: limit.isFinite ? limit : width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let rows = clustered(in: bounds.width, subviews: subviews)
+        var y = bounds.minY
+        var index = 0
+        for row in rows {
+            var x = bounds.minX
+            for size in row.sizes {
+                subviews[index].place(
+                    at: CGPoint(x: x, y: y),
+                    anchor: .topLeading,
+                    proposal: ProposedViewSize(size)
+                )
+                x += size.width + spacing
+                index += 1
+            }
+            y += row.height + lineSpacing
+        }
+    }
+
+    private struct Row {
+        var sizes: [CGSize]
+        var width: CGFloat
+        var height: CGFloat
+    }
+
+    private func clustered(in limit: CGFloat, subviews: Subviews) -> [Row] {
+        var rows: [Row] = []
+        var sizes: [CGSize] = []
+        var width: CGFloat = 0
+        var height: CGFloat = 0
+
+        func flush() {
+            guard !sizes.isEmpty else { return }
+            rows.append(Row(sizes: sizes, width: width, height: height))
+            sizes = []
+            width = 0
+            height = 0
+        }
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if !sizes.isEmpty, width + spacing + size.width > limit {
+                flush()
+            }
+            if sizes.isEmpty {
+                width = size.width
+                height = size.height
+            } else {
+                width += spacing + size.width
+                height = max(height, size.height)
+            }
+            sizes.append(size)
+        }
+        flush()
+        return rows
     }
 }

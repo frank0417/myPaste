@@ -36,6 +36,8 @@ assertTrue(/func lineSpacing\(for text: String\)/.test(theme), "CJK previews get
 assertTrue(/func shelfChipLabel\(\)/.test(theme), "chip labels share one modifier");
 assertTrue(/struct ShelfAccentButtonStyle: ButtonStyle/.test(theme), "primary actions use a capsule accent style");
 assertTrue(/struct ShelfQuietButtonStyle: ButtonStyle/.test(theme), "secondary actions use a hairline capsule style");
+assertTrue(/fixedSize\(horizontal: true, vertical: false\)/.test(theme), "capsule buttons keep their intrinsic title width");
+assertTrue(/struct WrappingHStack: Layout/.test(theme), "preview actions wrap onto extra rows instead of clipping");
 assertTrue(/static var buttonHorizontalPadding: CGFloat/.test(theme), "button padding keys off CJK vs Latin");
 assertTrue(/static var actionGap: CGFloat/.test(theme), "icon-to-title gap keys off CJK vs Latin");
 assertTrue(/struct ShelfActionLabel: View/.test(theme), "action labels are a dedicated view, not system Label");
@@ -51,6 +53,7 @@ assertTrue(/en: "Board"/.test(l10n) && /hant: "剪貼板"/.test(l10n), "clipboar
 assertTrue(/en: "Saved"/.test(l10n), "favorites tab uses a short English label");
 assertTrue(/en: "Listening"/.test(l10n), "status text has an English form");
 assertTrue(/en: "Paste"/.test(l10n) && /en: "Copy"/.test(l10n), "footer actions are localized");
+assertTrue(/assignBoardHelp/.test(l10n) && /en: "Move to a board"/.test(l10n), "board hover hint has an English form");
 assertTrue(/en: "Read"/.test(l10n) && /en: "Save"/.test(l10n), "OCR and download use short English verbs");
 assertTrue(/en: "Search…"/.test(l10n), "search placeholder stays short in English");
 assertTrue(/characters"/.test(l10n), "character counts have a plural English form");
