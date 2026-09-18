@@ -18,11 +18,40 @@ enum TextRecognizer {
         let text: String
         let midY: CGFloat
         let minX: CGFloat
+        let confidence: Float
+    }
+
+    struct Candidate {
+        let text: String
+        let confidence: Float
+
+        var cjkCount: Int { TextRecognizer.cjkCount(of: text) }
+
+        var score: Double {
+            Double(confidence) * 10
+                + Double(cjkCount) * 2
+                + Double(min(TextRecognizer.characterCount(of: text), 40)) * 0.1
+        }
+
+        /// Good enough to stop trying other Vision passes.
+        var isReliable: Bool {
+            if isGarbled { return false }
+            if cjkCount >= 4 && confidence >= 0.35 { return true }
+            if cjkCount == 0 && confidence >= 0.62 { return true }
+            return false
+        }
+
+        var isGarbled: Bool {
+            TextRecognizer.isGarbled(text, confidence: confidence)
+        }
     }
 
     /// Smallest pixel side that still gives Vision enough samples for UI type.
     /// Crops shorter than this are upscaled before recognition.
-    static let minimumPreparedSide = 180
+    static let minimumPreparedSide = 320
+    /// Drop Vision guesses below this — `.fast` on small CJK otherwise returns
+    /// Latin soup like `iA5F;XfflIJ# (¥`.
+    static let minimumFragmentConfidence: Float = 0.3
     /// Mean sRGB luminance below this is treated as a dark UI (light glyphs).
     static let darkLuminanceThreshold: CGFloat = 0.45
     /// Downsample size for the darkness probe — a 16×16 average is enough.
@@ -40,6 +69,8 @@ enum TextRecognizer {
     ///
     /// Dark UIs (light glyphs on black) are inverted first: Vision is tuned for
     /// dark ink on paper and often returns nothing on a terminal or dark IDE.
+    /// `.fast` can still return Latin garbage on small CJK; keep looking and pick
+    /// the highest-scoring plausible result instead of the first non-empty string.
     static func recognize(preparedCGImage: CGImage) -> String? {
         let inverted = invertedImage(from: preparedCGImage)
         let images: [CGImage]
@@ -50,41 +81,54 @@ enum TextRecognizer {
         } else {
             images = [preparedCGImage]
         }
+        var best: Candidate?
         for image in images {
-            if let text = recognizeVariants(on: image) {
-                return text
+            if let candidate = recognizeVariants(on: image) {
+                if candidate.isReliable { return candidate.text }
+                if best == nil || candidate.score > best!.score {
+                    best = candidate
+                }
             }
         }
-        return nil
+        guard let best, !best.isGarbled else { return nil }
+        return best.text
     }
 
-    private static func recognizeVariants(on image: CGImage) -> String? {
+    private static func recognizeVariants(on image: CGImage) -> Candidate? {
         let attempts: [(VNRequestTextRecognitionLevel, [String])] = [
-            (.fast, languages),
             (.accurate, languages),
-            (.fast, []),
-            (.accurate, [])
+            (.fast, languages),
+            (.accurate, []),
+            (.fast, [])
         ]
+        var best: Candidate?
         for (level, langs) in attempts {
             let handler = VNImageRequestHandler(cgImage: image, orientation: .up, options: [:])
-            if let text = run(handler: handler, level: level, languages: langs) {
-                return text
+            guard let candidate = run(handler: handler, level: level, languages: langs),
+                  !candidate.isGarbled else { continue }
+            if candidate.isReliable { return candidate }
+            if best == nil || candidate.score > best!.score {
+                best = candidate
             }
         }
-        return nil
+        return best
     }
 
     /// Copy into a disconnected sRGB bitmap so ScreenCaptureKit IOSurface / BGRA
     /// crops (and tiny UI type) are something Vision will actually read.
     static func preparedImage(from image: CGImage) -> CGImage {
-        let minSide = min(image.width, image.height)
-        let scale = (minSide > 0 && minSide < minimumPreparedSide) ? 2 : 1
+        let scale = preparedScale(minSide: min(image.width, image.height))
         let width = max(1, image.width * scale)
         let height = max(1, image.height * scale)
         guard let ctx = rgbContext(width: width, height: height) else { return image }
         ctx.interpolationQuality = scale > 1 ? .high : .none
         ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
         return ctx.makeImage() ?? image
+    }
+
+    static func preparedScale(minSide: Int, target: Int = minimumPreparedSide) -> Int {
+        guard minSide > 0, minSide < target else { return 1 }
+        return min(4, max(2, Int(ceil(Double(target) / Double(minSide)))))
     }
 
     /// Recolor light-on-dark UI as dark ink on paper. Alpha is left alone so a
@@ -165,8 +209,8 @@ enum TextRecognizer {
             return recognize(cgImage: cgImage)
         }
         let handler = VNImageRequestHandler(data: imageData, options: [:])
-        return run(handler: handler, level: .fast, languages: languages)
-            ?? run(handler: VNImageRequestHandler(data: imageData, options: [:]), level: .accurate, languages: languages)
+        return run(handler: handler, level: .accurate, languages: languages)?.text
+            ?? run(handler: VNImageRequestHandler(data: imageData, options: [:]), level: .fast, languages: languages)?.text
     }
 
     private static func cgImage(from data: Data) -> CGImage? {
@@ -178,7 +222,7 @@ enum TextRecognizer {
         handler: VNImageRequestHandler,
         level: VNRequestTextRecognitionLevel,
         languages: [String]
-    ) -> String? {
+    ) -> Candidate? {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = level
         request.usesLanguageCorrection = (level == .accurate)
@@ -197,14 +241,20 @@ enum TextRecognizer {
             return nil
         }
 
+        var confidences: [Float] = []
         let fragments = (request.results ?? []).compactMap { observation -> Fragment? in
             guard let candidate = observation.topCandidates(1).first else { return nil }
             let text = candidate.string.trimmingCharacters(in: .whitespaces)
             guard !text.isEmpty else { return nil }
+            guard candidate.confidence >= minimumFragmentConfidence else { return nil }
+            confidences.append(candidate.confidence)
             let box = observation.boundingBox
-            return Fragment(text: text, midY: box.midY, minX: box.minX)
+            return Fragment(text: text, midY: box.midY, minX: box.minX, confidence: candidate.confidence)
         }
-        return assemble(fragments)
+        guard let text = assemble(fragments) else { return nil }
+        let average = confidences.reduce(0, +) / Float(max(confidences.count, 1))
+        let result = Candidate(text: text, confidence: average)
+        return result.isGarbled ? nil : result
     }
 
     /// Vision returns observations without a guaranteed order, so rebuild reading
@@ -260,6 +310,34 @@ enum TextRecognizer {
         default:
             return false
         }
+    }
+
+    static func cjkCount(of text: String) -> Int {
+        text.reduce(into: 0) { count, character in
+            if isCJK(character) { count += 1 }
+        }
+    }
+
+    /// `.fast` on a small Chinese crop often emits mixed-case Latin and symbols
+    /// instead of Han characters. Those guesses are discarded so `.accurate` can win.
+    static func isGarbled(_ text: String, confidence: Float) -> Bool {
+        let letters = text.filter { !$0.isWhitespace }
+        if letters.isEmpty { return true }
+        let cjk = cjkCount(of: text)
+        if cjk >= 3 { return false }
+        if cjk == 0 && confidence >= 0.55 { return false }
+        if cjk == 0 && confidence < 0.4 { return true }
+
+        let weird = letters.filter { character in
+            if isCJK(character) { return false }
+            if character.isLetter || character.isNumber { return false }
+            return !".,:;/\\-_()[]（）【】「」\"'、。".contains(character)
+        }.count
+        if cjk == 0 && weird >= 2 && confidence < 0.55 { return true }
+        if cjk == 0 && letters.count >= 6 && Double(weird) / Double(letters.count) >= 0.15 {
+            return true
+        }
+        return false
     }
 
     /// Whitespace does not count, so "识别 42 字" reflects actual content.
