@@ -139,13 +139,66 @@ assertTrue(!isCJK(undefined), "missing character is not CJK");
 assertEqual(characterCount("安静、好用的 Mac 工具。"), 12, "whitespace is not counted");
 assertEqual(characterCount("a\nb c"), 3, "newlines are not counted");
 
-function preparedScale(width, height, minSide = 180) {
-  const side = Math.min(width, height);
-  return side > 0 && side < minSide ? 2 : 1;
+function preparedScale(minSide, target = 320) {
+  if (!(minSide > 0) || minSide >= target) return 1;
+  return Math.min(4, Math.max(2, Math.ceil(target / minSide)));
 }
-assertEqual(preparedScale(966, 442), 1, "a Retina UI crop is not upscaled");
-assertEqual(preparedScale(80, 40), 2, "a tiny crop is doubled so Vision has enough pixels");
-assertEqual(preparedScale(180, 180), 1, "a crop on the minimum side is left as-is");
+assertEqual(preparedScale(966), 1, "a Retina UI crop is not upscaled");
+assertEqual(preparedScale(442), 1, "a tall Retina crop stays 1x");
+assertEqual(preparedScale(80), 4, "a tiny crop is scaled up to the 320px target, capped at 4x");
+assertEqual(preparedScale(184), 2, "a 159×92@2x crop (184px tall) is doubled");
+assertEqual(preparedScale(320), 1, "a crop on the minimum side is left as-is");
+
+function cjkCount(text) {
+  return [...text].filter((c) => isCJK(c)).length;
+}
+
+function isGarbled(text, confidence) {
+  const letters = [...text].filter((c) => !/\s/.test(c));
+  if (!letters.length) return true;
+  const cjk = cjkCount(text);
+  if (cjk >= 3) return false;
+  if (cjk === 0 && confidence >= 0.55) return false;
+  if (cjk === 0 && confidence < 0.4) return true;
+  const allowed = ".,:;/\\-_()[]（）【】「」\"'、。";
+  const weird = letters.filter((c) => {
+    if (isCJK(c)) return false;
+    if (/^[A-Za-z0-9]$/.test(c)) return false;
+    return !allowed.includes(c);
+  }).length;
+  if (cjk === 0 && weird >= 2 && confidence < 0.55) return true;
+  if (cjk === 0 && letters.length >= 6 && weird / letters.length >= 0.15) return true;
+  return false;
+}
+
+function scoreCandidate(text, confidence) {
+  return confidence * 10 + cjkCount(text) * 2 + Math.min(characterCount(text), 40) * 0.1;
+}
+
+function pickBest(candidates) {
+  const ok = candidates.filter((c) => !isGarbled(c.text, c.confidence));
+  if (!ok.length) return null;
+  ok.sort((a, b) => scoreCandidate(b.text, b.confidence) - scoreCandidate(a.text, a.confidence));
+  return ok[0].text;
+}
+
+assertTrue(isGarbled("iA5F;XfflIJ# (¥", 0.32), "fast Latin soup on a Chinese crop is garbled");
+assertTrue(!isGarbled("零售服务体验印象\n调研激励券（总部使用）", 0.51), "real CJK is not garbled");
+assertTrue(!isGarbled("Hello world", 0.72), "confident English is not garbled");
+assertTrue(!isGarbled("OK", 0.8), "a short confident token is kept");
+assertEqual(
+  pickBest([
+    { text: "iA5F;XfflIJ# (¥", confidence: 0.32 },
+    { text: "零售服务体验印象\n调研激励券（总部使用）", confidence: 0.51 }
+  ]),
+  "零售服务体验印象\n调研激励券（总部使用）",
+  "a later accurate CJK pass wins over fast garbage"
+);
+assertEqual(
+  pickBest([{ text: "iA5F;XfflIJ# (¥", confidence: 0.32 }]),
+  null,
+  "garbage-only results are discarded rather than shown"
+);
 
 const DARK_LUMINANCE_THRESHOLD = 0.45;
 
@@ -202,7 +255,14 @@ assertTrue(/func recognize\(preparedCGImage: CGImage\)/.test(swift), "Vision can
 assertTrue(/func preparedImage\(from image: CGImage\)/.test(swift), "ScreenCaptureKit crops are copied into a disconnected sRGB bitmap");
 assertTrue(/CGColorSpace\.sRGB/.test(swift) && /premultipliedLast/.test(swift), "prepared OCR bitmaps are 8-bit sRGB RGBA");
 assertTrue(/byteOrder32Big/.test(swift), "RGBA byte order is explicit so invert does not flip alpha");
-assertTrue(/minimumPreparedSide = 180/.test(swift), "tiny UI crops are upscaled before Vision");
+assertTrue(/minimumPreparedSide = 320/.test(swift), "tiny UI crops are upscaled toward 320px before Vision");
+assertTrue(/minimumFragmentConfidence: Float = 0\.3/.test(swift), "low-confidence Vision guesses are dropped");
+assertTrue(/func isGarbled/.test(swift), "Latin soup from .fast is classified as garbled");
+assertTrue(/func preparedScale\(minSide:/.test(swift), "upscale factor is derived from the short side");
+assertTrue(/func cjkCount\(of text: String\)/.test(swift), "garbled detection counts Han characters");
+assertTrue(/\.accurate, languages/.test(swift), "accurate CJK recognition is tried before .fast");
+assertTrue(/candidate\.confidence >= minimumFragmentConfidence/.test(swift), "each line keeps its Vision confidence");
+assertTrue(/best\.isGarbled/.test(swift), "a garbled winner is discarded");
 assertTrue(/darkLuminanceThreshold: CGFloat = 0\.45/.test(swift), "dark UI is anything dimmer than mid-gray");
 assertTrue(/func invertedImage\(from image: CGImage\)/.test(swift), "light-on-dark crops can be inverted for Vision");
 assertTrue(/func isDark\(_ image: CGImage\)/.test(swift), "darkness is measured from the freeze itself");
@@ -211,7 +271,7 @@ assertTrue(/255 &- pixel\[0\]/.test(swift), "each RGB channel is inverted indepe
 assertTrue(/isDark\(preparedCGImage\), let inverted/.test(swift), "a dark freeze tries the inverted bitmap first");
 assertTrue(/images = \[preparedCGImage, inverted\]/.test(swift), "a light freeze still falls back to inverted");
 assertTrue(/VNImageRequestHandler\(cgImage:/.test(swift), "Vision reads the cropped CGImage directly");
-assertTrue(/recognitionLevel = level/.test(swift) && /\.fast/.test(swift), "sparse UI text tries .fast first");
+assertTrue(/recognitionLevel = level/.test(swift) && /\.accurate/.test(swift), "accurate recognition is in the overlay OCR loop");
 assertTrue(/minimumTextHeight = \(level == \.fast\) \? 0 : 0\.008/.test(swift), "fast OCR does not drop small UI labels");
 assertTrue(/automaticallyDetectsLanguage = true/.test(swift), "a language-pack miss still falls back to auto-detect");
 assertTrue(/import ImageIO/.test(swift), "PNG history items decode through ImageIO before Vision");
