@@ -799,6 +799,14 @@ final class ScreenshotCanvasView: NSView, NSTextFieldDelegate {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(snippet, forType: .string)
+        let count = TextRecognizer.characterCount(of: snippet)
+        // Cancel, not confirm: confirming files the PNG and overwrites this text.
+        onCancel?()
+        ScreenshotHUD.shared.show(
+            thumbnail: nil,
+            title: ScreenshotL10n.string(.recognizeText),
+            detail: ScreenshotL10n.hudRecognizedCopied(count)
+        )
     }
 
     private func dismissOCRPanel() {

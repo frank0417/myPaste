@@ -448,6 +448,9 @@ enum ScreenshotLayout {
     /// The freeze canvas is flipped. `NSTextView` inside that hierarchy draws blank,
     /// so the result is a SwiftUI `Text` like the card title (which already shows).
     static let ocrResultUsesSwiftUIText = true
+    /// Copying recognized text is the job; dismiss the freeze instead of leaving
+    /// the user to hit Esc. Must not confirm: that would replace the text with a PNG.
+    static let ocrCopyDismissesOverlay = true
     static let sizeBadgeHeight: CGFloat = 22
     static let sizeBadgeGap: CGFloat = 6
     static let mosaicBlock: CGFloat = 10

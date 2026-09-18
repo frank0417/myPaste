@@ -242,6 +242,8 @@ assertTrue(/preferredColorScheme\(\.light\)/.test(overlay), "OCR card stays in l
 assertTrue(/ScreenshotL10n\.string\(\.ocrWorking\)/.test(overlay), "recognizing state has visible copy, not only a spinner");
 assertTrue(/\.textSelection\(\.enabled\)/.test(overlay), "recognized text is selectable SwiftUI Text, not NSTextView");
 assertTrue(/onCopy\(session\.ocrResult \?\? ""\)/.test(overlay), "the Copy button copies the full recognized string");
+assertTrue(/onCancel\?\(\)\n        ScreenshotHUD/.test(overlay), "copying recognized text closes the overlay then shows a HUD");
+assertTrue(!/copyOCRText[\s\S]{0,400}onConfirm/.test(overlay), "OCR copy does not confirm a PNG that would overwrite the text");
 assertTrue(!/class ScreenshotOCRScrollView/.test(overlay), "OCR no longer hosts an AppKit text view on the flipped freeze");
 assertTrue(!/struct ScreenshotOCRTextView/.test(overlay), "OCR result is not an NSViewRepresentable");
 assertTrue(!/textColor = \.labelColor/.test(overlay), "OCR text view does not use appearance-adaptive labelColor");
