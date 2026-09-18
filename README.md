@@ -94,6 +94,8 @@ make package                      # 同上（Makefile 封装）
 open Paste/preview/index.html
 ```
 
+营销功能介绍与 App Store 截图见 [docs/MARKETING.md](docs/MARKETING.md)。
+
 ## 许可
 
 MIT
