@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import http.server
 import os
-import shutil
 import subprocess
 import threading
 from pathlib import Path
@@ -23,6 +22,7 @@ NAMES = {
     5: "05-search",
     6: "06-keep",
 }
+LANGS = {"zh-Hans": "zh", "zh-Hant": "zh-Hant", "en": "en"}
 
 
 def serve() -> http.server.HTTPServer:
@@ -89,16 +89,17 @@ def main() -> None:
     httpd = serve()
     try:
         for n, name in NAMES.items():
-            dest = SHOTS / f"{name}-2560x1600.png"
-            url = f"http://127.0.0.1:{PORT}/artboard.html?n={n}"
-            print(f"render {name}")
-            chrome_shot(url, dest)
-            im = Image.open(dest)
-            if im.size != (2560, 1600):
-                im = im.resize((2560, 1600), Image.Resampling.LANCZOS)
-                im.save(dest, "PNG", optimize=True)
-            resize(dest, SHOTS / f"{name}-1440x900.png", (1440, 900))
-            print(f"  {dest.name} {Image.open(dest).size}")
+            for lang, suffix in LANGS.items():
+                dest = SHOTS / f"{name}-{suffix}-2560x1600.png"
+                url = f"http://127.0.0.1:{PORT}/artboard.html?n={n}&lang={lang}"
+                print(f"render {name} [{lang}]")
+                chrome_shot(url, dest)
+                im = Image.open(dest)
+                if im.size != (2560, 1600):
+                    im = im.resize((2560, 1600), Image.Resampling.LANCZOS)
+                    im.save(dest, "PNG", optimize=True)
+                resize(dest, SHOTS / f"{name}-{suffix}-1440x900.png", (1440, 900))
+                print(f"  {dest.name} {Image.open(dest).size}")
     finally:
         httpd.shutdown()
 

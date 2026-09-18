@@ -175,12 +175,84 @@ PasteNest 是常驻菜单栏的剪贴板巢穴。你复制的一切——文本�
 **Promotional text:** Everything you copy lives in the menu bar. Hit ⇧⌘V to paste again. Freeze the screen with ⇧⌘X, annotate, and read text on-device. No ads, no subscription.  
 **Keywords:** clipboard,paste,copy,screenshot,OCR,history,snippet,manager,mac
 
+**Description**
+
+```
+PasteNest is a clipboard nest that lives in your menu bar. Everything you copy — text, links, images, files, code, colors — is saved automatically, ready to come back with one tap.
+
+【A shelf that slides up】
+Press ⇧⌘V and a shelf of cards rises from the bottom. Enter pastes into the current app; double-click to see the full content. The main window has its own ⌥⌘V — the two never show at once.
+
+【Screenshot like sending a message】
+⇧⌘X freezes the screen. Drag a region, mark it up with rectangles, arrows, pen, mosaic, or text. Confirm and it lands in both your clipboard and history — search “screenshot” to find it again.
+
+【Words in images, searchable】
+Tap Recognize text on the toolbar and Vision reads Chinese and English on-device. Copy what you select, or keep only the text; recognized links become link items automatically.
+
+【No tidying — it just knows】
+Items tag themselves: image, link, code, color, file, rich text. ⌘F searches titles, bodies, source apps, and tags. Saved items can take your own labels like Work / Ideas / Code.
+
+【What matters, stays】
+Saved items keep forever; the rest clear after the days you set (3 by default). Pinned items are kept too.
+
+【Private by default】
+History stays on your Mac. iCloud sync is optional and goes through your Apple ID — we never see your data. No ads, no analytics, no accounts.
+
+【Made for Mac】
+Native SwiftUI on Apple Silicon and Intel. Launch at login; closing a window never quits. Record hotkeys in Settings → Hotkeys — they apply instantly, with one-click restore.
+```
+
+### 繁體中文（台灣 / 香港商店）
+
+**副標題：** 複製過的，都還在  
+**宣傳文本：** 複製過的，都還在。PasteNest 靜靜待在選單列，收好你複製的文字、連結、圖片和程式碼。快捷鍵喚出貨架，回車貼上；凍結螢幕圈選標註，圖裡的字也能在本機辨識。無廣告，無訂閱。  
+**關鍵字：** 剪貼板,clipboard,複製,貼上,截圖,OCR,歷史,效率,Paste,snippet
+
+**描述**
+
+```
+PasteNest 是常駐選單列的剪貼板巢穴。你複製的一切——文字、連結、圖片、檔案、程式碼、顏色——都會自動保存，隨時一鍵找回。
+
+【底部貨架，一呼即出】
+預設 ⇧⌘V，螢幕底部滑出卡片貨架。回車貼上到目前 App；雙擊查看完整內容。主視窗用 ⌥⌘V，兩者不會同時出現。
+
+【截圖像發一條訊息】
+⇧⌘X 凍結目前螢幕，拖出選區，用矩形、箭頭、畫筆、馬賽克、文字標註。確認後同時進入系統剪貼板和歷史，搜「截圖」就能找回。
+
+【圖裡的字，也能搜】
+截完在工具條點「辨識文字」，本機用 Vision 辨識中英文。可以複製選中的字，也可以只要文字不要圖；辨識出連結會自動變成連結條目。
+
+【不用整理，它自己認得】
+按類型自動打標：圖片、連結、程式碼、顏色、檔案、富文字。⌘F 搜標題、正文、來源應用和標籤。收藏夾可再打上工作 / 靈感 / 程式碼等分類。
+
+【重要的，留下來】
+收藏的內容長期保存；未收藏的按你設定的天數自動清理（預設 3 天）。置頂也會保留。
+
+【隱私優先】
+歷史預設只在你的 Mac 上。可選 iCloud 同步，資料走你的 Apple ID，開發者不可存取。無廣告、無分析、無帳號。
+
+【為 Mac 而生】
+原生 SwiftUI，支援 Apple Silicon 與 Intel。登入時啟動，關掉視窗不會結束。快捷鍵在「設定 → 快捷鍵」錄製，即刻生效，可一鍵恢復預設。
+```
+
+### 截图按语言出图
+
+每张图都有三种语言版本，文件名带语言后缀：
+
+| 语言 | 后缀 | 示例 |
+|------|------|------|
+| 简体中文 | `-zh` | `01-hero-zh-2560x1600.png` |
+| 繁體中文 | `-zh-Hant` | `01-hero-zh-Hant-2560x1600.png` |
+| English | `-en` | `01-hero-en-2560x1600.png` |
+
+App Store Connect 里给「简体中文」「繁體中文」「English (U.S.)」各传对应一套。
+
 ---
 
 ## 截图制作
 
-源文件：`docs/app-store/artboard.html?n=1` … `n=6`  
-渲染：`python3 docs/app-store/render_screenshots.py`
+源文件：`docs/app-store/artboard.html?n=1&lang=zh-Hans` … `n=6&lang=en`  
+渲染：`python3 docs/app-store/render_screenshots.py`（一次出 18 张）
 
 | 文件 | 尺寸 | 用途 |
 |------|------|------|

@@ -101,12 +101,15 @@
     }
     #b1 .shelf-head strong { font-size: 22px; }
     #b1 .shelf-head span { color: var(--muted); font-size: 15px; }
+    #b1.en h1 { font-family: "Fraunces", serif; font-size: 96px; }
+    #b1.en .sub { font-size: 26px; max-width: 24em; }
 
     /* 02 hotkey */
     #b2 { background: #f4eee4; }
     #b2 .copy { left: 100px; top: 180px; width: 980px; z-index: 4; }
     #b2 h1 { font-size: 96px; margin: 22px 0 24px; }
     #b2 .sub { color: var(--muted); }
+    #b2.en h1 { font-family: "Fraunces", serif; font-size: 84px; }
     #b2 .kb {
       position: absolute; top: 0; right: 0; left: 36%;
       width: auto; height: 100%;
@@ -122,6 +125,7 @@
     #b3 .kicker { color: #9ad4cc; }
     #b3 h1 { font-size: 72px; margin: 16px 0 10px; }
     #b3 .sub { color: rgba(246,241,232,.9); font-size: 24px; max-width: 28em; }
+    #b3.en h1 { font-family: "Fraunces", serif; font-size: 60px; }
     #b3 .veil { background: linear-gradient(180deg, rgba(7,16,14,.72) 0%, rgba(7,16,14,.12) 28%, rgba(7,16,14,.2) 100%); }
 
     /* 04 ocr */
@@ -130,10 +134,12 @@
     #b4 .kicker { color: #e8b39e; }
     #b4 h1 { font-size: 92px; margin: 22px 0 22px; }
     #b4 .sub { color: rgba(246,241,232,.82); }
+    #b4.en h1 { font-family: "Fraunces", serif; font-size: 78px; }
     #b4 .photo { object-position: 58% 50%; }
     #b4 .ocr {
       position: absolute; right: 110px; top: 360px; width: 560px; z-index: 4;
       border-radius: 24px; padding: 32px 32px 24px; color: var(--ink);
+      background: rgba(255,252,247,.94);
     }
     #b4 .ocr h2 { font-size: 15px; color: var(--muted); margin-bottom: 14px; font-weight: 600; }
     #b4 .ocr .sel { background: rgba(15,118,110,.16); border-radius: 6px; padding: 0 4px; }
@@ -147,6 +153,7 @@
     #b5 .copy { left: 92px; top: 90px; width: 1100px; }
     #b5 h1 { font-size: 84px; margin: 18px 0 16px; }
     #b5 .sub { color: var(--muted); }
+    #b5.en h1 { font-family: "Fraunces", serif; font-size: 66px; }
     #b5 .window {
       position: absolute; left: 92px; right: 92px; top: 400px; height: 1080px;
       border-radius: 28px; display: grid; grid-template-columns: 240px 1fr 400px;
@@ -178,6 +185,7 @@
     #b6 .copy { left: 92px; top: 160px; width: 860px; }
     #b6 h1 { font-size: 92px; margin: 22px 0 24px; }
     #b6 .sub { color: var(--muted); }
+    #b6.en h1 { font-family: "Fraunces", serif; font-size: 80px; }
     #b6 .photo { object-position: 70% 50%; left: 38%; width: 62%; }
     #b6 .points { margin-top: 40px; display: grid; gap: 16px; }
     #b6 .points div { font-size: 22px; font-weight: 600; display: flex; gap: 12px; align-items: center; }
@@ -330,10 +338,87 @@
   </section>
 
   <script>
-    const n = new URLSearchParams(location.search).get("n") || "1";
+    const params = new URLSearchParams(location.search);
+    const n = params.get("n") || "1";
+    const lang = params.get("lang") || "zh-Hans";
     document.querySelectorAll(".board").forEach((el) => el.classList.remove("on"));
     const board = document.getElementById("b" + n) || document.getElementById("b1");
     board.classList.add("on");
+    board.classList.add(lang);
+
+    const L = {
+      "zh-Hans": {
+        kick1: "PasteNest", h1: "复制过的，<br>都还在。", sub1: "菜单栏里的剪贴板巢穴。文字、链接、图片、代码、颜色，自动收好，一键回来。",
+        sync: "⇧⌘V · 刚刚同步", cap1: "01  /  你的第二块剪贴板",
+        kick2: "全局快捷键", h2: "按一下，<br>它就来了。", sub2: "底部货架、主窗口、截图各有独立快捷键。录下即刻生效，被占用会提醒，一键恢复默认。",
+        key2: "唤出底部货架 · 回车粘贴", cap2: "02  /  手不离开键盘",
+        kick3: "区域截图", h3: "截图像发一条消息。", sub3: "冻结屏幕 · 拖出选区 · 矩形 / 箭头 / 画笔 / 马赛克 / 文字 · 确认后进入剪贴板与历史。",
+        cap3: "03  /  标注完，直接复用",
+        kick4: "识别文字", h4: "图里的字，<br>也能搜。", sub4: "本机 Vision 识别中英文。可选复制，或只留文字不要图。链接会自动变成链接条目。",
+        ocrHead: "识别到的文字", ocrCancel: "取消", ocrCopy: "复制", cap4: "04  /  字留在你的电脑上",
+        ocrBody: "安静，好用的 Mac 工具。<br>岸上工作室<br><span class=\"sel\">apple.com/macos</span>",
+        kick5: "搜索与分类", h5: "不用整理，它自己认得。", sub5: "链接、代码、颜色、文件自动打标。搜索标题、正文、来源应用，实时出结果。",
+        kick6: "收藏与隐私", h6: "重要的，<br>留下来。", sub6: "收藏长期保存，其余按你设定的天数自动清理。iCloud 可选，数据走你的 Apple ID，我们碰不到。",
+        p61: "收藏夹独立面板，可打标签", p62: "未收藏内容默认 3 天后清理", p63: "无广告、无追踪、无账号体系", cap6: "06  /  只存在你的 Mac 上"
+      },
+      "zh-Hant": {
+        kick1: "PasteNest", h1: "複製過的，<br>都還在。", sub1: "選單列裡的剪貼板巢穴。文字、連結、圖片、程式碼、顏色，自動收好，一鍵回來。",
+        sync: "⇧⌘V · 剛剛同步", cap1: "01  /  你的第二塊剪貼板",
+        kick2: "全域快捷鍵", h2: "按一下，<br>它就來了。", sub2: "底部貨架、主視窗、截圖各有獨立快捷鍵。錄下即刻生效，被佔用會提醒，一鍵恢復預設。",
+        key2: "喚出底部貨架 · 回車貼上", cap2: "02  /  手不離開鍵盤",
+        kick3: "區域截圖", h3: "截圖像發一條訊息。", sub3: "凍結螢幕 · 拖出選區 · 矩形 / 箭頭 / 畫筆 / 馬賽克 / 文字 · 確認後進入剪貼板與歷史。",
+        cap3: "03  /  標註完，直接複用",
+        kick4: "辨識文字", h4: "圖裡的字，<br>也能搜。", sub4: "本機 Vision 辨識中英文。可選複製，或只留文字不要圖。連結會自動變成連結條目。",
+        ocrHead: "辨識到的文字", ocrCancel: "取消", ocrCopy: "複製", cap4: "04  /  字留在你的電腦上",
+        ocrBody: "安靜，好用的 Mac 工具。<br>岸上工作室<br><span class=\"sel\">apple.com/macos</span>",
+        kick5: "搜尋與分類", h5: "不用整理，它自己認得。", sub5: "連結、程式碼、顏色、檔案自動打標。搜尋標題、正文、來源應用，即時出結果。",
+        kick6: "收藏與隱私", h6: "重要的，<br>留下來。", sub6: "收藏長期保存，其餘按你設定的天數自動清理。iCloud 可選，資料走你的 Apple ID，我們碰不到。",
+        p61: "收藏夾獨立面板，可打標籤", p62: "未收藏內容預設 3 天後清理", p63: "無廣告、無追蹤、無帳號體系", cap6: "06  /  只存在你的 Mac 上"
+      },
+      en: {
+        kick1: "PasteNest", h1: "Everything you copy,<br>still here.", sub1: "A clipboard nest in your menu bar. Text, links, images, code, and colors — tucked away, one tap back.",
+        sync: "⇧⌘V · Synced just now", cap1: "01  /  A second clipboard",
+        kick2: "Global hotkeys", h2: "One press,<br>and it's here.", sub2: "The shelf, main window, and screenshot each get their own hotkey. Changes apply instantly; taken combos are flagged; one click restores defaults.",
+        key2: "Show the shelf · Enter pastes", cap2: "02  /  Hands stay on the keyboard",
+        kick3: "Region screenshot", h3: "Screenshot like sending a message.", sub3: "Freeze the screen, drag a region, mark it up with rectangles, arrows, pen, mosaic, or text — it lands in your clipboard and history.",
+        cap3: "03  /  Annotate, then reuse",
+        kick4: "Recognize text", h4: "Words in images,<br>searchable.", sub4: "On-device Vision reads Chinese and English. Copy what you select, or keep only the text. Links become link items automatically.",
+        ocrHead: "Recognized text", ocrCancel: "Cancel", ocrCopy: "Copy", cap4: "04  /  Text stays on your Mac",
+        ocrBody: "Quiet, capable Mac tools.<br>Anshore Studio<br><span class=\"sel\">apple.com/macos</span>",
+        kick5: "Search & tags", h5: "No tidying. It just knows.", sub5: "Links, code, colors, and files tag themselves. Search titles, bodies, and source apps — results appear as you type.",
+        kick6: "Saved & private", h6: "What matters,<br>stays.", sub6: "Saved items keep forever; the rest clear after the days you set. iCloud is optional and goes through your Apple ID — we never see your data.",
+        p61: "A separate Saved panel with tags", p62: "Unsaved items clear after 3 days", p63: "No ads, no tracking, no accounts", cap6: "06  /  Only on your Mac"
+      }
+    };
+    const t = L[lang] || L["zh-Hans"];
+    const set = (sel, html, useHTML) => {
+      const el = board.querySelector(sel);
+      if (!el) return;
+      if (useHTML) el.innerHTML = html; else el.textContent = html;
+    };
+    if (n === "1") {
+      set(".kicker", t.kick1); set("h1", t.h1, true); set(".sub", t.sub1);
+      set(".shelf-head span", t.sync); set(".caption", t.cap1);
+    } else if (n === "2") {
+      set(".kicker", t.kick2); set("h1", t.h2, true); set(".sub", t.sub2);
+      set(".keys span:last-child", t.key2); set(".caption", t.cap2);
+    } else if (n === "3") {
+      set(".kicker", t.kick3); set("h1", t.h3, true); set(".sub", t.sub3); set(".caption", t.cap3);
+    } else if (n === "4") {
+      set(".kicker", t.kick4); set("h1", t.h4, true); set(".sub", t.sub4);
+      set(".ocr h2", t.ocrHead); set(".ocr .ghost", t.ocrCancel); set(".ocr .primary", t.ocrCopy);
+      set(".ocr p", t.ocrBody, true);
+      set(".caption", t.cap4);
+    } else if (n === "5") {
+      set(".kicker", t.kick5); set("h1", t.h5, true); set(".sub", t.sub5);
+    } else if (n === "6") {
+      set(".kicker", t.kick6); set("h1", t.h6, true); set(".sub", t.sub6);
+      const pts = board.querySelectorAll(".points div");
+      [t.p61, t.p62, t.p63].forEach((txt, i) => {
+        if (pts[i]) pts[i].innerHTML = "<i></i>" + txt;
+      });
+      set(".caption", t.cap6);
+    }
   </script>
 </body>
 </html>
