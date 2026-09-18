@@ -7,7 +7,7 @@
 #   ./scripts/package.sh --sign           # Developer ID Application signing
 #   ./scripts/package.sh --sign --pkg     # also create .pkg installer
 #   ./scripts/package.sh --sign --notarize
-#   ./scripts/package.sh --app-store      # archive + export for App Store Connect
+#   ./scripts/package.sh --app-store --team TEAMID   # archive + export for App Store Connect
 #
 set -euo pipefail
 
@@ -40,7 +40,7 @@ Usage:
   ./scripts/package.sh --sign           # Developer ID signing
   ./scripts/package.sh --sign --pkg     # also create .pkg
   ./scripts/package.sh --sign --notarize
-  ./scripts/package.sh --app-store
+  ./scripts/package.sh --app-store --team TEAMID
   ./scripts/package.sh --version 1.0.1
   ./scripts/package.sh --identity "Developer ID Application: Name (TEAMID)"
   ./scripts/package.sh --team TEAMID
@@ -96,6 +96,60 @@ COMMON_ARGS=(
   PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID"
 )
 
+APP_STORE_ENTS="$ROOT/Paste/Paste/Paste.entitlements"
+
+if [[ "$APP_STORE" -eq 1 ]]; then
+  if [[ -z "$TEAM_ID" ]]; then
+    echo "❌ App Store 构建需要 Team ID（Apple Distribution 自动签名）。"
+    echo "   ./scripts/package.sh --app-store --team YOUR_TEAM_ID"
+    echo "   Team ID 在 https://developer.apple.com/account → Membership 中查看。"
+    exit 1
+  fi
+  echo "==> App Store 归档（Automatic signing, team ${TEAM_ID}）…"
+  echo "==> Entitlements: ${APP_STORE_ENTS}"
+  # Do not force Developer ID here. Automatic signing picks Apple Distribution for App Store.
+  xcodebuild archive \
+    "${COMMON_ARGS[@]}" \
+    CODE_SIGN_STYLE=Automatic \
+    DEVELOPMENT_TEAM="$TEAM_ID" \
+    CODE_SIGN_ENTITLEMENTS="$APP_STORE_ENTS" \
+    -archivePath "$ARCHIVE_PATH" \
+    -destination "generic/platform=macOS"
+
+  EXPORT_DIR="$DIST/AppStore"
+  mkdir -p "$EXPORT_DIR"
+  EXPORT_OPTS="$(mktemp -t PasteNest-ExportOptions-AppStore).plist"
+  cat > "$EXPORT_OPTS" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>destination</key>
+	<string>export</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<key>teamID</key>
+	<string>${TEAM_ID}</string>
+	<key>uploadSymbols</key>
+	<true/>
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
+</dict>
+</plist>
+EOF
+  xcodebuild -exportArchive \
+    -archivePath "$ARCHIVE_PATH" \
+    -exportPath "$EXPORT_DIR" \
+    -exportOptionsPlist "$EXPORT_OPTS"
+  rm -f "$EXPORT_OPTS"
+  echo "✅ App Store 导出完成: $EXPORT_DIR"
+  echo "   用 Transporter 或 Xcode Organizer 上传。不要对这个包做 Developer ID / 公证。"
+  ls -la "$EXPORT_DIR"
+  exit 0
+fi
+
 if [[ "$SIGN" -eq 0 ]]; then
   # CI / local smoke builds: ad-hoc sign with sandbox-only entitlements (no iCloud team).
   CI_ENTS="$ROOT/Paste/Paste/Paste-CI.entitlements"
@@ -128,25 +182,6 @@ else
   if [[ -n "$TEAM_ID" ]]; then
     COMMON_ARGS+=(DEVELOPMENT_TEAM="$TEAM_ID")
   fi
-fi
-
-if [[ "$APP_STORE" -eq 1 ]]; then
-  echo "==> Archive for App Store…"
-  xcodebuild archive \
-    "${COMMON_ARGS[@]}" \
-    -archivePath "$ARCHIVE_PATH" \
-    -destination "generic/platform=macOS"
-
-  EXPORT_OPTS="$ROOT/scripts/ExportOptions-AppStore.plist"
-  EXPORT_DIR="$DIST/AppStore"
-  mkdir -p "$EXPORT_DIR"
-  xcodebuild -exportArchive \
-    -archivePath "$ARCHIVE_PATH" \
-    -exportPath "$EXPORT_DIR" \
-    -exportOptionsPlist "$EXPORT_OPTS"
-  echo "✅ App Store 导出完成: $EXPORT_DIR"
-  ls -la "$EXPORT_DIR"
-  exit 0
 fi
 
 echo "==> Build Release…"

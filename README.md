@@ -60,15 +60,20 @@ Paste/
 ## App Store 准备清单
 
 > 上架时请使用你自己的唯一应用名 / Bundle ID。本仓库的应用名为 **PasteNest**（App Store 无同名应用；ClipStack / ClipShelf / ClipKeep / ClipNest 均已被占用）。
+>
+> **付费买断上架步骤**（签 Paid Apps 合同、定价、打包上传、提交审核）：[docs/APP_STORE_PAID.md](docs/APP_STORE_PAID.md)。素材与文案：[docs/APP_STORE.md](docs/APP_STORE.md)。隐私政策草稿：[docs/PRIVACY.md](docs/PRIVACY.md)。
 
 - [x] App Sandbox 与 Hardened Runtime
 - [x] CloudKit / iCloud 容器 entitlement
 - [x] Privacy Manifest（`PrivacyInfo.xcprivacy`）
 - [x] 辅助功能用途说明文案
 - [x] 替换 App Icon 资源（`Assets.xcassets/AppIcon.appiconset`）
+- [x] 出口合规声明（`ITSAppUsesNonExemptEncryption = false`）
 - [ ] 配置真实 Team ID / Bundle ID / iCloud 容器
+- [ ] 签署 Paid Apps 协议并填写银行账户与税表
+- [ ] App Store Connect 创建应用并设置买断价格（建议中国区 ¥28）
+- [ ] 托管隐私政策 URL（可用 `docs/PRIVACY.md`）与技术支持 URL
 - [ ] App Store Connect 截图与审核说明（需说明剪贴板与辅助功能用途）
-- [ ] 可选：接入 `KeyboardShortcuts` 等库做可自定义全局热键
 
 ## 打安装包（.dmg / .pkg）
 
