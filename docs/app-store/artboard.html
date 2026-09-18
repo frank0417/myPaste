@@ -14,327 +14,183 @@
       --coral: #e07a5f;
       --cream: #f7f4ee;
       --sand: #f3efe7;
+      --mist: #e8f1f0;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { width: 2560px; height: 1600px; overflow: hidden; }
-    body { font-family: "Noto Sans SC", "Sora", sans-serif; color: var(--ink); background: #0b1413; }
+    body { font-family: "Noto Sans SC", "Sora", sans-serif; color: var(--ink); background: var(--cream); }
     .board { width: 2560px; height: 1600px; position: relative; display: none; overflow: hidden; }
     .board.on { display: block; }
-    .photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-    .veil { position: absolute; inset: 0; }
-    .copy { position: absolute; z-index: 3; }
+
+    .bg {
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(1100px 620px at 12% -8%, #d9ece8 0%, transparent 55%),
+        radial-gradient(980px 620px at 100% 0%, #f3e2d4 0%, transparent 52%),
+        linear-gradient(150deg, var(--cream), var(--mist) 46%, var(--sand));
+    }
+    .bg.dark {
+      background:
+        radial-gradient(1100px 620px at 12% -8%, #123c37 0%, transparent 55%),
+        radial-gradient(980px 620px at 100% 0%, #2a1a12 0%, transparent 52%),
+        linear-gradient(150deg, #0b1413, #10201d 46%, #1a140f);
+    }
+
+    .head { position: absolute; left: 96px; top: 84px; right: 96px; z-index: 3; }
     .kicker {
       display: inline-flex; align-items: center; gap: 14px;
       font-family: "Sora", sans-serif; font-weight: 600; letter-spacing: .18em;
-      text-transform: uppercase; font-size: 18px;
+      text-transform: uppercase; font-size: 19px;
     }
-    .kicker img { width: 42px; height: 42px; border-radius: 10px; }
+    .kicker img { width: 44px; height: 44px; border-radius: 11px; }
     h1 {
       font-family: "Noto Serif SC", "Fraunces", serif;
-      font-weight: 700; letter-spacing: -0.03em; line-height: 1.05;
+      font-weight: 700; letter-spacing: -0.03em; line-height: 1.04;
+      font-size: 92px; margin-top: 20px;
     }
-    .sub { font-size: 28px; line-height: 1.5; font-weight: 500; max-width: 22em; }
-    .glyph { font-family: "Sora", "Noto Sans SC", sans-serif; font-weight: 700; letter-spacing: 0.04em; }
-    .keys {
-      display: inline-flex; gap: 8px; margin-top: 28px; align-items: center;
+    .sub { font-size: 28px; line-height: 1.5; font-weight: 500; color: var(--muted); margin-top: 18px; max-width: 26em; }
+    .dark h1, .dark .sub { color: #f6f1e8; }
+    .dark .sub { color: rgba(246,241,232,.82); }
+    .dark .kicker { color: #9ad4cc; }
+
+    .shot {
+      position: absolute; z-index: 2; border-radius: 24px; overflow: hidden;
+      background: #fff;
+      box-shadow: 0 50px 110px rgba(11,20,19,.28), 0 0 0 1px rgba(27,42,47,.06);
     }
-    .key {
-      min-width: 52px; height: 52px; padding: 0 14px;
-      border-radius: 12px; display: grid; place-items: center;
-      font-family: "Sora", sans-serif; font-weight: 700; font-size: 22px;
-      background: rgba(255,255,255,.92); color: var(--ink);
-      box-shadow: 0 10px 24px rgba(0,0,0,.12);
-    }
-    .glass {
-      background: rgba(255,252,247,.82);
-      backdrop-filter: blur(28px);
-      border: 1px solid rgba(255,255,255,.7);
-      box-shadow: 0 40px 90px rgba(11,20,19,.22);
-    }
-    .mac {
-      border-radius: 22px; overflow: hidden;
-    }
-    .mac-bar {
-      height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 16px;
-      background: rgba(255,255,255,.45); border-bottom: 1px solid rgba(27,42,47,.06);
+    .shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .shot.top { object-fit: cover; }
+    .shot.top img { object-fit: cover; object-position: top center; }
+
+    .macbar {
+      position: absolute; top: 0; left: 0; right: 0; height: 40px; z-index: 5;
+      display: flex; align-items: center; gap: 8px; padding: 0 18px;
+      background: rgba(255,255,255,.5); backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(27,42,47,.07);
     }
     .dot { width: 12px; height: 12px; border-radius: 50%; }
     .d1 { background: #ff5f57; } .d2 { background: #febc2e; } .d3 { background: #28c840; }
-    .cards { display: flex; gap: 14px; }
-    .card {
-      width: 280px; border-radius: 18px; padding: 18px 18px 16px;
-      background: rgba(255,255,255,.92);
-      border: 1px solid rgba(27,42,47,.06);
-      box-shadow: 0 16px 36px rgba(27,42,47,.08);
+
+    .keys { display: inline-flex; gap: 10px; margin-top: 30px; align-items: center; }
+    .key {
+      min-width: 58px; height: 58px; padding: 0 16px;
+      border-radius: 14px; display: grid; place-items: center;
+      font-family: "Sora", sans-serif; font-weight: 700; font-size: 24px;
+      background: rgba(255,255,255,.94); color: var(--ink);
+      box-shadow: 0 12px 28px rgba(11,20,19,.14), inset 0 -2px 0 rgba(27,42,47,.08);
     }
-    .badge {
-      width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center;
-      color: #fff; font-weight: 700; font-size: 13px; margin-bottom: 12px;
-    }
-    .card h3 { font-size: 16px; font-weight: 700; line-height: 1.3; margin-bottom: 6px; }
-    .card p { font-size: 13px; color: var(--muted); }
-    .star { color: #d4a017; }
-    .chip {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 6px 12px; border-radius: 999px; font-size: 13px; font-weight: 600;
-      background: rgba(15,118,110,.12); color: var(--accent);
-    }
+    .keys .lbl { margin-left: 14px; color: var(--muted); font-size: 24px; font-weight: 500; }
+
+    .points { margin-top: 34px; display: grid; gap: 18px; }
+    .points div { font-size: 24px; font-weight: 600; display: flex; gap: 14px; align-items: center; }
+    .points i { width: 11px; height: 11px; border-radius: 50%; background: var(--accent); display: inline-block; flex: 0 0 auto; }
+
     .caption {
-      position: absolute; left: 80px; bottom: 56px; z-index: 4;
-      font-size: 16px; letter-spacing: .08em; text-transform: uppercase;
-      font-family: "Sora", sans-serif; font-weight: 600; opacity: .55;
+      position: absolute; left: 96px; bottom: 48px; z-index: 4;
+      font-size: 16px; letter-spacing: .1em; text-transform: uppercase;
+      font-family: "Sora", sans-serif; font-weight: 600; opacity: .5;
     }
+    .dark .caption { color: #f6f1e8; }
 
     /* 01 hero */
-    #b1 .veil { background: linear-gradient(90deg, rgba(7,16,14,.78) 0%, rgba(7,16,14,.28) 48%, rgba(7,16,14,.08) 100%); }
-    #b1 .copy { left: 92px; top: 140px; color: #f6f1e8; width: 980px; }
-    #b1 .kicker { color: #9ad4cc; }
-    #b1 h1 { font-size: 108px; margin: 28px 0 28px; }
-    #b1 .sub { color: rgba(246,241,232,.82); }
-    #b1 .shelf {
-      position: absolute; left: 92px; right: 92px; bottom: 110px; z-index: 3;
-      border-radius: 28px; padding: 22px;
-    }
-    #b1 .shelf-head {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 16px; color: var(--ink);
-    }
-    #b1 .shelf-head strong { font-size: 22px; }
-    #b1 .shelf-head span { color: var(--muted); font-size: 15px; }
-    #b1.en h1 { font-family: "Fraunces", serif; font-size: 96px; }
-    #b1.en .sub { font-size: 26px; max-width: 24em; }
+    #b1 h1 { font-size: 104px; }
+    #b1 .shot { left: 96px; right: 96px; top: 620px; height: 830px; }
+    #b1 .brand { position: absolute; right: 96px; top: 84px; z-index: 3; text-align: right; }
+    #b1 .brand img { width: 92px; height: 92px; border-radius: 22px; box-shadow: 0 20px 44px rgba(11,20,19,.2); }
 
     /* 02 hotkey */
-    #b2 { background: #f4eee4; }
-    #b2 .copy { left: 100px; top: 180px; width: 980px; z-index: 4; }
-    #b2 h1 { font-size: 96px; margin: 22px 0 24px; }
-    #b2 .sub { color: var(--muted); }
-    #b2.en h1 { font-family: "Fraunces", serif; font-size: 84px; }
-    #b2 .kb {
-      position: absolute; top: 0; right: 0; left: 36%;
-      width: auto; height: 100%;
-      object-fit: cover; object-position: 18% 42%; z-index: 1;
-    }
-    #b2 .fade {
-      position: absolute; inset: 0 50% 0 0; z-index: 2;
-      background: linear-gradient(90deg, #f4eee4 0%, #f4eee4 62%, rgba(244,238,228,0));
-    }
+    #b2 .shot { left: 96px; right: 96px; top: 660px; height: 780px; }
 
     /* 03 screenshot */
-    #b3 .copy { left: 92px; top: 72px; color: #f6f1e8; width: 1400px; }
-    #b3 .kicker { color: #9ad4cc; }
-    #b3 h1 { font-size: 72px; margin: 16px 0 10px; }
-    #b3 .sub { color: rgba(246,241,232,.9); font-size: 24px; max-width: 28em; }
-    #b3.en h1 { font-family: "Fraunces", serif; font-size: 60px; }
-    #b3 .veil { background: linear-gradient(180deg, rgba(7,16,14,.72) 0%, rgba(7,16,14,.12) 28%, rgba(7,16,14,.2) 100%); }
+    #b3 .shot { left: 96px; right: 96px; top: 540px; height: 920px; }
 
     /* 04 ocr */
-    #b4 { background: #1a1612; }
-    #b4 .copy { left: 92px; top: 120px; color: #f6f1e8; width: 900px; }
-    #b4 .kicker { color: #e8b39e; }
-    #b4 h1 { font-size: 92px; margin: 22px 0 22px; }
-    #b4 .sub { color: rgba(246,241,232,.82); }
-    #b4.en h1 { font-family: "Fraunces", serif; font-size: 78px; }
-    #b4 .photo { object-position: 58% 50%; }
-    #b4 .ocr {
-      position: absolute; right: 110px; top: 360px; width: 560px; z-index: 4;
-      border-radius: 24px; padding: 32px 32px 24px; color: var(--ink);
-      background: rgba(255,252,247,.94);
-    }
-    #b4 .ocr h2 { font-size: 15px; color: var(--muted); margin-bottom: 14px; font-weight: 600; }
-    #b4 .ocr .sel { background: rgba(15,118,110,.16); border-radius: 6px; padding: 0 4px; }
-    #b4 .ocr-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
-    #b4 .btn { border: 0; border-radius: 999px; padding: 10px 18px; font: inherit; font-weight: 700; font-size: 15px; }
-    #b4 .ghost { background: rgba(27,42,47,.06); }
-    #b4 .primary { background: var(--accent); color: #fff; }
+    #b4 .shot { left: 96px; right: 96px; top: 580px; height: 860px; }
 
     /* 05 search */
-    #b5 { background: #f7f4ee; }
-    #b5 .copy { left: 92px; top: 90px; width: 1100px; }
-    #b5 h1 { font-size: 84px; margin: 18px 0 16px; }
-    #b5 .sub { color: var(--muted); }
-    #b5.en h1 { font-family: "Fraunces", serif; font-size: 66px; }
-    #b5 .window {
-      position: absolute; left: 92px; right: 92px; top: 400px; height: 1080px;
-      border-radius: 28px; display: grid; grid-template-columns: 240px 1fr 400px;
-      grid-template-rows: 38px 1fr;
-      overflow: hidden;
-    }
-    #b5 .mac-bar { grid-column: 1 / -1; }
-    #b5 aside { padding: 28px 22px; background: rgba(232,241,240,.55); }
-    #b5 aside h4 { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); margin: 18px 0 8px; }
-    #b5 aside .nav { padding: 9px 12px; border-radius: 10px; font-weight: 600; font-size: 15px; }
-    #b5 aside .nav.on { background: rgba(15,118,110,.14); color: var(--accent); }
-    #b5 .mid { padding: 22px; }
-    #b5 .search {
-      display: flex; align-items: center; gap: 10px;
-      background: #fff; border-radius: 14px; padding: 12px 16px;
-      border: 1px solid rgba(27,42,47,.08); margin-bottom: 16px;
-    }
-    #b5 .hit { background: rgba(15,118,110,.16); border-radius: 4px; padding: 0 3px; }
-    #b5 .row {
-      display: flex; gap: 12px; align-items: center;
-      padding: 12px 12px; border-radius: 14px; margin-bottom: 8px; background: rgba(255,255,255,.7);
-    }
-    #b5 .row.on { background: rgba(15,118,110,.12); }
-    #b5 .preview { padding: 28px; border-left: 1px solid rgba(27,42,47,.06); background: rgba(255,255,255,.55); }
-    #b5 .preview h3 { font-size: 26px; margin: 10px 0 12px; font-family: "Noto Serif SC", serif; }
+    #b5 .shot { left: 50%; transform: translateX(-50%); top: 620px; width: 1900px; height: 820px; }
 
     /* 06 keep */
-    #b6 { background: #f4eee4; }
-    #b6 .copy { left: 92px; top: 160px; width: 860px; }
-    #b6 h1 { font-size: 92px; margin: 22px 0 24px; }
-    #b6 .sub { color: var(--muted); }
-    #b6.en h1 { font-family: "Fraunces", serif; font-size: 80px; }
-    #b6 .photo { object-position: 70% 50%; left: 38%; width: 62%; }
-    #b6 .points { margin-top: 40px; display: grid; gap: 16px; }
-    #b6 .points div { font-size: 22px; font-weight: 600; display: flex; gap: 12px; align-items: center; }
-    #b6 .points i {
-      width: 10px; height: 10px; border-radius: 50%; background: var(--accent); display: inline-block;
-    }
+    #b6 .shot { left: 96px; right: 96px; top: 700px; height: 740px; }
+
+    .en h1 { font-family: "Fraunces", serif; }
   </style>
 </head>
 <body>
   <section class="board" id="b1">
-    <img class="photo" src="photos/hero-atmosphere.png" alt="" />
-    <div class="veil"></div>
-    <div class="copy">
-      <div class="kicker"><img src="photos/app-icon.png" alt="" /> PasteNest</div>
-      <h1>复制过的，<br>都还在。</h1>
-      <p class="sub">菜单栏里的剪贴板巢穴。文字、链接、图片、代码、颜色，自动收好，一键回来。</p>
+    <div class="bg dark"></div>
+    <div class="brand"><img src="photos/app-icon.png" alt="" /></div>
+    <div class="head">
+      <div class="kicker"><img src="photos/app-icon.png" alt="" /> <span data-k>PasteNest</span></div>
+      <h1 data-h>复制过的，<br>都还在。</h1>
+      <p class="sub" data-s>菜单栏里的剪贴板巢穴。文字、链接、图片、代码、颜色，自动收好，一键回来。</p>
     </div>
-    <div class="shelf glass">
-      <div class="shelf-head">
-        <strong>PasteNest</strong>
-        <span>⇧⌘V · 刚刚同步</span>
-      </div>
-      <div class="cards">
-        <div class="card"><div class="badge" style="background:#0f766e">链</div><h3>apple.com/macos <span class="star">★</span></h3><p>Safari · 链接</p></div>
-        <div class="card"><div class="badge" style="background:#059669">码</div><h3>func greet(_ name: String)</h3><p>Xcode · 4 行</p></div>
-        <div class="card"><div class="badge" style="background:#1d4ed8">文</div><h3>明天下午三点同步方案</h3><p>Notes · 28 字</p></div>
-        <div class="card"><div class="badge" style="background:#0f766e">色</div><h3>#0F766E</h3><p>Figma · 颜色</p></div>
-        <div class="card"><div class="badge" style="background:#7c3aed">片</div><h3>会议白板 1440×900</h3><p>截图 · 可识字</p></div>
-        <div class="card"><div class="badge" style="background:#e07a5f">链</div><h3>developer.apple.com</h3><p>Chrome · 链接</p></div>
-      </div>
-    </div>
-    <div class="caption" style="color:#f6f1e8">01  /  你的第二块剪贴板</div>
+    <div class="shot"><img src="photos/real-shelf.png" alt="" /></div>
+    <div class="caption" data-c>01  /  你的第二块剪贴板</div>
   </section>
 
   <section class="board" id="b2">
-    <div class="fade"></div>
-    <div class="copy">
-      <div class="kicker" style="color:var(--accent)"><img src="photos/app-icon.png" alt="" /> 全局快捷键</div>
-      <h1>按一下，<br>它就来了。</h1>
-      <p class="sub">底部货架、主窗口、截图各有独立快捷键。录下即刻生效，被占用会提醒，一键恢复默认。</p>
+    <div class="bg"></div>
+    <div class="head">
+      <div class="kicker" style="color:var(--accent)"><img src="photos/app-icon.png" alt="" /> <span data-k>全局快捷键</span></div>
+      <h1 data-h>按一下，<br>它就来了。</h1>
+      <p class="sub" data-s>底部货架、主窗口、截图各有独立快捷键。录下即刻生效，被占用会提醒，一键恢复默认。</p>
       <div class="keys">
         <span class="key">⇧</span><span class="key">⌘</span><span class="key">V</span>
-        <span style="margin-left:14px;color:var(--muted);font-size:22px">唤出底部货架 · 回车粘贴</span>
+        <span class="lbl" data-k2>唤出底部货架 · 回车粘贴</span>
       </div>
     </div>
-    <img class="kb" src="photos/hotkey.png" alt="" />
-    <div class="caption">02  /  手不离开键盘</div>
+    <div class="shot"><img src="photos/real-settings.png" alt="" /></div>
+    <div class="caption" data-c>02  /  手不离开键盘</div>
   </section>
 
   <section class="board" id="b3">
-    <img class="photo" src="photos/freeze.png" alt="" />
-    <div class="veil"></div>
-    <div class="copy">
-      <div class="kicker"><img src="photos/app-icon.png" alt="" /> 区域截图</div>
-      <h1>截图像发一条消息。</h1>
-      <p class="sub">冻结屏幕 · 拖出选区 · 矩形 / 箭头 / 画笔 / 马赛克 / 文字 · 确认后进入剪贴板与历史。</p>
+    <div class="bg dark"></div>
+    <div class="head">
+      <div class="kicker"><img src="photos/app-icon.png" alt="" /> <span data-k>区域截图</span></div>
+      <h1 data-h>截图像发一条消息。</h1>
+      <p class="sub" data-s>冻结屏幕，拖出选区，矩形 / 箭头 / 画笔 / 马赛克 / 文字标注，确认后进入剪贴板与历史。</p>
     </div>
-    <div class="caption" style="color:#f6f1e8">03  /  标注完，直接复用</div>
+    <div class="shot"><img src="photos/real-screenshot.png" alt="" /></div>
+    <div class="caption" data-c>03  /  标注完，直接复用</div>
   </section>
 
   <section class="board" id="b4">
-    <img class="photo" src="photos/ocr-lift.png" alt="" />
-    <div class="veil" style="background:linear-gradient(90deg, rgba(18,14,12,.78), rgba(18,14,12,.18) 55%, rgba(18,14,12,.08))"></div>
-    <div class="copy">
-      <div class="kicker"><img src="photos/app-icon.png" alt="" /> 识别文字</div>
-      <h1>图里的字，<br>也能搜。</h1>
-      <p class="sub">本机 Vision 识别中英文。可选复制，或只留文字不要图。链接会自动变成链接条目。</p>
+    <div class="bg dark"></div>
+    <div class="head">
+      <div class="kicker"><img src="photos/app-icon.png" alt="" /> <span data-k>识别文字</span></div>
+      <h1 data-h>图里的字，<br>也能搜。</h1>
+      <p class="sub" data-s>本机 Vision 识别中英文。可选复制，或只留文字不要图。链接会自动变成链接条目。</p>
     </div>
-    <div class="ocr glass">
-      <h2>识别到的文字</h2>
-      <p style="font-size:22px;line-height:1.6">安静，好用的 Mac 工具。<br>岸上工作室<br><span class="sel">apple.com/macos</span></p>
-      <div class="ocr-actions">
-        <button class="btn ghost">取消</button>
-        <button class="btn primary">复制</button>
-      </div>
-    </div>
-    <div class="caption" style="color:#f6f1e8">04  /  字留在你的电脑上</div>
+    <div class="shot"><img src="photos/real-ocr.png" alt="" /></div>
+    <div class="caption" data-c>04  /  字留在你的电脑上</div>
   </section>
 
   <section class="board" id="b5">
-    <img class="photo" src="photos/warm-studio.png" alt="" />
-    <div class="copy">
-      <div class="kicker" style="color:var(--accent)"><img src="photos/app-icon.png" alt="" /> 搜索与分类</div>
-      <h1>不用整理，它自己认得。</h1>
-      <p class="sub">链接、代码、颜色、文件自动打标。搜索标题、正文、来源应用，实时出结果。</p>
+    <div class="bg"></div>
+    <div class="head">
+      <div class="kicker" style="color:var(--accent)"><img src="photos/app-icon.png" alt="" /> <span data-k>搜索与分类</span></div>
+      <h1 data-h>不用整理，<br>它自己认得。</h1>
+      <p class="sub" data-s>链接、代码、颜色、文件自动打标。搜索标题、正文、来源应用，实时出结果。</p>
     </div>
-    <div class="window glass mac">
-      <div class="mac-bar"><span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span></div>
-      <aside>
-        <div style="font-family:Fraunces,serif;font-size:28px;font-weight:700">PasteNest</div>
-        <h4>资料库</h4>
-        <div class="nav on">全部</div>
-        <div class="nav">文本</div>
-        <div class="nav">链接</div>
-        <div class="nav">代码</div>
-        <div class="nav">图片</div>
-        <h4>看板</h4>
-        <div class="nav">工作</div>
-        <div class="nav">灵感</div>
-      </aside>
-      <div class="mid">
-        <div class="search">⌕ &nbsp; <strong>会议</strong> <span style="margin-left:auto;color:var(--muted)">2 条命中</span></div>
-        <div class="row on">
-          <div class="badge" style="background:#1d4ed8;margin:0">文</div>
-          <div><strong><span class="hit">会议</span>纪要：剪贴板同步策略</strong><div style="color:var(--muted);font-size:13px">Notes · 今天</div></div>
-        </div>
-        <div class="row">
-          <div class="badge" style="background:#1d4ed8;margin:0">文</div>
-          <div><strong>明天下午三点同步<span class="hit">会议</span></strong><div style="color:var(--muted);font-size:13px">Slack · 昨天</div></div>
-        </div>
-        <div class="row">
-          <div class="badge" style="background:#059669;margin:0">码</div>
-          <div><strong>func greet(_ name: String)</strong><div style="color:var(--muted);font-size:13px">Xcode</div></div>
-        </div>
-        <div class="row">
-          <div class="badge" style="background:#0f766e;margin:0">链</div>
-          <div><strong>apple.com/macos</strong><div style="color:var(--muted);font-size:13px">Safari · 链接</div></div>
-        </div>
-        <div class="row">
-          <div class="badge" style="background:#7c3aed;margin:0">片</div>
-          <div><strong>会议白板 1440×900</strong><div style="color:var(--muted);font-size:13px">截图 · 可识字</div></div>
-        </div>
-        <div class="row">
-          <div class="badge" style="background:#0f766e;margin:0">色</div>
-          <div><strong>#0F766E</strong><div style="color:var(--muted);font-size:13px">Figma · 颜色</div></div>
-        </div>
-      </div>
-      <div class="preview">
-        <span class="chip">文本</span>
-        <h3>会议纪要：剪贴板同步策略</h3>
-        <p style="color:var(--muted);line-height:1.6">1. 本地 SwiftData<br>2. CloudKit 同步<br>3. 去重哈希</p>
-      </div>
-    </div>
+    <div class="shot"><img src="photos/real-search.png" alt="" /></div>
+    <div class="caption" data-c>05  /  找得到，才算数</div>
   </section>
 
   <section class="board" id="b6">
-    <img class="photo" src="photos/nest.png" alt="" />
-    <div class="veil" style="background:linear-gradient(90deg,#f4eee4 0%, rgba(244,238,228,.92) 38%, transparent 62%)"></div>
-    <div class="copy">
-      <div class="kicker" style="color:var(--accent)"><img src="photos/app-icon.png" alt="" /> 收藏与隐私</div>
-      <h1>重要的，<br>留下来。</h1>
-      <p class="sub">收藏长期保存，其余按你设定的天数自动清理。iCloud 可选，数据走你的 Apple ID，我们碰不到。</p>
+    <div class="bg"></div>
+    <div class="head">
+      <div class="kicker" style="color:var(--accent)"><img src="photos/app-icon.png" alt="" /> <span data-k>收藏与隐私</span></div>
+      <h1 data-h>重要的，<br>留下来。</h1>
+      <p class="sub" data-s>收藏长期保存，其余按你设定的天数自动清理。iCloud 可选，数据走你的 Apple ID，我们碰不到。</p>
       <div class="points">
-        <div><i></i>收藏夹独立面板，可打标签</div>
-        <div><i></i>未收藏内容默认 3 天后清理</div>
-        <div><i></i>无广告、无追踪、无账号体系</div>
+        <div><i></i><span data-p1>收藏夹独立面板，可打标签</span></div>
+        <div><i></i><span data-p2>未收藏内容默认 3 天后清理</span></div>
+        <div><i></i><span data-p3>无广告、无追踪、无账号体系</span></div>
       </div>
     </div>
-    <div class="caption">06  /  只存在你的 Mac 上</div>
+    <div class="shot"><img src="photos/real-detail.png" alt="" /></div>
+    <div class="caption" data-c>06  /  只存在你的 Mac 上</div>
   </section>
 
   <script>
@@ -348,77 +204,44 @@
 
     const L = {
       "zh-Hans": {
-        kick1: "PasteNest", h1: "复制过的，<br>都还在。", sub1: "菜单栏里的剪贴板巢穴。文字、链接、图片、代码、颜色，自动收好，一键回来。",
-        sync: "⇧⌘V · 刚刚同步", cap1: "01  /  你的第二块剪贴板",
-        kick2: "全局快捷键", h2: "按一下，<br>它就来了。", sub2: "底部货架、主窗口、截图各有独立快捷键。录下即刻生效，被占用会提醒，一键恢复默认。",
-        key2: "唤出底部货架 · 回车粘贴", cap2: "02  /  手不离开键盘",
-        kick3: "区域截图", h3: "截图像发一条消息。", sub3: "冻结屏幕 · 拖出选区 · 矩形 / 箭头 / 画笔 / 马赛克 / 文字 · 确认后进入剪贴板与历史。",
-        cap3: "03  /  标注完，直接复用",
-        kick4: "识别文字", h4: "图里的字，<br>也能搜。", sub4: "本机 Vision 识别中英文。可选复制，或只留文字不要图。链接会自动变成链接条目。",
-        ocrHead: "识别到的文字", ocrCancel: "取消", ocrCopy: "复制", cap4: "04  /  字留在你的电脑上",
-        ocrBody: "安静，好用的 Mac 工具。<br>岸上工作室<br><span class=\"sel\">apple.com/macos</span>",
-        kick5: "搜索与分类", h5: "不用整理，它自己认得。", sub5: "链接、代码、颜色、文件自动打标。搜索标题、正文、来源应用，实时出结果。",
-        kick6: "收藏与隐私", h6: "重要的，<br>留下来。", sub6: "收藏长期保存，其余按你设定的天数自动清理。iCloud 可选，数据走你的 Apple ID，我们碰不到。",
-        p61: "收藏夹独立面板，可打标签", p62: "未收藏内容默认 3 天后清理", p63: "无广告、无追踪、无账号体系", cap6: "06  /  只存在你的 Mac 上"
+        1: { k: "PasteNest", h: "复制过的，<br>都还在。", s: "菜单栏里的剪贴板巢穴。文字、链接、图片、代码、颜色，自动收好，一键回来。", c: "01  /  你的第二块剪贴板" },
+        2: { k: "全局快捷键", h: "按一下，<br>它就来了。", s: "底部货架、主窗口、截图各有独立快捷键。录下即刻生效，被占用会提醒，一键恢复默认。", k2: "唤出底部货架 · 回车粘贴", c: "02  /  手不离开键盘" },
+        3: { k: "区域截图", h: "截图像发一条消息。", s: "冻结屏幕，拖出选区，矩形 / 箭头 / 画笔 / 马赛克 / 文字标注，确认后进入剪贴板与历史。", c: "03  /  标注完，直接复用" },
+        4: { k: "识别文字", h: "图里的字，<br>也能搜。", s: "本机 Vision 识别中英文。可选复制，或只留文字不要图。链接会自动变成链接条目。", c: "04  /  字留在你的电脑上" },
+        5: { k: "搜索与分类", h: "不用整理，<br>它自己认得。", s: "链接、代码、颜色、文件自动打标。搜索标题、正文、来源应用，实时出结果。", c: "05  /  找得到，才算数" },
+        6: { k: "收藏与隐私", h: "重要的，<br>留下来。", s: "收藏长期保存，其余按你设定的天数自动清理。iCloud 可选，数据走你的 Apple ID，我们碰不到。", p1: "收藏夹独立面板，可打标签", p2: "未收藏内容默认 3 天后清理", p3: "无广告、无追踪、无账号体系", c: "06  /  只存在你的 Mac 上" }
       },
       "zh-Hant": {
-        kick1: "PasteNest", h1: "複製過的，<br>都還在。", sub1: "選單列裡的剪貼板巢穴。文字、連結、圖片、程式碼、顏色，自動收好，一鍵回來。",
-        sync: "⇧⌘V · 剛剛同步", cap1: "01  /  你的第二塊剪貼板",
-        kick2: "全域快捷鍵", h2: "按一下，<br>它就來了。", sub2: "底部貨架、主視窗、截圖各有獨立快捷鍵。錄下即刻生效，被佔用會提醒，一鍵恢復預設。",
-        key2: "喚出底部貨架 · 回車貼上", cap2: "02  /  手不離開鍵盤",
-        kick3: "區域截圖", h3: "截圖像發一條訊息。", sub3: "凍結螢幕 · 拖出選區 · 矩形 / 箭頭 / 畫筆 / 馬賽克 / 文字 · 確認後進入剪貼板與歷史。",
-        cap3: "03  /  標註完，直接複用",
-        kick4: "辨識文字", h4: "圖裡的字，<br>也能搜。", sub4: "本機 Vision 辨識中英文。可選複製，或只留文字不要圖。連結會自動變成連結條目。",
-        ocrHead: "辨識到的文字", ocrCancel: "取消", ocrCopy: "複製", cap4: "04  /  字留在你的電腦上",
-        ocrBody: "安靜，好用的 Mac 工具。<br>岸上工作室<br><span class=\"sel\">apple.com/macos</span>",
-        kick5: "搜尋與分類", h5: "不用整理，它自己認得。", sub5: "連結、程式碼、顏色、檔案自動打標。搜尋標題、正文、來源應用，即時出結果。",
-        kick6: "收藏與隱私", h6: "重要的，<br>留下來。", sub6: "收藏長期保存，其餘按你設定的天數自動清理。iCloud 可選，資料走你的 Apple ID，我們碰不到。",
-        p61: "收藏夾獨立面板，可打標籤", p62: "未收藏內容預設 3 天後清理", p63: "無廣告、無追蹤、無帳號體系", cap6: "06  /  只存在你的 Mac 上"
+        1: { k: "PasteNest", h: "複製過的，<br>都還在。", s: "選單列裡的剪貼板巢穴。文字、連結、圖片、程式碼、顏色，自動收好，一鍵回來。", c: "01  /  你的第二塊剪貼板" },
+        2: { k: "全域快捷鍵", h: "按一下，<br>它就來了。", s: "底部貨架、主視窗、截圖各有獨立快捷鍵。錄下即刻生效，被佔用會提醒，一鍵恢復預設。", k2: "喚出底部貨架 · 回車貼上", c: "02  /  手不離開鍵盤" },
+        3: { k: "區域截圖", h: "截圖像發一條訊息。", s: "凍結螢幕，拖出選區，矩形 / 箭頭 / 畫筆 / 馬賽克 / 文字標註，確認後進入剪貼板與歷史。", c: "03  /  標註完，直接複用" },
+        4: { k: "辨識文字", h: "圖裡的字，<br>也能搜。", s: "本機 Vision 辨識中英文。可選複製，或只留文字不要圖。連結會自動變成連結條目。", c: "04  /  字留在你的電腦上" },
+        5: { k: "搜尋與分類", h: "不用整理，<br>它自己認得。", s: "連結、程式碼、顏色、檔案自動打標。搜尋標題、正文、來源應用，即時出結果。", c: "05  /  找得到，才算數" },
+        6: { k: "收藏與隱私", h: "重要的，<br>留下來。", s: "收藏長期保存，其餘按你設定的天數自動清理。iCloud 可選，資料走你的 Apple ID，我們碰不到。", p1: "收藏夾獨立面板，可打標籤", p2: "未收藏內容預設 3 天後清理", p3: "無廣告、無追蹤、無帳號體系", c: "06  /  只存在你的 Mac 上" }
       },
       en: {
-        kick1: "PasteNest", h1: "Everything you copy,<br>still here.", sub1: "A clipboard nest in your menu bar. Text, links, images, code, and colors — tucked away, one tap back.",
-        sync: "⇧⌘V · Synced just now", cap1: "01  /  A second clipboard",
-        kick2: "Global hotkeys", h2: "One press,<br>and it's here.", sub2: "The shelf, main window, and screenshot each get their own hotkey. Changes apply instantly; taken combos are flagged; one click restores defaults.",
-        key2: "Show the shelf · Enter pastes", cap2: "02  /  Hands stay on the keyboard",
-        kick3: "Region screenshot", h3: "Screenshot like sending a message.", sub3: "Freeze the screen, drag a region, mark it up with rectangles, arrows, pen, mosaic, or text — it lands in your clipboard and history.",
-        cap3: "03  /  Annotate, then reuse",
-        kick4: "Recognize text", h4: "Words in images,<br>searchable.", sub4: "On-device Vision reads Chinese and English. Copy what you select, or keep only the text. Links become link items automatically.",
-        ocrHead: "Recognized text", ocrCancel: "Cancel", ocrCopy: "Copy", cap4: "04  /  Text stays on your Mac",
-        ocrBody: "Quiet, capable Mac tools.<br>Anshore Studio<br><span class=\"sel\">apple.com/macos</span>",
-        kick5: "Search & tags", h5: "No tidying. It just knows.", sub5: "Links, code, colors, and files tag themselves. Search titles, bodies, and source apps — results appear as you type.",
-        kick6: "Saved & private", h6: "What matters,<br>stays.", sub6: "Saved items keep forever; the rest clear after the days you set. iCloud is optional and goes through your Apple ID — we never see your data.",
-        p61: "A separate Saved panel with tags", p62: "Unsaved items clear after 3 days", p63: "No ads, no tracking, no accounts", cap6: "06  /  Only on your Mac"
+        1: { k: "PasteNest", h: "Everything you copy,<br>still here.", s: "A clipboard nest in your menu bar. Text, links, images, code, and colors — tucked away, one tap back.", c: "01  /  A second clipboard" },
+        2: { k: "Global hotkeys", h: "One press,<br>and it's here.", s: "The shelf, main window, and screenshot each get their own hotkey. Changes apply instantly; taken combos are flagged; one click restores defaults.", k2: "Show the shelf · Enter pastes", c: "02  /  Hands stay on the keyboard" },
+        3: { k: "Region screenshot", h: "Screenshot like sending a message.", s: "Freeze the screen, drag a region, mark it up with rectangles, arrows, pen, mosaic, or text — it lands in your clipboard and history.", c: "03  /  Annotate, then reuse" },
+        4: { k: "Recognize text", h: "Words in images,<br>searchable.", s: "On-device Vision reads Chinese and English. Copy what you select, or keep only the text. Links become link items automatically.", c: "04  /  Text stays on your Mac" },
+        5: { k: "Search & tags", h: "No tidying.<br>It just knows.", s: "Links, code, colors, and files tag themselves. Search titles, bodies, and source apps — results appear as you type.", c: "05  /  Find it, or it doesn't count" },
+        6: { k: "Saved & private", h: "What matters,<br>stays.", s: "Saved items keep forever; the rest clear after the days you set. iCloud is optional and goes through your Apple ID — we never see your data.", p1: "A separate Saved panel with tags", p2: "Unsaved items clear after 3 days", p3: "No ads, no tracking, no accounts", c: "06  /  Only on your Mac" }
       }
     };
-    const t = L[lang] || L["zh-Hans"];
+    const t = (L[lang] || L["zh-Hans"])[n] || L["zh-Hans"][n];
     const set = (sel, html, useHTML) => {
       const el = board.querySelector(sel);
       if (!el) return;
       if (useHTML) el.innerHTML = html; else el.textContent = html;
     };
-    if (n === "1") {
-      set(".kicker", t.kick1); set("h1", t.h1, true); set(".sub", t.sub1);
-      set(".shelf-head span", t.sync); set(".caption", t.cap1);
-    } else if (n === "2") {
-      set(".kicker", t.kick2); set("h1", t.h2, true); set(".sub", t.sub2);
-      set(".keys span:last-child", t.key2); set(".caption", t.cap2);
-    } else if (n === "3") {
-      set(".kicker", t.kick3); set("h1", t.h3, true); set(".sub", t.sub3); set(".caption", t.cap3);
-    } else if (n === "4") {
-      set(".kicker", t.kick4); set("h1", t.h4, true); set(".sub", t.sub4);
-      set(".ocr h2", t.ocrHead); set(".ocr .ghost", t.ocrCancel); set(".ocr .primary", t.ocrCopy);
-      set(".ocr p", t.ocrBody, true);
-      set(".caption", t.cap4);
-    } else if (n === "5") {
-      set(".kicker", t.kick5); set("h1", t.h5, true); set(".sub", t.sub5);
-    } else if (n === "6") {
-      set(".kicker", t.kick6); set("h1", t.h6, true); set(".sub", t.sub6);
-      const pts = board.querySelectorAll(".points div");
-      [t.p61, t.p62, t.p63].forEach((txt, i) => {
-        if (pts[i]) pts[i].innerHTML = "<i></i>" + txt;
-      });
-      set(".caption", t.cap6);
-    }
+    set("[data-k]", t.k);
+    set("[data-h]", t.h, true);
+    set("[data-s]", t.s);
+    set("[data-c]", t.c);
+    if (t.k2) set("[data-k2]", t.k2);
+    if (t.p1) set("[data-p1]", t.p1);
+    if (t.p2) set("[data-p2]", t.p2);
+    if (t.p3) set("[data-p3]", t.p3);
   </script>
 </body>
 </html>
