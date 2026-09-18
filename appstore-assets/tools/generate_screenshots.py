@@ -208,6 +208,84 @@ def draw_callouts(draw, bg, callouts, canvas_w, y, s):
         x += wdt + gap_between
 
 
+def mac_window(capture, s, title="好记英语"):
+    """给截图加上 macOS 窗口栏 (红黄绿按钮 + 居中标题), 返回 RGBA 图"""
+    s2 = max(s, 1.5)  # 窗口栏元素在高分辨率下保持足够尺寸
+    bar_h = int(64 * s2 / 2)  # 标题栏高度
+    w, h = capture.size
+    total_h = h + bar_h
+    win = Image.new("RGBA", (w, total_h), (0, 0, 0, 0))
+    mask = Image.new("L", (w, total_h), 0)
+    radius = int(min(w, total_h) * 0.045)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, w - 1, total_h - 1], radius, fill=255)
+    body = Image.new("RGBA", (w, total_h), (236, 236, 238, 255))
+    body.paste(capture.convert("RGBA"), (0, bar_h))
+    win.paste(body, (0, 0), mask)
+
+    d = ImageDraw.Draw(win)
+    dot_r = max(int(w * 0.012), 10)
+    dot_y = bar_h // 2
+    for i, color in enumerate([(255, 95, 87), (254, 188, 46), (40, 200, 64)]):
+        cx = int(w * 0.028) + i * int(dot_r * 2.6) + dot_r
+        d.ellipse([cx - dot_r, dot_y - dot_r, cx + dot_r, dot_y + dot_r], fill=color)
+    title_f = font(FONT_REG_PATH, int(bar_h * 0.42))
+    tw = d.textlength(title, font=title_f)
+    d.text(((w - tw) / 2, bar_h / 2), title, font=title_f, fill=(90, 90, 92), anchor="lm")
+    return win, radius
+
+
+def render_mac_screenshot(screen, out_path, canvas_w=2560, canvas_h=1600):
+    """Mac App Store 横版截图 (2560x1600)"""
+    s = canvas_w / 2560.0
+    bg = vertical_gradient((canvas_w, canvas_h), BG_TOP, BG_BOTTOM).convert("RGBA")
+    # 柔光
+    glow = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
+    gd = ImageDraw.Draw(glow)
+    gd.ellipse([canvas_w * 0.18, canvas_h * 0.22, canvas_w * 0.82, canvas_h * 0.92],
+               fill=(255, 255, 255, 13))
+    gd.ellipse([canvas_w * 0.32, canvas_h * 0.35, canvas_w * 0.68, canvas_h * 0.80],
+               fill=(94, 234, 113, 9))
+    glow = glow.filter(ImageFilter.GaussianBlur(int(130 * s)))
+    bg.alpha_composite(glow)
+    draw = ImageDraw.Draw(bg)
+
+    # 主标题 / 副标题
+    head_f = font(FONT_BOLD_PATH, int(116 * s))
+    sub_f = font(FONT_REG_PATH, int(54 * s))
+    tracking = 4 * s
+    hw = tracked_width(draw, screen["headline"], head_f, tracking)
+    draw_tracked(draw, ((canvas_w - hw) / 2, 108 * s), screen["headline"], head_f,
+                 TEXT_WHITE, tracking)
+    sw = draw.textlength(screen["sub"], font=sub_f)
+    draw.text(((canvas_w - sw) / 2, 268 * s), screen["sub"], font=sub_f, fill=GREEN_SUB)
+
+    # 截图 + macOS 窗口栏
+    src = Image.open(os.path.join(SRC_DIR, screen["file"]))
+    if screen.get("rotate"):
+        src = src.rotate(screen["rotate"], expand=True)
+    bar_h = int(64 * max(s, 1.5) / 2)  # 与 mac_window 内一致
+    max_w = 1900 * s
+    max_h = 830 * s - bar_h
+    cw, ch = fit_size(src.width, src.height, max_w, max_h)
+    if cw > src.width * MAX_UPSCALE:
+        cw, ch = int(src.width * MAX_UPSCALE), int(src.height * MAX_UPSCALE)
+    shot = src.resize((cw, ch), Image.LANCZOS)
+    shot = shot.filter(ImageFilter.UnsharpMask(radius=2, percent=60, threshold=2))
+    window, radius = mac_window(shot, s)
+
+    region_top, region_bot = 400 * s, 1300 * s
+    win_x = int((canvas_w - window.width) / 2)
+    win_y = int(region_top + (region_bot - region_top - window.height) * 0.5)
+    paste_with_shadow(bg, window, (win_x, win_y), radius=radius,
+                      blur=int(48 * s), offset=(0, int(26 * s)))
+
+    # 底部卖点
+    draw_callouts(draw, bg, screen["callouts"], canvas_w, 1380 * s, s * 1.1)
+
+    bg.convert("RGB").save(out_path, "PNG")
+    print("生成", out_path)
+
+
 def render_screenshot(screen, canvas_w, canvas_h, out_path):
     s = canvas_w / 1242.0  # 缩放系数, 6.9 寸时约为 1.063
     bg = vertical_gradient((canvas_w, canvas_h), BG_TOP, BG_BOTTOM).convert("RGBA")
@@ -350,14 +428,18 @@ def render_square(out_path, size=1080):
 
 
 def main():
+    out_mac = os.path.join(BASE_DIR, "appstore", "mac_2560x1600")
     out_65 = os.path.join(BASE_DIR, "appstore", "6.5-inch_1242x2688")
     out_69 = os.path.join(BASE_DIR, "appstore", "6.9-inch_1320x2868")
     out_mkt = os.path.join(BASE_DIR, "marketing")
-    for d in (out_65, out_69, out_mkt):
+    for d in (out_mac, out_65, out_69, out_mkt):
         os.makedirs(d, exist_ok=True)
 
     for i, screen in enumerate(SCREENS, 1):
         name = f"{i:02d}-{os.path.splitext(screen['file'])[0]}.png"
+        # Mac App Store (主交付)
+        render_mac_screenshot(screen, os.path.join(out_mac, name))
+        # iPhone 尺寸 (备用, 若后续上架 iOS 版)
         render_screenshot(screen, 1242, 2688, os.path.join(out_65, name))
         render_screenshot(screen, 1320, 2868, os.path.join(out_69, name))
 
