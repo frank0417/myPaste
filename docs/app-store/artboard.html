@@ -112,7 +112,7 @@
     #b1 .ccard .cbody { flex: 1; margin-top: 14px; font-size: 15px; line-height: 1.5; color: var(--ink); overflow: hidden; }
     #b1 .ccard .cfoot { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; }
     #b1 .chip { display: inline-flex; padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; background: rgba(15,118,110,.12); color: var(--accent); }
-    #b1 .swatch { height: 96px; border-radius: 12px; background: linear-gradient(135deg,#0f766e,#0d9488); margin-top: 14px; }
+    #b1 .swatch { height: 96px; border-radius: 12px; background: linear-gradient(135deg,#e07a5f,#c65a3e); margin-top: 14px; }
     #b1 .thumb { height: 130px; border-radius: 12px; margin-top: 14px; background:
       linear-gradient(180deg, rgba(15,118,110,.0), rgba(15,118,110,.16)),
       repeating-linear-gradient(0deg,#eef4f3 0 22px,#e2eceb 22px 23px); border:1px solid var(--line); position: relative; }
@@ -439,83 +439,83 @@
       "zh-Hans": {
         1: { k: "PasteNest", h: "复制过的，<br>都还在。", s: "菜单栏里的剪贴板巢穴。文字、链接、图片、代码、颜色，自动收好，一键回来。", sync: "已同步 · 刚刚", c: "01  /  你的第二块剪贴板",
              cards: [
-               { badge: "链", bg: "#0f766e", title: "paste.app", meta: "Safari · 链接", chip: "链接", star: 1, body: "https://paste.app — 看看竞品怎么定价" },
-               { badge: "码", bg: "#059669", title: "package.sh --sign", meta: "Terminal · 代码", chip: "代码", code: true },
-               { badge: "文", bg: "#1d4ed8", title: "首页改版走查清单", meta: "Figma · 文本", chip: "文本", body: "导航固定在顶部；主按钮统一松柏绿；卡片圆角 18。" },
-               { badge: "色", bg: "#0f766e", title: "#0F766E", meta: "Figma · 颜色", chip: "颜色", swatch: true },
-               { badge: "片", bg: "#7c3aed", title: "应用图标 1024", meta: "截图 · 可识字", chip: "图片", thumb: true },
-               { badge: "文", bg: "#e07a5f", title: "发布前检查清单", meta: "Notes · 文本", chip: "文本", star: 1, body: "截图六张各三语；隐私问卷选「不收集」。" }
+               { badge: "链", bg: "#0f766e", title: "京都红叶攻略", meta: "Safari · 链接", chip: "链接", star: 1, body: "https://travel.example.com/kyoto — 永观堂夜枫要预约" },
+               { badge: "码", bg: "#059669", title: "curl -s api.weather", meta: "Terminal · 代码", chip: "代码", code: true },
+               { badge: "文", bg: "#1d4ed8", title: "民宿房东的入住指引", meta: "信息 · 文本", chip: "文本", body: "下午三点后自助入住，密码在门垫下，Wi-Fi 是 Kyo-Home。" },
+               { badge: "色", bg: "#e07a5f", title: "#E07A5F 枫红", meta: "Figma · 颜色", chip: "颜色", swatch: true },
+               { badge: "片", bg: "#7c3aed", title: "清水寺门票截图", meta: "截图 · 可识字", chip: "图片", thumb: true },
+               { badge: "文", bg: "#0f766e", title: "周三站会纪要", meta: "Slack · 文本", chip: "文本", body: "版本周五冻结；截图文案走三遍；上线后看一周留存。" }
              ] },
         2: { k: "全局快捷键", h: "按一下，<br>它就来了。", s: "底部货架、主窗口、截图各有独立快捷键。录下即刻生效，被占用会提醒，一键恢复默认。", k2: "唤出底部货架 · 回车粘贴", c: "02  /  手不离开键盘",
              setH: "全局快捷键", r1: "唤出剪贴板面板", r2: "唤出主窗口", r3: "截图（区域）", live: "已生效" },
         3: { k: "区域截图", h: "截图像发一条消息。", s: "冻结屏幕，拖出选区，矩形 / 箭头 / 画笔 / 马赛克 / 文字标注，确认后进入剪贴板与历史。", c: "03  /  标注完，直接复用" },
         4: { k: "识别文字", h: "图里的字，<br>也能搜。", s: "本机 Vision 识别中英文。可选复制，或只留文字不要图。链接会自动变成链接条目。", c: "04  /  字留在你的电脑上",
-             ocrH: "识别到的文字", ocrN: "42 字", ocrT: "把设计稿里的主按钮改成松柏绿，<br>圆角 12，悬停时上浮 1px。<br><span class=\"sel\">https://figma.com/file/pastenest</span>", cancel: "取消", copy: "复制" },
+             ocrH: "识别到的文字", ocrN: "38 字", ocrT: "清水寺 夜间特别参拜<br>11月18日 – 11月30日<br>成人 400円<br><span class=\"sel\">https://kiyomizu-dera.example.com</span>", cancel: "取消", copy: "复制" },
         5: { k: "搜索与分类", h: "不用整理，<br>它自己认得。", s: "链接、代码、颜色、文件自动打标。搜索标题、正文、来源应用，实时出结果。", c: "05  /  找得到，才算数",
-             lib: "资料库", brd: "看板", nav: ["全部","文本","链接","代码","图片","工作","灵感"], q: "设计", hits: "3 条命中",
+             lib: "资料库", brd: "看板", nav: ["全部","文本","链接","代码","图片","旅行","灵感"], q: "京都", hits: "3 条命中",
              rows: [
-               { badge: "文", bg: "#1d4ed8", title: "首页改版走查清单", meta: "Figma · 今天", on: 1 },
-               { badge: "链", bg: "#0f766e", title: "figma.com/file/pastenest", meta: "Safari · 昨天" },
-               { badge: "色", bg: "#0f766e", title: "#0F766E 松柏绿", meta: "Figma · 昨天" }
+               { badge: "链", bg: "#0f766e", title: "京都红叶攻略", meta: "Safari · 今天", on: 1 },
+               { badge: "片", bg: "#7c3aed", title: "清水寺门票截图", meta: "截图 · 昨天" },
+               { badge: "文", bg: "#1d4ed8", title: "民宿入住指引", meta: "信息 · 昨天" }
              ],
-             pvChip: "文本", pvTitle: "首页改版走查清单", pvBody: "导航固定在顶部；主按钮统一松柏绿；卡片圆角 18；列表行高 56。", m1: "来源", m2: "时间", m2v: "今天 14:32", m3: "类型", m3v: "文本" },
+             pvChip: "链接", pvTitle: "京都红叶攻略", pvBody: "永观堂夜枫要预约；清水寺夜间参拜 400 円；嵯峨野小火车买偶数日票。", m1: "来源", m2: "时间", m2v: "今天 09:12", m3: "类型", m3v: "链接" },
         6: { k: "收藏与隐私", h: "重要的，<br>留下来。", s: "收藏长期保存，其余按你设定的天数自动清理。iCloud 可选，数据走你的 Apple ID，我们碰不到。", p1: "收藏夹独立面板，可打标签", p2: "未收藏内容默认 3 天后清理", p3: "无广告、无追踪、无账号体系", c: "06  /  只存在你的 Mac 上",
-             dTitle: "发布前检查清单", dBody: "截图六张各三语；副标题「复制过的，都还在」；隐私问卷选「不收集」；价格 ¥28 买断。", t1: "工作", t2: "发布", t3: "长期保存",
-             s1: "Safari · 链接", s2: "Terminal · 代码", s3: "截图 · 可识字", s3t: "应用图标 1024" }
+             dTitle: "民宿房东的入住指引", dBody: "下午三点后自助入住，密码在门垫下，Wi-Fi 是 Kyo-Home。退房上午十点前，垃圾按可燃 / 瓶罐分。", t1: "旅行", t2: "京都", t3: "长期保存",
+             s1: "Safari · 链接", s2: "Terminal · 代码", s3: "截图 · 可识字", s3t: "清水寺门票截图" }
       },
       "zh-Hant": {
         1: { k: "PasteNest", h: "複製過的，<br>都還在。", s: "選單列裡的剪貼板巢穴。文字、連結、圖片、程式碼、顏色，自動收好，一鍵回來。", sync: "已同步 · 剛剛", c: "01  /  你的第二塊剪貼板",
              cards: [
-               { badge: "鏈", bg: "#0f766e", title: "paste.app", meta: "Safari · 連結", chip: "連結", star: 1, body: "https://paste.app — 看看競品怎麼定價" },
-               { badge: "碼", bg: "#059669", title: "package.sh --sign", meta: "Terminal · 程式碼", chip: "程式碼", code: true },
-               { badge: "文", bg: "#1d4ed8", title: "首頁改版走查清單", meta: "Figma · 文字", chip: "文字", body: "導航固定在頂部；主按鈕統一松柏綠；卡片圓角 18。" },
-               { badge: "色", bg: "#0f766e", title: "#0F766E", meta: "Figma · 顏色", chip: "顏色", swatch: true },
-               { badge: "片", bg: "#7c3aed", title: "應用圖示 1024", meta: "截圖 · 可識字", chip: "圖片", thumb: true },
-               { badge: "文", bg: "#e07a5f", title: "發布前檢查清單", meta: "Notes · 文字", chip: "文字", star: 1, body: "截圖六張各三語；隱私問卷選「不收集」。" }
+               { badge: "鏈", bg: "#0f766e", title: "京都紅葉攻略", meta: "Safari · 連結", chip: "連結", star: 1, body: "https://travel.example.com/kyoto — 永觀堂夜楓要預約" },
+               { badge: "碼", bg: "#059669", title: "curl -s api.weather", meta: "Terminal · 程式碼", chip: "程式碼", code: true },
+               { badge: "文", bg: "#1d4ed8", title: "民宿房東的入住指引", meta: "訊息 · 文字", chip: "文字", body: "下午三點後自助入住，密碼在門墊下，Wi-Fi 是 Kyo-Home。" },
+               { badge: "色", bg: "#e07a5f", title: "#E07A5F 楓紅", meta: "Figma · 顏色", chip: "顏色", swatch: true },
+               { badge: "片", bg: "#7c3aed", title: "清水寺門票截圖", meta: "截圖 · 可識字", chip: "圖片", thumb: true },
+               { badge: "文", bg: "#0f766e", title: "週三站會紀要", meta: "Slack · 文字", chip: "文字", body: "版本週五凍結；截圖文案走三遍；上線後看一週留存。" }
              ] },
         2: { k: "全域快捷鍵", h: "按一下，<br>它就來了。", s: "底部貨架、主視窗、截圖各有獨立快捷鍵。錄下即刻生效，被佔用會提醒，一鍵恢復預設。", k2: "喚出底部貨架 · 回車貼上", c: "02  /  手不離開鍵盤",
              setH: "全域快捷鍵", r1: "喚出剪貼板面板", r2: "喚出主視窗", r3: "截圖（區域）", live: "已生效" },
         3: { k: "區域截圖", h: "截圖像發一條訊息。", s: "凍結螢幕，拖出選區，矩形 / 箭頭 / 畫筆 / 馬賽克 / 文字標註，確認後進入剪貼板與歷史。", c: "03  /  標註完，直接複用" },
         4: { k: "辨識文字", h: "圖裡的字，<br>也能搜。", s: "本機 Vision 辨識中英文。可選複製，或只留文字不要圖。連結會自動變成連結條目。", c: "04  /  字留在你的電腦上",
-             ocrH: "辨識到的文字", ocrN: "42 字", ocrT: "把設計稿裡的主按鈕改成松柏綠，<br>圓角 12，懸停時上浮 1px。<br><span class=\"sel\">https://figma.com/file/pastenest</span>", cancel: "取消", copy: "複製" },
+             ocrH: "辨識到的文字", ocrN: "38 字", ocrT: "清水寺 夜間特別參拜<br>11月18日 – 11月30日<br>成人 400円<br><span class=\"sel\">https://kiyomizu-dera.example.com</span>", cancel: "取消", copy: "複製" },
         5: { k: "搜尋與分類", h: "不用整理，<br>它自己認得。", s: "連結、程式碼、顏色、檔案自動打標。搜尋標題、正文、來源應用，即時出結果。", c: "05  /  找得到，才算數",
-             lib: "資料庫", brd: "看板", nav: ["全部","文字","連結","程式碼","圖片","工作","靈感"], q: "設計", hits: "3 筆命中",
+             lib: "資料庫", brd: "看板", nav: ["全部","文字","連結","程式碼","圖片","旅行","靈感"], q: "京都", hits: "3 筆命中",
              rows: [
-               { badge: "文", bg: "#1d4ed8", title: "首頁改版走查清單", meta: "Figma · 今天", on: 1 },
-               { badge: "鏈", bg: "#0f766e", title: "figma.com/file/pastenest", meta: "Safari · 昨天" },
-               { badge: "色", bg: "#0f766e", title: "#0F766E 松柏綠", meta: "Figma · 昨天" }
+               { badge: "鏈", bg: "#0f766e", title: "京都紅葉攻略", meta: "Safari · 今天", on: 1 },
+               { badge: "片", bg: "#7c3aed", title: "清水寺門票截圖", meta: "截圖 · 昨天" },
+               { badge: "文", bg: "#1d4ed8", title: "民宿入住指引", meta: "訊息 · 昨天" }
              ],
-             pvChip: "文字", pvTitle: "首頁改版走查清單", pvBody: "導航固定在頂部；主按鈕統一松柏綠；卡片圓角 18；列表行高 56。", m1: "來源", m2: "時間", m2v: "今天 14:32", m3: "類型", m3v: "文字" },
+             pvChip: "連結", pvTitle: "京都紅葉攻略", pvBody: "永觀堂夜楓要預約；清水寺夜間參拜 400 円；嵯峨野小火車買偶數日票。", m1: "來源", m2: "時間", m2v: "今天 09:12", m3: "類型", m3v: "連結" },
         6: { k: "收藏與隱私", h: "重要的，<br>留下來。", s: "收藏長期保存，其餘按你設定的天數自動清理。iCloud 可選，資料走你的 Apple ID，我們碰不到。", p1: "收藏夾獨立面板，可打標籤", p2: "未收藏內容預設 3 天後清理", p3: "無廣告、無追蹤、無帳號體系", c: "06  /  只存在你的 Mac 上",
-             dTitle: "發布前檢查清單", dBody: "截圖六張各三語；副標題「複製過的，都還在」；隱私問卷選「不收集」；價格 ¥28 買斷。", t1: "工作", t2: "發布", t3: "長期保存",
-             s1: "Safari · 連結", s2: "Terminal · 程式碼", s3: "截圖 · 可識字", s3t: "應用圖示 1024" }
+             dTitle: "民宿房東的入住指引", dBody: "下午三點後自助入住，密碼在門墊下，Wi-Fi 是 Kyo-Home。退房上午十點前，垃圾按可燃 / 瓶罐分。", t1: "旅行", t2: "京都", t3: "長期保存",
+             s1: "Safari · 連結", s2: "Terminal · 程式碼", s3: "截圖 · 可識字", s3t: "清水寺門票截圖" }
       },
       en: {
         1: { k: "PasteNest", h: "Everything you copy,<br>still here.", s: "A clipboard nest in your menu bar. Text, links, images, code, and colors — tucked away, one tap back.", sync: "Synced · just now", c: "01  /  A second clipboard",
              cards: [
-               { badge: "⧉", bg: "#0f766e", title: "paste.app", meta: "Safari · Link", chip: "Link", star: 1, body: "https://paste.app — see how rivals price it" },
-               { badge: "‹›", bg: "#059669", title: "package.sh --sign", meta: "Terminal · Code", chip: "Code", code: true },
-               { badge: "¶", bg: "#1d4ed8", title: "Homepage review checklist", meta: "Figma · Text", chip: "Text", body: "Pin the nav; one pine-green primary button; 18px card corners." },
-               { badge: "●", bg: "#0f766e", title: "#0F766E", meta: "Figma · Color", chip: "Color", swatch: true },
-               { badge: "▦", bg: "#7c3aed", title: "App icon 1024", meta: "Screenshot · OCR", chip: "Image", thumb: true },
-               { badge: "¶", bg: "#e07a5f", title: "Pre-launch checklist", meta: "Notes · Text", chip: "Text", star: 1, body: "Six screenshots × three languages; privacy: “no data collected”." }
+               { badge: "⧉", bg: "#0f766e", title: "Kyoto foliage guide", meta: "Safari · Link", chip: "Link", star: 1, body: "https://travel.example.com/kyoto — book Eikando night maples" },
+               { badge: "‹›", bg: "#059669", title: "curl -s api.weather", meta: "Terminal · Code", chip: "Code", code: true },
+               { badge: "¶", bg: "#1d4ed8", title: "Host's check-in note", meta: "Messages · Text", chip: "Text", body: "Self check-in after 3pm, code under the mat, Wi-Fi is Kyo-Home." },
+               { badge: "●", bg: "#e07a5f", title: "#E07A5F maple", meta: "Figma · Color", chip: "Color", swatch: true },
+               { badge: "▦", bg: "#7c3aed", title: "Kiyomizu ticket shot", meta: "Screenshot · OCR", chip: "Image", thumb: true },
+               { badge: "¶", bg: "#0f766e", title: "Wednesday standup", meta: "Slack · Text", chip: "Text", body: "Freeze Friday; run the store copy three times; watch week-one retention." }
              ] },
         2: { k: "Global hotkeys", h: "One press,<br>and it's here.", s: "The shelf, main window, and screenshot each get their own hotkey. Changes apply instantly; taken combos are flagged; one click restores defaults.", k2: "Show the shelf · Enter pastes", c: "02  /  Hands stay on the keyboard",
              setH: "Global hotkeys", r1: "Show clipboard shelf", r2: "Show main window", r3: "Screenshot (region)", live: "Active" },
         3: { k: "Region screenshot", h: "Screenshot like sending a message.", s: "Freeze the screen, drag a region, mark it up with rectangles, arrows, pen, mosaic, or text — it lands in your clipboard and history.", c: "03  /  Annotate, then reuse" },
         4: { k: "Recognize text", h: "Words in images,<br>searchable.", s: "On-device Vision reads Chinese and English. Copy what you select, or keep only the text. Links become link items automatically.", c: "04  /  Text stays on your Mac",
-             ocrH: "Recognized text", ocrN: "9 words", ocrT: "Make the primary button pine green,<br>12px radius, lift 1px on hover.<br><span class=\"sel\">https://figma.com/file/pastenest</span>", cancel: "Cancel", copy: "Copy" },
+             ocrH: "Recognized text", ocrN: "14 words", ocrT: "Kiyomizu-dera night visit<br>Nov 18 – Nov 30<br>Adults ¥400<br><span class=\"sel\">https://kiyomizu-dera.example.com</span>", cancel: "Cancel", copy: "Copy" },
         5: { k: "Search & tags", h: "No tidying.<br>It just knows.", s: "Links, code, colors, and files tag themselves. Search titles, bodies, and source apps — results appear as you type.", c: "05  /  Find it, or it doesn't count",
-             lib: "Library", brd: "Boards", nav: ["All","Text","Links","Code","Images","Work","Ideas"], q: "design", hits: "3 matches",
+             lib: "Library", brd: "Boards", nav: ["All","Text","Links","Code","Images","Travel","Ideas"], q: "kyoto", hits: "3 matches",
              rows: [
-               { badge: "¶", bg: "#1d4ed8", title: "Homepage review checklist", meta: "Figma · Today", on: 1 },
-               { badge: "⧉", bg: "#0f766e", title: "figma.com/file/pastenest", meta: "Safari · Yesterday" },
-               { badge: "●", bg: "#0f766e", title: "#0F766E pine green", meta: "Figma · Yesterday" }
+               { badge: "⧉", bg: "#0f766e", title: "Kyoto foliage guide", meta: "Safari · Today", on: 1 },
+               { badge: "▦", bg: "#7c3aed", title: "Kiyomizu ticket shot", meta: "Screenshot · Yesterday" },
+               { badge: "¶", bg: "#1d4ed8", title: "Host's check-in note", meta: "Messages · Yesterday" }
              ],
-             pvChip: "Text", pvTitle: "Homepage review checklist", pvBody: "Pin the nav; one pine-green primary button; 18px card corners; 56px list rows.", m1: "Source", m2: "Copied", m2v: "Today 2:32 PM", m3: "Type", m3v: "Text" },
+             pvChip: "Link", pvTitle: "Kyoto foliage guide", pvBody: "Book Eikando night maples; Kiyomizu night visit ¥400; take the Sagano train on even days.", m1: "Source", m2: "Copied", m2v: "Today 9:12 AM", m3: "Type", m3v: "Link" },
         6: { k: "Saved & private", h: "What matters,<br>stays.", s: "Saved items keep forever; the rest clear after the days you set. iCloud is optional and goes through your Apple ID — we never see your data.", p1: "A separate Saved panel with tags", p2: "Unsaved items clear after 3 days", p3: "No ads, no tracking, no accounts", c: "06  /  Only on your Mac",
-             dTitle: "Pre-launch checklist", dBody: "Six screenshots in three languages; subtitle “Everything you copy, still here”; privacy “no data collected”; $4.99 one-time.", t1: "Work", t2: "Launch", t3: "Kept forever",
-             s1: "Safari · Link", s2: "Terminal · Code", s3: "Screenshot · OCR", s3t: "App icon 1024" }
+             dTitle: "Host's check-in note", dBody: "Self check-in after 3pm, code under the mat, Wi-Fi is Kyo-Home. Check out by 10am; sort burnables from cans and bottles.", t1: "Travel", t2: "Kyoto", t3: "Kept forever",
+             s1: "Safari · Link", s2: "Terminal · Code", s3: "Screenshot · OCR", s3t: "Kiyomizu ticket shot" }
       }
     };
     const t = (L[lang] || L["zh-Hans"])[n] || L["zh-Hans"][n];
@@ -534,7 +534,7 @@
       const wrap = board.querySelector("#heroCards");
       wrap.innerHTML = t.cards.map((c) => {
         let inner = "";
-        if (c.code) inner = `<div class="code"><span class="k">#!/bin/bash</span><br>./scripts/package.sh <span class="s">--sign</span> --pkg<br><span class="k"># notarize</span> --notarize</div>`;
+        if (c.code) inner = `<div class="code"><span class="k">$</span> curl -s api.weather/kyoto<br><span class="s">"temp": 18, "maple": "peak"</span><br><span class="k">$</span> open maples.ics</div>`;
         else if (c.swatch) inner = `<div class="swatch"></div>`;
         else if (c.thumb) inner = `<div class="thumb"></div>`;
         else inner = `<div class="cbody">${c.body || ""}</div>`;
