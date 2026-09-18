@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""好记英语 Mac App Store 上架营销截图生成器
+"""背单词 app Mac App Store 上架营销截图生成器
 
 基于用户提供的原始 app 截图, 不改动页面内容, 仅做:
   1. 方向修正 (02/04 源图为逆时针存储, 顺时针扶正)
@@ -34,7 +34,7 @@ GREEN_SUB = (94, 234, 113)    # 副标题 亮绿
 GREEN_ICON = (52, 199, 89)    # 卖点图标绿
 GRAY_DESC = (158, 161, 166)   # 卖点描述灰
 
-APP_TITLE = "好记英语"
+APP_TITLE = None  # 窗口栏不显示应用名 (品牌名由用户自行决定)
 
 # 每张截图的营销文案, 按 App Store 展示顺序排列
 # rotate: 源图存储方向修正
@@ -174,7 +174,7 @@ def fit_size(src_w, src_h, max_w, max_h):
 
 
 def mac_window(capture, title=APP_TITLE):
-    """给截图加 macOS 窗口标题栏 (红黄绿按钮 + 居中标题)"""
+    """给截图加 macOS 窗口标题栏 (红黄绿按钮, 可选居中标题)"""
     w, h = capture.size
     bar_h = max(int(w * 0.030), 40)
     total_h = h + bar_h
@@ -193,8 +193,9 @@ def mac_window(capture, title=APP_TITLE):
     for i, color in enumerate([(255, 95, 87), (254, 188, 46), (40, 200, 64)]):
         cx = dot_x0 + i * int(dot_r * 2.8) + dot_r
         d.ellipse([cx - dot_r, dot_y - dot_r, cx + dot_r, dot_y + dot_r], fill=color)
-    title_f = font(FONT_REG_PATH, int(bar_h * 0.40))
-    d.text((w / 2, bar_h / 2), title, font=title_f, fill=(90, 90, 92), anchor="mm")
+    if title:
+        title_f = font(FONT_REG_PATH, int(bar_h * 0.40))
+        d.text((w / 2, bar_h / 2), title, font=title_f, fill=(90, 90, 92), anchor="mm")
     return win, radius
 
 
@@ -302,13 +303,13 @@ def render_banner(out_path, width, height):
     bg.alpha_composite(glow)
     draw = ImageDraw.Draw(bg)
 
-    # 左侧文案
+    # 左侧文案 (功能导向, 不含品牌名)
     name_f = font(FONT_BOLD_PATH, int(150 * s))
     tag_f = font(FONT_REG_PATH, int(56 * s))
     li_f = font(FONT_REG_PATH, int(44 * s))
     x0 = 150 * s
-    draw.text((x0, 200 * s), APP_TITLE, font=name_f, fill=TEXT_WHITE)
-    draw.text((x0, 400 * s), "让背单词更高效", font=tag_f, fill=GREEN_SUB)
+    draw.text((x0, 200 * s), "高效背单词", font=name_f, fill=TEXT_WHITE)
+    draw.text((x0, 400 * s), "海量词书 · 翻转卡片 · 词汇测试 · 打卡统计", font=tag_f, fill=GREEN_SUB)
     bullets = ["海量词书 · 小初高大学全覆盖", "翻转卡片 · 智能记忆",
                "词汇量测试 · 精准评估", "打卡统计 · 养成学习习惯"]
     by = 560 * s
@@ -351,10 +352,10 @@ def render_square(out_path, size=1080):
 
     name_f = font(FONT_BOLD_PATH, int(110 * s))
     tag_f = font(FONT_REG_PATH, int(44 * s))
-    nw = draw.textlength(APP_TITLE, font=name_f)
-    draw.text(((size - nw) / 2, 90 * s), APP_TITLE, font=name_f, fill=TEXT_WHITE)
-    tw = draw.textlength("让背单词更高效", font=tag_f)
-    draw.text(((size - tw) / 2, 240 * s), "让背单词更高效", font=tag_f, fill=GREEN_SUB)
+    nw = draw.textlength("高效背单词", font=name_f)
+    draw.text(((size - nw) / 2, 90 * s), "高效背单词", font=name_f, fill=TEXT_WHITE)
+    tw = draw.textlength("海量词书 · 智能记忆 · 打卡统计", font=tag_f)
+    draw.text(((size - tw) / 2, 240 * s), "海量词书 · 智能记忆 · 打卡统计", font=tag_f, fill=GREEN_SUB)
 
     card_img = load_enhanced(SCREENS[1])
     ch_ = int(560 * s)
