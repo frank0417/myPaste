@@ -2,6 +2,10 @@
 // geometry without AppKit: selection handles, toolbar placement, snapping,
 // window picking, and the pixel crop that the PNG compositor uses.
 
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 const HANDLE_HIT = 10;
 const MIN_SELECTION = 4;
 const TOOLBAR = { width: 672, height: 48 };
@@ -11,6 +15,8 @@ const OCR_PANEL = { width: 280, height: 240 };
 const OCR_PANEL_MIN_HEIGHT = 140;
 const OCR_PANEL_MAX_HEIGHT = 420;
 const OCR_PANEL_GAP = 12;
+const OCR_PANEL_USES_LIGHT_APPEARANCE = true;
+const OCR_PANEL_TEXT_COLOR = "#222426";
 const SIZE_BADGE_HEIGHT = 22;
 const SIZE_BADGE_GAP = 6;
 const ARROW_HEAD_LENGTH = 14;
@@ -422,9 +428,9 @@ const TEXT_PLACEHOLDER = {
   en: "Type text"
 };
 const OCR_PANEL_ACTIONS = {
-  "zh-Hans": { copy: "复制", dismiss: "取消", empty: "未识别到文字" },
-  "zh-Hant": { copy: "複製", dismiss: "取消", empty: "未辨識到文字" },
-  en: { copy: "Copy", dismiss: "Cancel", empty: "No text found" }
+  "zh-Hans": { copy: "复制", dismiss: "取消", empty: "未识别到文字", working: "正在识别…" },
+  "zh-Hant": { copy: "複製", dismiss: "取消", empty: "未辨識到文字", working: "正在辨識…" },
+  en: { copy: "Copy", dismiss: "Cancel", empty: "No text found", working: "Recognizing…" }
 };
 
 function matchScreenshotLanguage(tag) {
@@ -481,8 +487,13 @@ for (const lang of SUPPORTED_LANGUAGES) {
   assertEqual(Object.keys(TOOLBAR_ACTION_HINTS[lang]).length, 8, `${lang} chrome controls have hover hints`);
   assertTrue(Boolean(TEXT_PLACEHOLDER[lang]), `${lang} has a text-tool placeholder`);
   assertTrue(
-    Boolean(OCR_PANEL_ACTIONS[lang].copy && OCR_PANEL_ACTIONS[lang].dismiss && OCR_PANEL_ACTIONS[lang].empty),
-    `${lang} OCR panel has copy, cancel, and empty copy`
+    Boolean(
+      OCR_PANEL_ACTIONS[lang].copy &&
+        OCR_PANEL_ACTIONS[lang].dismiss &&
+        OCR_PANEL_ACTIONS[lang].empty &&
+        OCR_PANEL_ACTIONS[lang].working
+    ),
+    `${lang} OCR panel has copy, cancel, empty, and working copy`
   );
 }
 assertEqual(TOOL_TITLES["zh-Hans"].rect, "矩形", "Simplified rect hint");
@@ -515,6 +526,11 @@ assertEqual(draggedBar.y, 587 - TOOLBAR_HINT_HEIGHT - 18, "dragging the strip ap
 assertEqual(OCR_PANEL_ACTIONS["zh-Hans"].copy, "复制", "Simplified OCR copy");
 assertEqual(OCR_PANEL_ACTIONS["zh-Hant"].copy, "複製", "Traditional OCR copy");
 assertEqual(OCR_PANEL_ACTIONS.en.copy, "Copy", "English OCR copy");
+assertEqual(OCR_PANEL_ACTIONS["zh-Hans"].working, "正在识别…", "Simplified OCR working");
+assertEqual(OCR_PANEL_ACTIONS["zh-Hant"].working, "正在辨識…", "Traditional OCR working");
+assertEqual(OCR_PANEL_ACTIONS.en.working, "Recognizing…", "English OCR working");
+assertTrue(OCR_PANEL_USES_LIGHT_APPEARANCE, "OCR card stays aqua on the dark freeze");
+assertEqual(OCR_PANEL_TEXT_COLOR, "#222426", "OCR ink is explicit dark gray, not labelColor");
 const HUD = {
   "zh-Hans": { imageCopied: "图片已复制", modeRegion: "截取区域", textCapture: "截图识字" },
   "zh-Hant": { imageCopied: "圖片已複製", modeRegion: "截取區域", textCapture: "截圖識字" },
@@ -575,6 +591,16 @@ const crop = pixelCrop({ x: 200, y: 120, width: 960, height: 455 }, 2, 2880, 180
 assertEqual(crop, { x: 400, y: 240, width: 1920, height: 910 }, "crop is in bitmap pixels");
 const clipped = pixelCrop({ x: 1400, y: 800, width: 200, height: 200 }, 1, 1440, 900);
 assertEqual(clipped, { x: 1400, y: 800, width: 40, height: 100 }, "crop is clipped to the bitmap");
+
+const editorSwift = fs.readFileSync(
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../Paste/Views/ScreenshotEditor.swift"),
+  "utf8"
+);
+assertTrue(editorSwift.includes(`ocrPanelUsesLightAppearance = true`), "Swift OCR card forces light appearance");
+assertTrue(editorSwift.includes(`ocrPanelTextColorHex = "${OCR_PANEL_TEXT_COLOR}"`), "Swift OCR ink matches the mirrored hex");
+assertTrue(editorSwift.includes('.ocrWorking: "正在识别…"'), "Swift Simplified working copy");
+assertTrue(editorSwift.includes('.ocrWorking: "正在辨識…"'), "Swift Traditional working copy");
+assertTrue(editorSwift.includes('.ocrWorking: "Recognizing…"'), "Swift English working copy");
 
 if (failed > 0) {
   console.error(`\n${failed} test(s) failed`);

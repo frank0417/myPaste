@@ -103,7 +103,7 @@ enum ScreenshotL10n {
         case move, rect, ellipse, line, arrow, pen, text, pin, mosaic, crop
         case drag, color, width, undo, download, cancel, confirm
         case textPlaceholder
-        case recognizeText, close, copy, ocrEmpty, ocrDismiss
+        case recognizeText, close, copy, ocrEmpty, ocrWorking, ocrDismiss
         case modeRegion, modeWindow, modeFullScreen
         case subtitleRegion, subtitleWindow, subtitleFullScreen
         case imageCopied, copiedSuffix, savedToDownloads, saved
@@ -245,6 +245,7 @@ enum ScreenshotL10n {
             .close: "关闭",
             .copy: "复制",
             .ocrEmpty: "未识别到文字",
+            .ocrWorking: "正在识别…",
             .ocrDismiss: "取消",
             .modeRegion: "截取区域",
             .modeWindow: "截取窗口",
@@ -290,6 +291,7 @@ enum ScreenshotL10n {
             .close: "關閉",
             .copy: "複製",
             .ocrEmpty: "未辨識到文字",
+            .ocrWorking: "正在辨識…",
             .ocrDismiss: "取消",
             .modeRegion: "截取區域",
             .modeWindow: "截取視窗",
@@ -335,6 +337,7 @@ enum ScreenshotL10n {
             .close: "Close",
             .copy: "Copy",
             .ocrEmpty: "No text found",
+            .ocrWorking: "Recognizing…",
             .ocrDismiss: "Cancel",
             .modeRegion: "Capture region",
             .modeWindow: "Capture window",
@@ -436,6 +439,12 @@ enum ScreenshotLayout {
     static let ocrPanelMinHeight: CGFloat = 140
     static let ocrPanelMaxHeight: CGFloat = 420
     static let ocrPanelGap: CGFloat = 12
+    /// The card is painted white; force aqua so recognized text is not white-on-white
+    /// when the freeze window itself is dark.
+    static let ocrPanelUsesLightAppearance = true
+    /// Explicit dark ink on the white card. `labelColor` follows the overlay window
+    /// and disappears against the card when the freeze is dark.
+    static let ocrPanelTextColorHex = "#222426"
     static let sizeBadgeHeight: CGFloat = 22
     static let sizeBadgeGap: CGFloat = 6
     static let mosaicBlock: CGFloat = 10

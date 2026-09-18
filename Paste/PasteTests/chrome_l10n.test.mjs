@@ -40,7 +40,7 @@ assertTrue(/hant: "辨識文字"/.test(l10n), "panel OCR uses Traditional Chines
 assertTrue(/en: "Read"/.test(l10n), "panel OCR chip stays a short English verb");
 
 for (const key of [
-  "imageCopied", "modeRegion", "textCapture", "permissionTitle", "savedToDownloads", "ocrEmpty"
+  "imageCopied", "modeRegion", "textCapture", "permissionTitle", "savedToDownloads", "ocrEmpty", "ocrWorking"
 ]) {
   assertTrue(editor.split(`.${key}:`).length >= 4, `ScreenshotL10n.${key} exists in all three languages`);
 }

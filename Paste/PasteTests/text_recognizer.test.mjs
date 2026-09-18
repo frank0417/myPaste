@@ -139,13 +139,26 @@ assertTrue(!isCJK(undefined), "missing character is not CJK");
 assertEqual(characterCount("安静、好用的 Mac 工具。"), 12, "whitespace is not counted");
 assertEqual(characterCount("a\nb c"), 3, "newlines are not counted");
 
+function preparedScale(width, height, minSide = 180) {
+  const side = Math.min(width, height);
+  return side > 0 && side < minSide ? 2 : 1;
+}
+assertEqual(preparedScale(966, 442), 1, "a Retina UI crop is not upscaled");
+assertEqual(preparedScale(80, 40), 2, "a tiny crop is doubled so Vision has enough pixels");
+assertEqual(preparedScale(180, 180), 1, "a crop on the minimum side is left as-is");
+
 const swift = fs.readFileSync(
   path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../Paste/Services/TextRecognizer.swift"),
   "utf8"
 );
 assertTrue(/func recognize\(cgImage: CGImage\)/.test(swift), "overlay OCR can skip the PNG round-trip");
+assertTrue(/func recognize\(preparedCGImage: CGImage\)/.test(swift), "Vision can run on a bitmap copied off the freeze");
+assertTrue(/func preparedImage\(from image: CGImage\)/.test(swift), "ScreenCaptureKit crops are copied into a disconnected sRGB bitmap");
+assertTrue(/CGColorSpace\.sRGB/.test(swift) && /premultipliedLast/.test(swift), "prepared OCR bitmaps are 8-bit sRGB RGBA");
+assertTrue(/minimumPreparedSide = 180/.test(swift), "tiny UI crops are upscaled before Vision");
 assertTrue(/VNImageRequestHandler\(cgImage:/.test(swift), "Vision reads the cropped CGImage directly");
 assertTrue(/recognitionLevel = level/.test(swift) && /\.fast/.test(swift), "sparse UI text tries .fast first");
+assertTrue(/minimumTextHeight = \(level == \.fast\) \? 0 : 0\.008/.test(swift), "fast OCR does not drop small UI labels");
 assertTrue(/automaticallyDetectsLanguage = true/.test(swift), "a language-pack miss still falls back to auto-detect");
 assertTrue(/import ImageIO/.test(swift), "PNG history items decode through ImageIO before Vision");
 
@@ -154,13 +167,28 @@ const overlay = fs.readFileSync(
   "utf8"
 );
 assertTrue(
-  /TextRecognizer\.recognize\(cgImage: cropped\)/.test(overlay),
-  "the overlay recognizes the cropped freeze pixels, not a re-encoded PNG"
+  /TextRecognizer\.preparedImage\(from: cropped\)/.test(overlay),
+  "the overlay copies the crop off the IOSurface before leaving the main thread"
+);
+assertTrue(
+  /TextRecognizer\.recognize\(preparedCGImage: prepared\)/.test(overlay),
+  "the overlay recognizes the prepared freeze pixels, not a re-encoded PNG"
+);
+assertTrue(
+  !/TextRecognizer\.recognize\(cgImage: cropped\)/.test(overlay),
+  "overlay OCR no longer hands Vision the live freeze crop"
 );
 assertTrue(
   !/TextRecognizer\.recognize\(imageData: data\)/.test(overlay),
   "overlay OCR no longer PNG-encodes the crop first"
 );
+assertTrue(/ocrPanelUsesLightAppearance/.test(overlay), "OCR card forces aqua so text is not white-on-white");
+assertTrue(/ocrPanelTextColorHex/.test(overlay), "OCR ink is an explicit dark color, not labelColor");
+assertTrue(/preferredColorScheme\(\.light\)/.test(overlay), "OCR card stays in light color scheme");
+assertTrue(/ScreenshotL10n\.string\(\.ocrWorking\)/.test(overlay), "recognizing state has visible copy, not only a spinner");
+assertTrue(!/textColor = \.labelColor/.test(overlay), "OCR text view does not use appearance-adaptive labelColor");
+assertTrue(/class ScreenshotOCRScrollView/.test(overlay), "OCR text container width follows the card");
+assertTrue(/setAttributedString\(NSAttributedString\(string: text, attributes: attributes\)\)/.test(overlay), "recognized text is painted with explicit dark attributes");
 
 if (failed > 0) {
   console.error(`\n${failed} test(s) failed`);

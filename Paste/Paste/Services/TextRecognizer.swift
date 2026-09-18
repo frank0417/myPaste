@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import ImageIO
 import Vision
@@ -19,9 +20,20 @@ enum TextRecognizer {
         let minX: CGFloat
     }
 
+    /// Smallest pixel side that still gives Vision enough samples for UI type.
+    /// Crops shorter than this are upscaled before recognition.
+    static let minimumPreparedSide = 180
+
     /// Overlay OCR should send the cropped `CGImage` here. PNG round-trips and
     /// `.accurate` (document) recognition often return nothing on UI screenshots.
     static func recognize(cgImage: CGImage) -> String? {
+        recognize(preparedCGImage: preparedImage(from: cgImage))
+    }
+
+    /// Vision on a bitmap that `preparedImage(from:)` already copied. Overlay OCR
+    /// must copy on the main thread first: the freeze is IOSurface-backed, and
+    /// reading it from a detached task while the canvas draws often yields nothing.
+    static func recognize(preparedCGImage: CGImage) -> String? {
         let attempts: [(VNRequestTextRecognitionLevel, [String])] = [
             (.fast, languages),
             (.accurate, languages),
@@ -29,12 +41,36 @@ enum TextRecognizer {
             (.accurate, [])
         ]
         for (level, langs) in attempts {
-            let handler = VNImageRequestHandler(cgImage: cgImage, orientation: .up, options: [:])
+            let handler = VNImageRequestHandler(cgImage: preparedCGImage, orientation: .up, options: [:])
             if let text = run(handler: handler, level: level, languages: langs) {
                 return text
             }
         }
         return nil
+    }
+
+    /// Copy into a disconnected sRGB bitmap so ScreenCaptureKit IOSurface / BGRA
+    /// crops (and tiny UI type) are something Vision will actually read.
+    static func preparedImage(from image: CGImage) -> CGImage {
+        let minSide = min(image.width, image.height)
+        let scale = (minSide > 0 && minSide < minimumPreparedSide) ? 2 : 1
+        let width = max(1, image.width * scale)
+        let height = max(1, image.height * scale)
+        let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        guard let ctx = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            return image
+        }
+        ctx.interpolationQuality = scale > 1 ? .high : .none
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        return ctx.makeImage() ?? image
     }
 
     /// Runs synchronously on whatever queue calls it — the capture pipeline's
@@ -61,7 +97,9 @@ enum TextRecognizer {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = level
         request.usesLanguageCorrection = (level == .accurate)
-        request.minimumTextHeight = 0.008
+        // `.fast` is for sparse UI chrome; do not drop small labels. Accurate
+        // (document) recognition still ignores specks.
+        request.minimumTextHeight = (level == .fast) ? 0 : 0.008
         if languages.isEmpty {
             request.automaticallyDetectsLanguage = true
         } else {
