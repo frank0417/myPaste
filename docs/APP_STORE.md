@@ -61,16 +61,18 @@ PasteNest 是常驻菜单栏的剪贴板巢穴。你复制的一切——文本�
 | 素材 | 状态 | 说明 |
 |------|------|------|
 | App 图标 1024×1024 | ✅ | `Paste/Paste/Resources/AppIcon-1024.png` |
-| 营销截图 2560×1600 | ✅ | `docs/app-store/screenshots/`（6 张，见 [MARKETING.md](MARKETING.md)） |
+| 营销截图 2560×1600 | ✅ | `docs/app-store/screenshots/`（6 张 × 3 语言 = 18 张，见 [MARKETING.md](MARKETING.md)） |
 | 营销截图 1440×900 | ✅ | 同目录 `*-1440x900.png` |
 
-**上架顺序：**
-1. `01-hero` 复制过的，都还在
-2. `02-hotkey` 按一下，它就来了
-3. `03-screenshot` 截图像发一条消息
-4. `04-ocr` 图里的字，也能搜
-5. `05-search` 不用整理，它自己认得
-6. `06-keep` 重要的，留下来
+**上架顺序（每张三个语言版本 `-zh` / `-zh-Hant` / `-en`）：**
+1. `01-hero` 复制过的，都还在（底部货架）
+2. `02-hotkey` 按一下，它就来了（设置）
+3. `03-screenshot` 截图像发一条消息（标注覆盖层）
+4. `04-ocr` 图里的字，也能搜（识字卡片）
+5. `05-search` 不用整理，它自己认得（主窗口）
+6. `06-keep` 重要的，留下来（详情 + 看板）
+
+App Store Connect 里给「简体中文」「繁體中文」「English (U.S.)」各传对应一套。
 
 重新出图：`python3 docs/app-store/render_screenshots.py`
 
