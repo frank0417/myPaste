@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""PasteNest Mac App Store 上架营销截图生成器
+"""好记英语 Mac App Store 上架营销截图生成器
 
-风格: 深色高级质感背景 + 白色主标题 + 品牌青绿副标题 + macOS 窗口/面板卡片 + 底部卖点
-(参照用户提供的营销样图风格)
+基于用户提供的原始 app 截图, 不改动页面内容, 仅做:
+  1. 方向修正 (02/04 源图为逆时针存储, 顺时针扶正)
+  2. 清晰度增强 (2x 高质量放大 + 锐化)
+  3. 套用 Mac App Store 营销版式 (深色背景 + macOS 窗口栏 + 主副标题 + 底部卖点)
 
-输入: source/ 下的 PasteNest UI 截图 (由 preview 页面高清截取)
 输出:
-  - appstore/mac_2560x1600/  Mac App Store 上架截图 (2560x1600)
-  - marketing/banner-1920x1080.png / square-1080x1080.png
+  - source/enhanced/            增强后的高清截图
+  - appstore/mac_2560x1600/     Mac App Store 上架截图 (2560x1600)
+  - marketing/                  横幅 1920x1080 / 方形 1080x1080
 
 用法: python3 generate_screenshots.py
 依赖: Pillow, Noto Sans CJK SC 字体
@@ -18,79 +20,109 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC_DIR = os.path.join(BASE_DIR, "source")
-APP_ICON = "/workspace/Paste/Paste/Resources/AppIcon-1024.png"
+ENH_DIR = os.path.join(SRC_DIR, "enhanced")
 
 FONT_BOLD_PATH = "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"
 FONT_REG_PATH = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
 FONT_INDEX_SC = 2  # Noto Sans CJK SC 在 ttc 中的索引
 
-# 深色主题配色 (参照营销样图), 点缀色取自 PasteNest 品牌青绿
+# 深色主题配色 (参照营销样图), 绿色取自 app 界面主色
 BG_TOP = (36, 38, 41)         # 背景顶部 深炭灰
 BG_BOTTOM = (51, 53, 56)      # 背景底部 炭灰
 TEXT_WHITE = (245, 243, 238)  # 主标题 暖白
-ACCENT_SUB = (94, 234, 212)   # 副标题 亮青 (品牌 teal 提亮)
-ACCENT_ICON = (15, 118, 110)  # 卖点图标 品牌青绿 #0F766E
-CORAL = (224, 122, 95)        # 品牌珊瑚色 (辅助光晕)
+GREEN_SUB = (94, 234, 113)    # 副标题 亮绿
+GREEN_ICON = (52, 199, 89)    # 卖点图标绿
 GRAY_DESC = (158, 161, 166)   # 卖点描述灰
 
-MAX_UPSCALE = 1.5  # 限制放大倍数, 保证清晰度
+APP_TITLE = "好记英语"
 
-# Mac App Store 截图配置, 按展示顺序排列
-# chrome: "window" 加 macOS 标题栏; "none" 保持原样 (面板/自带窗口栏/全屏)
+# 每张截图的营销文案, 按 App Store 展示顺序排列
+# rotate: 源图存储方向修正
 SCREENS = [
     {
-        "file": "01-main-window.png",
-        "chrome": "window",
-        "headline": "复制的一切 尽在掌握",
-        "sub": "文本 · 链接 · 图片 · 代码 自动保存",
-        "callouts": [("存", "自动保存", "复制即入库 永不丢失"),
-                     ("类", "智能分类", "链接图片代码自动打标")],
+        "file": "01-home-wordbooks.png",
+        "rotate": 0,
+        "headline": "海量词书 随心切换",
+        "sub": "小学到大学 · 新概念 · 同步教材全覆盖",
+        "callouts": [("书", "全学段词书", "小学到大学 应有尽有"),
+                     ("新", "持续更新", "热门词书不断上新")],
     },
     {
-        "file": "04-menubar-panel.png",
-        "chrome": "none",
-        "headline": "菜单栏常驻 一呼即出",
-        "sub": "⇧⌘V 唤出面板 · 双击即刻粘贴",
-        "callouts": [("快", "全局快捷键", "⇧⌘V 随手唤起"),
-                     ("贴", "一键粘贴", "双击卡片即刻上屏")],
+        "file": "02-word-card.png",
+        "rotate": -90,
+        "headline": "翻转卡片 高效记忆",
+        "sub": "认识与否一键标记 · 智能规划学习",
+        "callouts": [("卡", "翻转记忆", "看词忆义 加深印象"),
+                     ("智", "智能安排", "熟悉程度自动规划")],
     },
     {
-        "file": "02-search.png",
-        "chrome": "window",
-        "headline": "全文搜索 秒速定位",
-        "sub": "标题 · 正文 · 来源应用 全部可搜",
-        "callouts": [("搜", "全文搜索", "内容来源标签都能搜"),
-                     ("准", "实时命中", "输入即显搜索结果")],
+        "file": "03-word-detail.png",
+        "rotate": 0,
+        "headline": "词根短语 深度学习",
+        "sub": "词根词缀 · 常用短语 · 经典例句",
+        "callouts": [("词", "词根词缀", "构词规律巧记忆"),
+                     ("句", "经典例句", "真实语境学用法")],
     },
     {
-        "file": "03-filter-code.png",
-        "chrome": "window",
-        "headline": "智能分类 自动打标",
-        "sub": "链接 · 颜色 · 代码 · 图片 按类型筛选",
-        "callouts": [("类", "自动分类", "无需手动整理"),
-                     ("板", "看板整理", "工作灵感各归其位")],
+        "file": "04-vocab-test.png",
+        "rotate": -90,
+        "headline": "词汇量测试 精准评估",
+        "sub": "几分钟快速测出真实词汇量",
+        "callouts": [("测", "快速测试", "几分钟完成评估"),
+                     ("准", "精准结果", "科学算法估算词量")],
     },
     {
-        "file": "06-screenshot-annotator.png",
-        "chrome": "none",
-        "headline": "截图标注 识别文字",
-        "sub": "区域截图 · 画笔标注 · 本机识字",
-        "callouts": [("截", "截图入库", "标注后同步进剪贴板"),
-                     ("识", "本机识字", "Vision 识别中英文")],
+        "file": "05-study-calendar.png",
+        "rotate": 0,
+        "headline": "每日打卡 见证坚持",
+        "sub": "学习日历记录每一天的努力",
+        "callouts": [("历", "学习日历", "每日打卡看得见"),
+                     ("签", "补签机制", "偶尔漏签也不怕")],
     },
     {
-        "file": "05-settings-hotkeys.png",
-        "chrome": "none",
-        "headline": "快捷键 自由定义",
-        "sub": "面板 · 主窗口 · 截图 各有专属热键",
-        "callouts": [("键", "自定义热键", "录下即刻生效"),
-                     ("云", "iCloud 同步", "多台 Mac 共享历史")],
+        "file": "06-study-stats.png",
+        "rotate": 0,
+        "headline": "学习数据 一目了然",
+        "sub": "单词 · 时长 · 连续天数 全维度统计",
+        "callouts": [("统", "多维统计", "单词时长全记录"),
+                     ("析", "图表分析", "学习趋势一目了然")],
+    },
+    {
+        "file": "07-study-settings.png",
+        "rotate": 0,
+        "headline": "个性设置 自由定制",
+        "sub": "学习量 · 发音 · 播放 由你掌控",
+        "callouts": [("设", "灵活定制", "学习量自由调整"),
+                     ("音", "英美发音", "自动播放磨耳朵")],
+    },
+    {
+        "file": "08-profile.png",
+        "rotate": 0,
+        "headline": "生词掌握 全面管理",
+        "sub": "生词本 · 已掌握 · 学习日历 一站管理",
+        "callouts": [("生", "生词本", "难词集中攻克"),
+                     ("熟", "已掌握", "熟词一目了然")],
     },
 ]
 
 
 def font(path, size):
     return ImageFont.truetype(path, size, index=FONT_INDEX_SC)
+
+
+def enhance_sources():
+    """源图增强: 方向扶正 + 2x 放大 + 锐化, 输出到 source/enhanced/"""
+    os.makedirs(ENH_DIR, exist_ok=True)
+    for screen in SCREENS:
+        src = Image.open(os.path.join(SRC_DIR, screen["file"])).convert("RGB")
+        if screen.get("rotate"):
+            src = src.rotate(screen["rotate"], expand=True)
+        w, h = src.size
+        up = src.resize((w * 2, h * 2), Image.LANCZOS)
+        up = up.filter(ImageFilter.UnsharpMask(radius=2, percent=110, threshold=1))
+        up = up.filter(ImageFilter.UnsharpMask(radius=1, percent=45, threshold=2))
+        up.save(os.path.join(ENH_DIR, screen["file"]), "PNG")
+        print(f"增强 {screen['file']}: {w}x{h} -> {up.width}x{up.height}")
 
 
 def vertical_gradient(size, top, bottom):
@@ -141,7 +173,7 @@ def fit_size(src_w, src_h, max_w, max_h):
     return int(src_w * scale), int(src_h * scale)
 
 
-def mac_window(capture, title="PasteNest"):
+def mac_window(capture, title=APP_TITLE):
     """给截图加 macOS 窗口标题栏 (红黄绿按钮 + 居中标题)"""
     w, h = capture.size
     bar_h = max(int(w * 0.030), 40)
@@ -167,13 +199,12 @@ def mac_window(capture, title="PasteNest"):
 
 
 def decorate_background(bg, s):
-    """深色背景装饰: 中部柔光 + 青绿/珊瑚光晕 + 微细圆点"""
+    """深色背景装饰: 中部柔光 + 淡绿光晕 + 微细圆点"""
     w, h = bg.size
     glow = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     gd = ImageDraw.Draw(glow)
     gd.ellipse([w * 0.16, h * 0.20, w * 0.84, h * 0.94], fill=(255, 255, 255, 13))
-    gd.ellipse([w * 0.30, h * 0.34, w * 0.70, h * 0.78], fill=ACCENT_SUB[:3] + (9,))
-    gd.ellipse([w * 0.60, h * 0.15, w * 0.95, h * 0.55], fill=CORAL + (7,))
+    gd.ellipse([w * 0.30, h * 0.34, w * 0.70, h * 0.78], fill=GREEN_SUB[:3] + (9,))
     glow = glow.filter(ImageFilter.GaussianBlur(int(140 * s)))
     bg.alpha_composite(glow)
     deco = Image.new("RGBA", (w, h), (0, 0, 0, 0))
@@ -186,7 +217,7 @@ def decorate_background(bg, s):
 
 
 def draw_callouts(draw, bg, callouts, canvas_w, y, s):
-    """底部卖点: 青绿圆角图标字 + 白色标题 + 灰色描述, 两个并排居中"""
+    """底部卖点: 绿色圆角图标字 + 白色标题 + 灰色描述, 两个并排居中"""
     icon_f = font(FONT_BOLD_PATH, int(46 * s))
     title_f = font(FONT_BOLD_PATH, int(42 * s))
     desc_f = font(FONT_REG_PATH, int(33 * s))
@@ -204,7 +235,7 @@ def draw_callouts(draw, bg, callouts, canvas_w, y, s):
     layer = Image.new("RGBA", bg.size, (0, 0, 0, 0))
     ld = ImageDraw.Draw(layer)
     for char, title, desc, wdt in items:
-        ld.rounded_rectangle([x, y, x + icon_sz, y + icon_sz], 26 * s, fill=ACCENT_ICON + (255,))
+        ld.rounded_rectangle([x, y, x + icon_sz, y + icon_sz], 26 * s, fill=GREEN_ICON + (255,))
         x += wdt + gap_between
     bg.alpha_composite(layer)
 
@@ -218,6 +249,10 @@ def draw_callouts(draw, bg, callouts, canvas_w, y, s):
         x += wdt + gap_between
 
 
+def load_enhanced(screen):
+    return Image.open(os.path.join(ENH_DIR, screen["file"]))
+
+
 def render_mac_screenshot(screen, out_path, canvas_w=2560, canvas_h=1600):
     """Mac App Store 横版截图 (2560x1600)"""
     s = canvas_w / 2560.0
@@ -225,7 +260,7 @@ def render_mac_screenshot(screen, out_path, canvas_w=2560, canvas_h=1600):
     decorate_background(bg, s)
     draw = ImageDraw.Draw(bg)
 
-    # 主标题 (白色) / 副标题 (亮青)
+    # 主标题 (白色) / 副标题 (亮绿)
     head_f = font(FONT_BOLD_PATH, int(116 * s))
     sub_f = font(FONT_REG_PATH, int(54 * s))
     tracking = 4 * s
@@ -233,23 +268,15 @@ def render_mac_screenshot(screen, out_path, canvas_w=2560, canvas_h=1600):
     draw_tracked(draw, ((canvas_w - hw) / 2, 108 * s), screen["headline"], head_f,
                  TEXT_WHITE, tracking)
     sw = draw.textlength(screen["sub"], font=sub_f)
-    draw.text(((canvas_w - sw) / 2, 268 * s), screen["sub"], font=sub_f, fill=ACCENT_SUB)
+    draw.text(((canvas_w - sw) / 2, 268 * s), screen["sub"], font=sub_f, fill=GREEN_SUB)
 
-    # 界面截图
-    src = Image.open(os.path.join(SRC_DIR, screen["file"]))
+    # 增强后的界面截图 (不超过增强图原生尺寸, 保证清晰)
+    src = load_enhanced(screen)
     max_w = 1900 * s
     max_h = 880 * s
     cw, ch = fit_size(src.width, src.height, max_w, max_h)
-    if cw > src.width * MAX_UPSCALE:  # 限制放大, 保证清晰
-        cw, ch = int(src.width * MAX_UPSCALE), int(src.height * MAX_UPSCALE)
     shot = src.resize((cw, ch), Image.LANCZOS)
-    shot = shot.filter(ImageFilter.UnsharpMask(radius=2, percent=60, threshold=2))
-
-    if screen["chrome"] == "window":
-        card, radius = mac_window(shot)
-    else:
-        radius = max(int(cw * 0.03), 18)
-        card = rounded_image(shot, radius)
+    card, radius = mac_window(shot)
 
     region_top, region_bot = 400 * s, 1300 * s
     card_x = int((canvas_w - card.width) / 2)
@@ -270,45 +297,44 @@ def render_banner(out_path, width, height):
     glow = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     gd = ImageDraw.Draw(glow)
     gd.ellipse([width * 0.45, height * 0.05, width * 1.15, height * 1.0], fill=(255, 255, 255, 12))
-    gd.ellipse([width * 0.55, height * 0.2, width * 0.98, height * 0.85], fill=ACCENT_SUB[:3] + (12,))
+    gd.ellipse([width * 0.55, height * 0.2, width * 0.98, height * 0.85], fill=GREEN_SUB[:3] + (12,))
     glow = glow.filter(ImageFilter.GaussianBlur(int(140 * s)))
     bg.alpha_composite(glow)
     draw = ImageDraw.Draw(bg)
 
-    # 左侧: 图标 + 名称 + 标语 + 特性
-    name_f = font(FONT_BOLD_PATH, int(140 * s))
-    tag_f = font(FONT_REG_PATH, int(54 * s))
-    li_f = font(FONT_REG_PATH, int(42 * s))
+    # 左侧文案
+    name_f = font(FONT_BOLD_PATH, int(150 * s))
+    tag_f = font(FONT_REG_PATH, int(56 * s))
+    li_f = font(FONT_REG_PATH, int(44 * s))
     x0 = 150 * s
-    icon = Image.open(APP_ICON).convert("RGBA").resize((int(180 * s), int(180 * s)), Image.LANCZOS)
-    bg.alpha_composite(icon, (int(x0), int(150 * s)))
-    draw.text((x0 + 210 * s, 190 * s), "PasteNest", font=name_f, fill=TEXT_WHITE)
-    draw.text((x0 + 210 * s, 380 * s), "剪贴板历史，随手可取", font=tag_f, fill=ACCENT_SUB)
-    bullets = ["自动保存 · 文本链接图片代码", "全文搜索 · 秒速定位",
-               "截图标注 · 本机识字", "iCloud 同步 · 多台 Mac"]
-    by = 640 * s
+    draw.text((x0, 200 * s), APP_TITLE, font=name_f, fill=TEXT_WHITE)
+    draw.text((x0, 400 * s), "让背单词更高效", font=tag_f, fill=GREEN_SUB)
+    bullets = ["海量词书 · 小初高大学全覆盖", "翻转卡片 · 智能记忆",
+               "词汇量测试 · 精准评估", "打卡统计 · 养成学习习惯"]
+    by = 560 * s
     for b in bullets:
-        draw.ellipse([x0 + 6 * s, by + 16 * s, x0 + 26 * s, by + 36 * s], fill=ACCENT_SUB)
+        draw.ellipse([x0 + 6 * s, by + 18 * s, x0 + 26 * s, by + 38 * s], fill=GREEN_SUB)
         draw.text((x0 + 56 * s, by), b, font=li_f, fill=(235, 233, 228))
-        by += 88 * s
+        by += 92 * s
 
-    # 右侧: 主窗口截图 (带窗口栏)
-    main_shot = Image.open(os.path.join(SRC_DIR, "01-main-window.png"))
-    mw = int(1080 * s)
-    mh = int(main_shot.height * mw / main_shot.width)
-    main_card, radius = mac_window(main_shot.resize((mw, mh), Image.LANCZOS))
-    main_card = main_card.rotate(-2, expand=True, resample=Image.BICUBIC)
-    paste_with_shadow(bg, main_card, (int(width - main_card.width - 130 * s), int(150 * s)),
-                      radius, blur=int(44 * s), offset=(0, int(24 * s)))
+    # 右侧: 竖屏单词卡片 + 宽屏词书页 (增强图)
+    card_img = load_enhanced(SCREENS[1])
+    ch_ = int(880 * s)
+    cw_ = int(card_img.width * ch_ / card_img.height)
+    hero, _ = mac_window(card_img.resize((cw_, ch_), Image.LANCZOS))
+    hero = hero.rotate(-4, expand=True, resample=Image.BICUBIC)
 
-    panel = Image.open(os.path.join(SRC_DIR, "04-menubar-panel.png"))
-    pw = int(560 * s)
-    ph = int(panel.height * pw / panel.width)
-    panel_card = rounded_image(panel.resize((pw, ph), Image.LANCZOS), radius=int(28 * s))
-    panel_card = panel_card.rotate(2, expand=True, resample=Image.BICUBIC)
-    paste_with_shadow(bg, panel_card, (int(width - main_card.width - panel_card.width - 60 * s),
-                                       int(height - panel_card.height - 100 * s)),
-                      int(28 * s), blur=int(40 * s), offset=(0, int(22 * s)))
+    home = load_enhanced(SCREENS[0])
+    hw_ = int(800 * s)
+    hh_ = int(home.height * hw_ / home.width)
+    home_card, _ = mac_window(home.resize((hw_, hh_), Image.LANCZOS))
+    home_card = home_card.rotate(3, expand=True, resample=Image.BICUBIC)
+
+    paste_with_shadow(bg, hero, (int(width - hero.width - 150 * s), int(90 * s)), 40,
+                      blur=int(44 * s), offset=(0, int(24 * s)))
+    paste_with_shadow(bg, home_card, (int(width - hero.width - home_card.width - 60 * s),
+                                      int(height - home_card.height - 90 * s)),
+                      36, blur=int(40 * s), offset=(0, int(22 * s)))
     bg.convert("RGB").save(out_path, "PNG")
     print("生成", out_path)
 
@@ -323,32 +349,26 @@ def render_square(out_path, size=1080):
     bg.alpha_composite(glow)
     draw = ImageDraw.Draw(bg)
 
-    name_f = font(FONT_BOLD_PATH, int(96 * s))
-    tag_f = font(FONT_REG_PATH, int(42 * s))
-    icon_sz = int(130 * s)
-    icon = Image.open(APP_ICON).convert("RGBA").resize((icon_sz, icon_sz), Image.LANCZOS)
-    nw = draw.textlength("PasteNest", font=name_f)
-    total_w = icon_sz + 30 * s + nw
-    ix = (size - total_w) / 2
-    bg.alpha_composite(icon, (int(ix), int(80 * s)))
-    draw.text((ix + icon_sz + 30 * s, 80 * s + icon_sz / 2), "PasteNest", font=name_f,
-              fill=TEXT_WHITE, anchor="lm")
-    tw = draw.textlength("剪贴板历史，随手可取", font=tag_f)
-    draw.text(((size - tw) / 2, 260 * s), "剪贴板历史，随手可取", font=tag_f, fill=ACCENT_SUB)
+    name_f = font(FONT_BOLD_PATH, int(110 * s))
+    tag_f = font(FONT_REG_PATH, int(44 * s))
+    nw = draw.textlength(APP_TITLE, font=name_f)
+    draw.text(((size - nw) / 2, 90 * s), APP_TITLE, font=name_f, fill=TEXT_WHITE)
+    tw = draw.textlength("让背单词更高效", font=tag_f)
+    draw.text(((size - tw) / 2, 240 * s), "让背单词更高效", font=tag_f, fill=GREEN_SUB)
 
-    main_shot = Image.open(os.path.join(SRC_DIR, "01-main-window.png"))
-    mw = int(880 * s)
-    mh = int(main_shot.height * mw / main_shot.width)
-    card, radius = mac_window(main_shot.resize((mw, mh), Image.LANCZOS))
-    paste_with_shadow(bg, card, (int((size - card.width) / 2), int(360 * s)), radius,
+    card_img = load_enhanced(SCREENS[1])
+    ch_ = int(560 * s)
+    cw_ = int(card_img.width * ch_ / card_img.height)
+    card, radius = mac_window(card_img.resize((cw_, ch_), Image.LANCZOS))
+    paste_with_shadow(bg, card, (int((size - card.width) / 2), int(350 * s)), radius,
                       blur=int(38 * s), offset=(0, int(20 * s)))
 
     pill_f = font(FONT_REG_PATH, int(32 * s))
-    pills = ["自动保存", "全文搜索", "截图识字", "iCloud 同步"]
+    pills = ["海量词书", "智能记忆", "词汇测试", "打卡统计"]
     widths = [draw.textlength(t, font=pill_f) + 64 * s for t in pills]
     gap = 24 * s
     total = sum(widths) + gap * (len(pills) - 1)
-    px, py = (size - total) / 2, 360 * s + card.height + 60 * s
+    px, py = (size - total) / 2, 350 * s + card.height + 70 * s
     ph = 68 * s
     layer = Image.new("RGBA", bg.size, (0, 0, 0, 0))
     ld = ImageDraw.Draw(layer)
@@ -369,6 +389,8 @@ def main():
     out_mkt = os.path.join(BASE_DIR, "marketing")
     for d in (out_mac, out_mkt):
         os.makedirs(d, exist_ok=True)
+
+    enhance_sources()
 
     for i, screen in enumerate(SCREENS, 1):
         name = f"{i:02d}-{os.path.splitext(screen['file'])[0]}.png"
