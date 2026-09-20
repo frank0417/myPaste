@@ -121,11 +121,17 @@ PasteNest 是一款常驻菜单栏的剪贴板历史管理工具。你复制的�
 
 ## 7. 审核备注（给审核员）
 
+首发务必把下面英文放进 **App Review Information → Notes**。若收到 Guideline 2.1 Information Needed（新账号补材料），按 [APP_REVIEW_REPLY.md](APP_REVIEW_REPLY.md) 回复 Resolution Center，并附上真机录屏。
+
 ```
-PasteNest 是菜单栏常驻应用（无 Dock 图标）。
-- 启动后图标出现在屏幕右上角菜单栏，点击或按 ⇧⌘V 唤出底部面板，按 ⌥⌘V 唤出主窗口（两者互斥显示）。
-- 「一键粘贴」功能需要辅助功能权限：设置 → 权限 → 按引导授权。不授权时其余功能（记录、搜索、查看）完全可用。
-- iCloud 同步为可选功能，未登录 iCloud 时应用全部本地功能正常。
+PasteNest is a menu-bar (LSUIElement) accessory app — no Dock icon.
+After launch, look at the right side of the menu bar for a stacked-square status item. Click it, or press Shift-Command-V, to open the bottom clipboard shelf. Press Option-Command-V for the main window. Right-click the status item to Quit or open Settings.
+
+No account, no login, no In-App Purchase. This is a paid Mac App Store download; after install all features are unlocked. History is the user’s own clipboard, stored on device. Optional iCloud sync uses the user’s Apple ID; the developer cannot read that data.
+
+Accessibility is only required to paste into other apps. Screen Recording is only required for screenshots. History, search, and viewing work without those permissions.
+
+First launch seeds a few sample items if the library is empty. Copy any text in another app to see a new card appear.
 ```
 
 ## 8. 定价（买断）

@@ -74,6 +74,7 @@ Paste/
 - [ ] App Store Connect 创建应用并设置买断价格（建议中国区 ¥28）
 - [ ] 托管隐私政策 URL（可用 `docs/PRIVACY.md`）与技术支持 URL
 - [ ] App Store Connect 截图与审核说明（需说明剪贴板与辅助功能用途）
+- [ ] 若审核要 Guideline 2.1 补材料：按 [docs/APP_REVIEW_REPLY.md](docs/APP_REVIEW_REPLY.md) 回复并附真机录屏
 
 ## 打安装包（.dmg / .pkg）
 

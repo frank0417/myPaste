@@ -205,11 +205,7 @@ App Store 包 **不需要** 公证（notarytool）。公证只用于站外 DMG�
 4. **截图**：上传第 6 步的图。
 5. **版权**：`2026 PasteNest`（或你的名字/公司）。
 6. **联系信息**：填你自己能接到的邮箱和电话（审核员可能打给你，不对外展示）。
-7. **审核备注**（Notes）：贴 APP_STORE.md 第 7 节，务必说明：
-   - 这是菜单栏应用，没有 Dock 图标
-   - 启动后看屏幕右上角
-   - 快捷键 `⇧⌘V` / `⌥⌘V`
-   - 辅助功能、屏幕录制是可选权限
+7. **审核备注**（Notes）：贴 [APP_STORE.md](APP_STORE.md) 第 7 节英文。必须说明这是菜单栏应用、Dock 里没有图标。若苹果回 Guideline 2.1 Information Needed，用 [APP_REVIEW_REPLY.md](APP_REVIEW_REPLY.md) 回复并附真机录屏。
 8. 点 **添加以供审核** → **提交以供审核**。
 
 macOS 应用通常 **24–48 小时** 出结果，也可能更久。
