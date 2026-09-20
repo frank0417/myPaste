@@ -40,8 +40,10 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         if statusItem == nil {
             let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
             if let button = item.button {
-                let image = NSImage(systemSymbolName: "square.stack.3d.up.fill", accessibilityDescription: "PasteNest")
-                image?.isTemplate = true
+                // 菜单栏图标与应用图标保持一致; copy 避免改动共享的 appIcon 尺寸
+                let image = NSImage(named: NSImage.applicationIconName)?.copy() as? NSImage
+                image?.isTemplate = false
+                image?.size = NSSize(width: 22, height: 22)
                 button.image = image
                 button.toolTip = PanelL10n.statusTooltip(appState.hotkeyDisplay)
                 button.target = self
