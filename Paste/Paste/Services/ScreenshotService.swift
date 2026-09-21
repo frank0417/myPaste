@@ -296,8 +296,9 @@ final class ScreenshotService: ObservableObject {
         }
     }
 
-    /// Writes the capture to 下载 as a PNG. Sandboxed builds cannot reach the folder
-    /// directly, so they fall back to a save panel pointed there.
+    /// Offers the capture as a PNG through a save panel. Guideline 2.4.5(i) requires
+    /// that MAS builds not claim unprompted Downloads access; user-selected
+    /// read-write is enough for NSSavePanel.
     func saveLastCapture() {
         guard let capture = lastCapture else { return }
         Self.saveImage(capture.pngData, suggestedName: Self.downloadFileName(), thumbnail: capture.thumbnail)
@@ -311,37 +312,19 @@ final class ScreenshotService: ObservableObject {
     }
 
     /// Shared by the action bar and the history cards' 保存图片 action.
+    /// Always uses NSSavePanel so the binary only needs `files.user-selected.read-write`.
     static func saveImage(_ pngData: Data, suggestedName: String, thumbnail: NSImage? = nil) {
-        let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
-        if let downloads {
-            let target = uniqueURL(in: downloads, name: suggestedName)
-            if (try? pngData.write(to: target, options: .atomic)) != nil {
-                ScreenshotHUD.shared.show(thumbnail: thumbnail, title: target.lastPathComponent, detail: ScreenshotL10n.string(.savedToDownloads))
-                return
-            }
-        }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.png]
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
         panel.nameFieldStringValue = suggestedName
-        panel.directoryURL = downloads
+        panel.directoryURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
         NSApp.activate(ignoringOtherApps: true)
         guard panel.runModal() == .OK, let url = panel.url else { return }
         if (try? pngData.write(to: url, options: .atomic)) != nil {
             ScreenshotHUD.shared.show(thumbnail: thumbnail, title: url.lastPathComponent, detail: ScreenshotL10n.string(.saved))
         }
-    }
-
-    /// "name.png", then "name 2.png", … so a burst of saves never overwrites.
-    static func uniqueURL(in directory: URL, name: String) -> URL {
-        let base = (name as NSString).deletingPathExtension
-        let ext = (name as NSString).pathExtension
-        var candidate = directory.appendingPathComponent(name)
-        var counter = 2
-        while FileManager.default.fileExists(atPath: candidate.path) {
-            candidate = directory.appendingPathComponent("\(base) \(counter)").appendingPathExtension(ext)
-            counter += 1
-        }
-        return candidate
     }
 
     /// A 识字 capture keeps only the words: the image is discarded, the text goes to

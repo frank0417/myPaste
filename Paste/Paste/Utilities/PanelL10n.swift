@@ -144,7 +144,7 @@ enum PanelL10n {
     static var recognizeHelp: String { pick("用 Vision 在本机识别这张截图里的文字", hant: "用 Vision 在本機辨識這張截圖裡的文字", en: "Recognize text in this screenshot on-device with Vision") }
     static var download: String { pick("下载", hant: "下載", en: "Save") }
     static var downloadImage: String { pick("下载图片", hant: "下載圖片", en: "Download image") }
-    static var downloadHelp: String { pick("保存为 PNG 到「下载」", hant: "儲存為 PNG 到「下載」", en: "Save as PNG to Downloads") }
+    static var downloadHelp: String { pick("保存为 PNG", hant: "儲存為 PNG", en: "Save as PNG") }
     static var favorite: String { pick("收藏（长期保存）", hant: "收藏（長期保存）", en: "Save (keep forever)") }
     static var favoriteHelp: String { pick("收藏，长期保存", hant: "收藏，長期保存", en: "Save, keep forever") }
     static var unfavorite: String { pick("从收藏夹移除", hant: "從收藏夾移除", en: "Remove from Saved") }

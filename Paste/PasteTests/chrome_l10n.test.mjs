@@ -40,11 +40,15 @@ assertTrue(/hant: "辨識文字"/.test(l10n), "panel OCR uses Traditional Chines
 assertTrue(/en: "Read"/.test(l10n), "panel OCR chip stays a short English verb");
 
 for (const key of [
-  "imageCopied", "modeRegion", "textCapture", "permissionTitle", "savedToDownloads", "ocrEmpty", "ocrWorking"
+  "imageCopied", "modeRegion", "textCapture", "permissionTitle", "saved", "ocrEmpty", "ocrWorking"
 ]) {
   assertTrue(editor.split(`.${key}:`).length >= 4, `ScreenshotL10n.${key} exists in all three languages`);
 }
 
+assertTrue(/en: "Save as PNG"/.test(l10n), "download help describes a save panel");
+assertTrue(!/Save as PNG to Downloads/.test(l10n), "download help no longer promises the Downloads folder");
+assertTrue(!/savedToDownloads/.test(editor), "overlay l10n dropped savedToDownloads");
+assertTrue(!/savedToDownloads/.test(preview), "preview toast no longer claims a silent Downloads save");
 assertTrue(/ScreenshotL10n\.string\(\.imageCopied\)/.test(service), "HUD copied-image uses ScreenshotL10n");
 assertTrue(/ScreenshotL10n\.string\(\.ocrEmpty\)/.test(service), "HUD empty OCR uses ScreenshotL10n");
 assertTrue(/ScreenshotL10n\.modeTitle/.test(service), "capture-mode titles use ScreenshotL10n");

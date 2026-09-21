@@ -106,7 +106,7 @@ enum ScreenshotL10n {
         case recognizeText, close, copy, ocrEmpty, ocrWorking, ocrDismiss
         case modeRegion, modeWindow, modeFullScreen
         case subtitleRegion, subtitleWindow, subtitleFullScreen
-        case imageCopied, copiedSuffix, savedToDownloads, saved
+        case imageCopied, copiedSuffix, saved
         case textCapture, sourceScreenshot
         case permissionTitle, permissionBody, openSystemSettings, later
         case captureFailed, captureFailedBody, captureFailedBodyCode, ok
@@ -255,7 +255,6 @@ enum ScreenshotL10n {
             .subtitleFullScreen: "整屏截图",
             .imageCopied: "图片已复制",
             .copiedSuffix: "已复制",
-            .savedToDownloads: "已保存到「下载」",
             .saved: "已保存",
             .textCapture: "截图识字",
             .sourceScreenshot: "截图",
@@ -301,7 +300,6 @@ enum ScreenshotL10n {
             .subtitleFullScreen: "整屏截圖",
             .imageCopied: "圖片已複製",
             .copiedSuffix: "已複製",
-            .savedToDownloads: "已儲存到「下載」",
             .saved: "已儲存",
             .textCapture: "截圖識字",
             .sourceScreenshot: "截圖",
@@ -347,7 +345,6 @@ enum ScreenshotL10n {
             .subtitleFullScreen: "Full-screen screenshot",
             .imageCopied: "Image copied",
             .copiedSuffix: "Copied",
-            .savedToDownloads: "Saved to Downloads",
             .saved: "Saved",
             .textCapture: "Screenshot OCR",
             .sourceScreenshot: "Screenshot",

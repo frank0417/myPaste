@@ -98,7 +98,7 @@ PasteNest 是一款常驻菜单栏的剪贴板历史管理工具。你复制的�
 
 **注意：** 上架版本使用 `Paste.entitlements`（沙盒 + iCloud），与 CI 直装包（`Paste-CI.entitlements`，关沙盒）不同。沙盒下「一键粘贴到其他 App」需要用户授予辅助功能权限，应用内已有引导。
 
-**截图功能与沙盒：** 截图通过 ScreenCaptureKit 冻结当前屏幕，再自绘选区与标注层（矩形 / 箭头 / 马赛克 / 文字等）。需要用户授予「屏幕录制」权限；该路径可在沙盒内运行，App Store 构建无需再调用 `/usr/sbin/screencapture`。系统 `screencapture` 仅作为抓取失败时的兜底（非沙盒直装包才可能走这条路径）。
+**截图功能与沙盒：** 截图通过 ScreenCaptureKit 冻结当前屏幕，再自绘选区与标注层（矩形 / 箭头 / 马赛克 / 文字等）。需要用户授予「屏幕录制」权限；该路径可在沙盒内运行，App Store 构建无需再调用 `/usr/sbin/screencapture`。系统 `screencapture` 仅作为抓取失败时的兜底（非沙盒直装包才可能走这条路径）。保存 PNG 走系统保存面板，只申请 `com.apple.security.files.user-selected.read-write`，不申请 Downloads 目录的无提示读写（Guideline 2.4.5(i)）。
 
 ## 6. 构建与上传
 
@@ -124,6 +124,7 @@ PasteNest 是菜单栏常驻应用（无 Dock 图标）。
 - 启动后图标出现在屏幕右上角菜单栏，点击或按 ⇧⌘V 唤出底部面板，按 ⌥⌘V 唤出主窗口（两者互斥显示）。
 - 「一键粘贴」功能需要辅助功能权限：设置 → 权限 → 按引导授权。不授权时其余功能（记录、搜索、查看）完全可用。
 - iCloud 同步为可选功能，未登录 iCloud 时应用全部本地功能正常。
+- Saving a screenshot or clipboard image presents the standard macOS Save panel. The app does not write to Downloads without the user choosing a location, and therefore does not include com.apple.security.files.downloads.read-write.
 ```
 
 ## 8. 定价建议

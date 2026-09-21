@@ -3,6 +3,13 @@
 // output file classify the attempt, and what the history payload looks like for the
 // two purposes — plain capture keeps the image, 识字 keeps only the text.
 
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../Paste");
+const src = fs.readFileSync(path.join(root, "Services/ScreenshotService.swift"), "utf8");
+
 const MODES = ["region", "window", "fullScreen"];
 
 const L10N = {
@@ -257,31 +264,35 @@ for (const lang of ["zh-Hans", "zh-Hant", "en"]) {
 assertEqual(pasteboardTypes("image"), ["tiff", "png"], "a plain capture offers the image");
 assertEqual(pasteboardTypes("text"), ["string"], "a 识字 capture offers only the text");
 
-// --- 下载截图: file naming -----------------------------------------------------
-// Mirrors ScreenshotService.downloadFileName and uniqueURL: a timestamped PNG in
-// 下载, and a numeric suffix rather than an overwrite when the name is taken.
+// --- 保存截图: file naming + App Store sandbox entitlements --------------------
+// Mirrors ScreenshotService.downloadFileName. Saving always goes through
+// NSSavePanel, so MAS builds must not claim Downloads-folder access.
 function downloadFileName(date, lang = "zh-Hans") {
   const p = (n) => String(n).padStart(2, "0");
   const stamp = `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())} ${p(date.getHours())}.${p(date.getMinutes())}.${p(date.getSeconds())}`;
   return `${L10N[lang].downloadPrefix} ${stamp}.png`;
 }
-function uniqueName(existing, name) {
-  const dot = name.lastIndexOf(".");
-  const base = name.slice(0, dot);
-  const ext = name.slice(dot + 1);
-  let candidate = name;
-  let counter = 2;
-  while (existing.has(candidate)) {
-    candidate = `${base} ${counter}.${ext}`;
-    counter += 1;
-  }
-  return candidate;
-}
 const when = new Date(2026, 8, 16, 10, 12, 3);
 assertEqual(downloadFileName(when), "PasteNest 截图 2026-09-16 10.12.03.png", "download name carries a sortable timestamp");
-assertEqual(uniqueName(new Set(), "a.png"), "a.png", "a free name is used as is");
-assertEqual(uniqueName(new Set(["a.png"]), "a.png"), "a 2.png", "a taken name gets a suffix");
-assertEqual(uniqueName(new Set(["a.png", "a 2.png"]), "a.png"), "a 3.png", "the suffix keeps counting");
+
+const entitlements = fs.readFileSync(path.join(root, "Paste.entitlements"), "utf8");
+assertTrue(
+  entitlements.includes("com.apple.security.files.user-selected.read-write"),
+  "MAS entitlements allow the save panel"
+);
+assertTrue(
+  !entitlements.includes("com.apple.security.files.downloads.read-write"),
+  "MAS entitlements do not claim unprompted Downloads access"
+);
+assertTrue(/NSSavePanel\(\)/.test(src), "saveImage presents NSSavePanel");
+assertTrue(
+  /ScreenshotL10n\.string\(\.saved\)/.test(src),
+  "save HUD uses the generic saved string"
+);
+assertTrue(
+  !/savedToDownloads/.test(src),
+  "saveImage no longer writes straight to Downloads"
+);
 
 // --- the action bar after a capture --------------------------------------------
 // Mirrors ScreenshotActionBar.position: hang below the anchor, clamped on screen,

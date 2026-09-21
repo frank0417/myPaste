@@ -178,7 +178,7 @@ final class ClipboardStore: ObservableObject {
         EmbeddingIndex.shared.upsert(id: item.id, text: item.searchableText)
     }
 
-    /// Saves an image item as a PNG in 下载 (or via a save panel when sandboxed).
+    /// Saves an image item as a PNG through a save panel.
     func saveImage(_ item: ClipboardItem) {
         guard item.contentType == .image, let data = item.imageData else { return }
         let png = Self.pngData(from: data) ?? data

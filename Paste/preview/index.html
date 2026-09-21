@@ -986,7 +986,7 @@
         recognizeText: "识别文字", copy: "复制", ocrDismiss: "取消", ocrEmpty: "未识别到文字",
         cancel: "取消（Esc）", confirm: "完成（Enter）",
         textPlaceholder: "输入文字", imageCopied: "图片已复制",
-        savedToDownloads: "已保存到「下载」", screenshot: "截图",
+        saved: "已保存", screenshot: "截图",
         subtitleRegion: "区域截图", overlay: "截图标注"
       },
       "zh-Hant": {
@@ -996,7 +996,7 @@
         recognizeText: "辨識文字", copy: "複製", ocrDismiss: "取消", ocrEmpty: "未辨識到文字",
         cancel: "取消（Esc）", confirm: "完成（Enter）",
         textPlaceholder: "輸入文字", imageCopied: "圖片已複製",
-        savedToDownloads: "已儲存到「下載」", screenshot: "截圖",
+        saved: "已儲存", screenshot: "截圖",
         subtitleRegion: "區域截圖", overlay: "截圖標註"
       },
       en: {
@@ -1006,7 +1006,7 @@
         recognizeText: "Recognize text", copy: "Copy", ocrDismiss: "Cancel", ocrEmpty: "No text found",
         cancel: "Cancel (Esc)", confirm: "Done (Enter)",
         textPlaceholder: "Type text", imageCopied: "Image copied",
-        savedToDownloads: "Saved to Downloads", screenshot: "Screenshot",
+        saved: "Saved", screenshot: "Screenshot",
         subtitleRegion: "Region screenshot", overlay: "Screenshot overlay"
       }
     };
@@ -1575,7 +1575,7 @@
       drawStrokes();
     };
     document.getElementById("shotDownload").onclick = () => {
-      shot.toast.textContent = SHOT_HINTS[shotLang].savedToDownloads;
+      shot.toast.textContent = SHOT_HINTS[shotLang].saved;
       shot.toast.classList.add("show");
       setTimeout(() => shot.toast.classList.remove("show"), 1600);
     };
