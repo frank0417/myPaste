@@ -1193,7 +1193,7 @@ struct ClipboardItemDetailOverlay: View {
             ShelfActionLabel(title: PanelL10n.paste, systemImage: "return", compact: compact)
         }
         .buttonStyle(ShelfAccentButtonStyle())
-        .help(PanelL10n.paste)
+        .help(PanelL10n.pasteHelp)
     }
 }
 

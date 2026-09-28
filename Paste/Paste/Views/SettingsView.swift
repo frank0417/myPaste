@@ -126,17 +126,6 @@ struct SettingsView: View {
 
             settingsCard(PanelL10n.permissions) {
                 permissionRow(
-                    title: PanelL10n.accessibility,
-                    allowed: AccessibilityPermission.isTrusted,
-                    caption: PanelL10n.accessibilityCaption
-                ) {
-                    settingsChip(PanelL10n.allowInSystemSettings) {
-                        AccessibilityPermission.requestIfNeeded(prompt: true)
-                        AccessibilityPermission.openSystemSettings()
-                    }
-                }
-                cardDivider
-                permissionRow(
                     title: PanelL10n.screenRecording,
                     allowed: ScreenshotService.hasScreenRecordingAccess,
                     caption: PanelL10n.screenRecordingCaption

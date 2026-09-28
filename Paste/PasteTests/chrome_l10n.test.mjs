@@ -85,7 +85,19 @@ assertTrue(/ScreenshotL10n\.hudRecognizedMenu/.test(store), "history OCR HUD fol
 assertTrue(/ScreenshotL10n\.stripOCRSuffix/.test(store), "OCR subtitle stripping understands every language");
 
 assertTrue(/PanelL10n\.paste/.test(previewPane) && /PanelL10n\.recognizeText/.test(previewPane), "preview pane actions are localized");
-assertTrue(/\.help\(PanelL10n\.paste\)/.test(previewPane), "paste is an icon with a localized hover hint");
+assertTrue(/en: "Copied — press ⌘V to paste"/.test(l10n), "paste HUD tells the user to press ⌘V");
+assertTrue(!/Instant paste into other apps/.test(l10n), "settings copy no longer advertises Accessibility paste");
+assertTrue(!/accessibilityCaption/.test(l10n), "Accessibility paste caption is gone");
+assertTrue(!/AccessibilityPermission/.test(settings), "settings do not request Accessibility");
+assertTrue(/PanelL10n\.screenRecording/.test(settings), "settings still explain Screen Recording");
+assertTrue(!/NSAccessibilityUsageDescription/.test(read("Info.plist")), "Info.plist does not declare Accessibility usage");
+assertTrue(!/NSAppleEventsUsageDescription/.test(read("Info.plist")), "Info.plist does not declare Apple Events paste injection");
+assertTrue(!/simulatePasteKeystroke/.test(store), "clipboard store does not synthesize ⌘V");
+assertTrue(!/CGEvent\(keyboardEventSource/.test(store), "clipboard store does not post HID key events");
+assertTrue(/PanelL10n\.copiedPressToPaste/.test(store), "paste shows a press-⌘V HUD");
+assertTrue(!/accessibilityCaption/.test(preview), "preview settings no longer mention Accessibility paste");
+assertTrue(/data-i18n="screenRecording"/.test(preview), "preview settings show Screen Recording");
+assertTrue(/\.help\(PanelL10n\.pasteHelp\)/.test(previewPane), "paste is an icon with a localized hover hint");
 assertTrue(/\.help\(PanelL10n\.copy\)/.test(previewPane), "copy is an icon with a localized hover hint");
 assertTrue(/\.help\(PanelL10n\.favoriteTagHelp\)/.test(previewPane), "tag menu hover hint follows the app language");
 assertTrue(/\.help\(PanelL10n\.assignBoardHelp\)/.test(previewPane), "board menu hover hint follows the app language");

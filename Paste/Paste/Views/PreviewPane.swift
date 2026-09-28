@@ -207,7 +207,7 @@ struct PreviewPane: View {
                 previewIcon("return")
             }
             .buttonStyle(ShelfAccentButtonStyle())
-            .help(PanelL10n.paste)
+            .help(PanelL10n.pasteHelp)
             .accessibilityLabel(PanelL10n.paste)
 
             Button {

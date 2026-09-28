@@ -78,19 +78,19 @@ final class ClipboardStore: ObservableObject {
         enforceHistoryLimit()
     }
 
+    /// Puts the item on the system clipboard. Guideline 2.4.5 forbids using
+    /// Accessibility to inject ⌘V into other apps, so the user pastes themselves.
     func paste(_ item: ClipboardItem) {
         writeToPasteboard(item) { [weak self] in
             guard let self else { return }
             item.pasteCount += 1
             item.updatedAt = .now
             try? self.modelContext.save()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-                // Accessibility is only required to synthesize ⌘V. Content is already on the pasteboard.
-                if !AccessibilityPermission.isTrusted {
-                    AccessibilityPermission.requestIfNeeded(prompt: true)
-                }
-                Self.simulatePasteKeystroke()
-            }
+            ScreenshotHUD.shared.show(
+                thumbnail: item.thumbnailData.flatMap(NSImage.init(data:)),
+                title: item.previewTitle,
+                detail: PanelL10n.copiedPressToPaste
+            )
         }
     }
 
@@ -470,15 +470,5 @@ final class ClipboardStore: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
             self?.compactOversizedImages(after: lastDate, passes: passes + 1)
         }
-    }
-
-    private static func simulatePasteKeystroke() {
-        let source = CGEventSource(stateID: .hidSystemState)
-        let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true)
-        let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false)
-        keyDown?.flags = .maskCommand
-        keyUp?.flags = .maskCommand
-        keyDown?.post(tap: .cghidEventTap)
-        keyUp?.post(tap: .cghidEventTap)
     }
 }

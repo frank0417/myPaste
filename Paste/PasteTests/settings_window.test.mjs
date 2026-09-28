@@ -158,6 +158,14 @@ assertTrue(
   /setContentSize\(NSSize\(width: 560, height: 560\)\)/.test(controller),
   "settings window is sized for the card layout"
 );
+assertTrue(
+  !/AccessibilityPermission/.test(settings),
+  "settings no longer expose an Accessibility permission row"
+);
+assertTrue(
+  /PanelL10n\.screenRecording/.test(settings),
+  "screenshot permission remains on the settings permissions card"
+);
 
 if (failed > 0) {
   console.error(`\n${failed} test(s) failed`);

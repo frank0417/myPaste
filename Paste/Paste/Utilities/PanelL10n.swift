@@ -136,6 +136,12 @@ enum PanelL10n {
 
     static var details: String { pick("查看详情", hant: "查看詳細資料", en: "Details") }
     static var paste: String { pick("粘贴", hant: "貼上", en: "Paste") }
+    static var pasteHelp: String {
+        pick("放到剪贴板并关闭，然后在目标应用按 ⌘V", hant: "放到剪貼簿並關閉，然後在目標 App 按 ⌘V", en: "Copy to the clipboard and close, then press ⌘V")
+    }
+    static var copiedPressToPaste: String {
+        pick("已复制，按 ⌘V 粘贴", hant: "已複製，按 ⌘V 貼上", en: "Copied — press ⌘V to paste")
+    }
     static var copy: String { pick("复制", hant: "複製", en: "Copy") }
     static var cancel: String { pick("取消", hant: "取消", en: "Cancel") }
     static var copyText: String { pick("复制文字", hant: "複製文字", en: "Text") }
@@ -269,15 +275,6 @@ enum PanelL10n {
         )
     }
     static var permissions: String { pick("权限", hant: "權限", en: "Permissions") }
-    static var accessibility: String { pick("辅助功能", hant: "輔助使用", en: "Accessibility") }
-    static var accessibilityCaption: String {
-        pick(
-            "自动记录复制内容不需要辅助功能。只有「一键粘贴到其他 App」才需要。若列表里没有 PasteNest，先点此按钮再刷新列表。",
-            hant: "自動記錄複製內容不需要輔助使用。只有「一鍵貼到其他 App」才需要。若列表裡沒有 PasteNest，先點此按鈕再重新整理列表。",
-            en: "Watching the clipboard does not need Accessibility. Instant paste into other apps does. If PasteNest is missing from the list, tap this button, then refresh."
-        )
-    }
-    static var allowInSystemSettings: String { pick("在系统设置中允许…", hant: "在系統設定中允許…", en: "Allow in System Settings…") }
     static var screenRecording: String { pick("屏幕录制", hant: "螢幕錄製", en: "Screen Recording") }
     static var screenRecordingCaption: String {
         pick(
@@ -539,7 +536,7 @@ enum PanelL10n {
     }
     static var selectToPreview: String { pick("选择一条记录以预览", hant: "選擇一則記錄以預覽", en: "Select an item to preview") }
     static var openLinkHint: String {
-        pick("点击打开链接，或直接粘贴到当前应用。", hant: "點擊打開連結，或直接貼上到目前的 App。", en: "Click to open the link, or paste it into the current app.")
+        pick("点击打开链接，或按 ⌘V 粘贴到当前应用。", hant: "點擊打開連結，或按 ⌘V 貼上到目前的 App。", en: "Click to open the link, or press ⌘V to paste it into the current app.")
     }
     static var source: String { pick("来源", hant: "來源", en: "Source") }
     static var copiedAt: String { pick("复制时间", hant: "複製時間", en: "Copied") }

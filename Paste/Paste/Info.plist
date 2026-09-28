@@ -30,10 +30,6 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2026 PasteNest. All rights reserved.</string>
-	<key>NSAppleEventsUsageDescription</key>
-	<string>PasteNest 需要辅助功能权限，以便将历史记录直接粘贴到其他应用。</string>
-	<key>NSAccessibilityUsageDescription</key>
-	<string>PasteNest 使用辅助功能将选中的剪贴板内容粘贴到当前应用。</string>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>PasteNest 需要屏幕录制权限，以便截取屏幕、标注后存入剪贴板历史。</string>
 </dict>
